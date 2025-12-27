@@ -29,8 +29,8 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 background: resolve(__dirname, 'src/background/index.ts'),
-                options: resolve(__dirname, 'src/options/index.html'),
                 sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
+                options: resolve(__dirname, 'src/options/index.html'),
             },
             output: {
                 entryFileNames: '[name]/index.js',

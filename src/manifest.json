@@ -13,6 +13,14 @@
     "side_panel": {
         "default_path": "src/sidepanel/index.html"
     },
+    "action": {
+        "default_title": "Open Chrome Cleaner",
+        "default_icon": {
+            "16": "icon.png",
+            "48": "icon.png",
+            "128": "icon.png"
+        }
+    },
     "background": {
         "service_worker": "background/index.js",
         "type": "module"

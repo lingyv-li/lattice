@@ -3,6 +3,10 @@ import { scanDownloads } from '../utils/cleaner';
 
 console.log('Chrome Cleaner Background Service Worker Started');
 
+
+// Ensure clicking the icon opens the side panel
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // Log every status update to see if logic is reached
     if (changeInfo.status === 'complete') {
@@ -34,40 +38,44 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
             console.log(`Scan complete. Cleanable items matching settings: ${cleanableCount} (Missing: ${result.missingFiles.length}, Interrupted: ${result.interruptedFiles.length})`);
 
             if (cleanableCount > 0) {
-                console.log('Attempting to open popup window...');
+                console.log('Cleanable items found. enabling and opening side panel...');
 
-                // Check if a popup is already open to avoid spam
-                const windows = await chrome.windows.getAll({ populate: true });
-                const existingPopup = windows.find(w => w.type === 'popup' && w.tabs?.some(t => t.url?.includes('popup/index.html')));
-
-                if (existingPopup) {
-                    console.log('Popup already open, focusing it.');
-                    if (existingPopup.id) chrome.windows.update(existingPopup.id, { focused: true });
-                    return;
-                }
-
-                const width = 340;
-                const height = 450;
-
-                // Get current window to center
-                const currentWindow = await chrome.windows.getCurrent();
-                const left = (currentWindow.left || 0) + ((currentWindow.width || 800) / 2) - (width / 2);
-                const top = (currentWindow.top || 0) + ((currentWindow.height || 600) / 2) - (height / 2);
-
-                chrome.windows.create({
-                    url: 'src/popup/index.html',
-                    type: 'popup',
-                    width: width,
-                    height: height,
-                    left: Math.round(left),
-                    top: Math.round(top),
-                    focused: true
+                // Enable side panel specific to this tab
+                await chrome.sidePanel.setOptions({
+                    tabId,
+                    path: 'src/sidepanel/index.html',
+                    enabled: true
                 });
+
+                // Attempt to open it. This requires a user gesture in most cases, 
+                // but might work if triggered closely to navigation or if dev mode is loose.
+                // If it fails, the user will see the icon and can click it.
+                try {
+                    await chrome.sidePanel.open({ tabId });
+                    console.log('Side panel opened successfully.');
+                } catch (e) {
+                    console.log('Could not auto-open side panel (likely needs user gesture):', e);
+                }
             } else {
-                console.log('No cleanable items found, skipping popup.');
+                console.log('No cleanable items found, disabling side panel.');
+                await chrome.sidePanel.setOptions({
+                    tabId,
+                    enabled: false
+                });
             }
         } catch (error) {
             console.error('Error in background script:', error);
+        }
+    } else if (changeInfo.status === 'complete' && !tab.url?.startsWith('chrome://downloads')) {
+        // Disable side panel on other tabs to avoid clutter
+        // We catch errors just in case the tab closed
+        try {
+            await chrome.sidePanel.setOptions({
+                tabId,
+                enabled: false
+            });
+        } catch (e) {
+            // ignore
         }
     }
 });
