@@ -67,15 +67,15 @@ const App = () => {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-screen w-screen bg-zinc-50 dark:bg-zinc-950">
-                <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+            <div className="flex items-center justify-center h-screen w-screen bg-zinc-50 dark:bg-zinc-900">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
             </div>
         );
     }
 
     if (done) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen w-screen bg-zinc-50 dark:bg-zinc-950 p-6 text-center">
+            <div className="flex flex-col items-center justify-center h-screen w-screen bg-zinc-50 dark:bg-zinc-900 p-6 text-center">
                 <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
                     <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
@@ -90,7 +90,7 @@ const App = () => {
 
     if (view === 'details') {
         return (
-            <div className="h-screen w-screen bg-white dark:bg-zinc-950 flex flex-col font-sans">
+            <div className="h-screen w-screen bg-white dark:bg-zinc-900 flex flex-col font-sans">
                 <div className="flex items-center p-4 border-b border-zinc-100 dark:border-zinc-800">
                     <button
                         onClick={() => setView('summary')}
@@ -141,12 +141,12 @@ const App = () => {
     }
 
     return (
-        <div className="h-screen w-screen bg-white dark:bg-zinc-950 flex flex-col p-6 font-sans">
+        <div className="h-screen w-screen bg-white dark:bg-zinc-900 flex flex-col p-6 font-sans">
             <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 bg-teal-100 dark:bg-teal-900/30 rounded-full flex items-center justify-center mb-4 relative">
-                    <Trash2 className="w-8 h-8 text-teal-600 dark:text-teal-400" />
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mb-4 relative">
+                    <Trash2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                     {selectedCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full border-2 border-white dark:border-zinc-950">
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full border-2 border-white dark:border-zinc-900">
                             {selectedCount}
                         </span>
                     )}
@@ -161,11 +161,11 @@ const App = () => {
                     <button
                         onClick={() => missingItems.length > 0 && setCleanMissing(!cleanMissing)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${cleanMissing
-                                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'
-                                : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                            ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'
+                            : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-900'
                             } ${missingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
-                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${cleanMissing ? 'bg-teal-500 border-teal-500' : 'border-zinc-300 dark:border-zinc-600'
+                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${cleanMissing ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600'
                             }`}>
                             {cleanMissing && <CheckCircle className="w-3 h-3 text-white" />}
                         </div>
@@ -175,11 +175,11 @@ const App = () => {
                     <button
                         onClick={() => interruptedItems.length > 0 && setCleanInterrupted(!cleanInterrupted)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-full border transition-all ${cleanInterrupted
-                                ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'
-                                : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                            ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100'
+                            : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-900'
                             } ${interruptedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
-                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${cleanInterrupted ? 'bg-teal-500 border-teal-500' : 'border-zinc-300 dark:border-zinc-600'
+                        <div className={`w-4 h-4 rounded flex items-center justify-center border ${cleanInterrupted ? 'bg-blue-500 border-blue-500' : 'border-zinc-300 dark:border-zinc-600'
                             }`}>
                             {cleanInterrupted && <CheckCircle className="w-3 h-3 text-white" />}
                         </div>
@@ -189,7 +189,7 @@ const App = () => {
 
                 <button
                     onClick={() => setView('details')}
-                    className="text-xs text-teal-600 dark:text-teal-400 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
+                    className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center justify-center gap-1 cursor-pointer"
                 >
                     View Details <ChevronRight className="w-3 h-3" />
                 </button>
@@ -205,7 +205,7 @@ const App = () => {
                 <button
                     onClick={handleClean}
                     disabled={cleaning || selectedCount === 0}
-                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-teal-600 hover:bg-teal-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
+                    className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
                 >
                     {cleaning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Clean Now'}
                 </button>
