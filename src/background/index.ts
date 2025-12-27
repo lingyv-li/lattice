@@ -47,21 +47,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     enabled: true
                 });
 
-                // Attempt to open it. This requires a user gesture in most cases, 
-                // but might work if triggered closely to navigation or if dev mode is loose.
-                // If it fails, the user will see the icon and can click it.
-                try {
-                    await chrome.sidePanel.open({ tabId });
-                    console.log('Side panel opened successfully.');
-                } catch (e) {
-                    console.log('Could not auto-open side panel (likely needs user gesture):', e);
-                }
+                // Open side panel requires user gesture, so we just enable it and show a badge
+                await chrome.action.setBadgeText({ tabId, text: cleanableCount.toString() });
+                await chrome.action.setBadgeBackgroundColor({ tabId, color: '#E53935' }); // Red color
+
+                console.log('Side panel enabled and badge set. User must click icon to open.');
             } else {
                 console.log('No cleanable items found, disabling side panel.');
                 await chrome.sidePanel.setOptions({
                     tabId,
                     enabled: false
                 });
+                await chrome.action.setBadgeText({ tabId, text: '' });
             }
         } catch (error) {
             console.error('Error in background script:', error);
@@ -74,6 +71,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 tabId,
                 enabled: false
             });
+            await chrome.action.setBadgeText({ tabId, text: '' });
         } catch (e) {
             // ignore
         }
