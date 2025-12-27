@@ -4,8 +4,18 @@ import { scanDownloads } from '../utils/cleaner';
 console.log('Chrome Cleaner Background Service Worker Started');
 
 
+// Track the popup window to prevent duplicates
+let cleanerWindowId: number | undefined;
+
 // Ensure clicking the icon opens the side panel
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+
+// Clean up window ID if it's closed
+chrome.windows.onRemoved.addListener((windowId) => {
+    if (windowId === cleanerWindowId) {
+        cleanerWindowId = undefined;
+    }
+});
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // Log every status update to see if logic is reached
@@ -48,10 +58,33 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 });
 
                 // Open side panel requires user gesture, so we just enable it and show a badge
-                await chrome.action.setBadgeText({ tabId, text: cleanableCount.toString() });
-                await chrome.action.setBadgeBackgroundColor({ tabId, color: '#E53935' }); // Red color
+                // Also open a small popup window if not already open
+                if (!cleanerWindowId) {
+                    try {
+                        const win = await chrome.windows.create({
+                            url: 'src/sidepanel/index.html',
+                            type: 'popup',
+                            width: 380,
+                            height: 600,
+                            focused: true
+                        });
+                        if (win) {
+                            cleanerWindowId = win.id;
+                            console.log('Cleaner popup opened automatically:', cleanerWindowId);
+                        }
+                    } catch (e) {
+                        console.error('Failed to open popup window:', e);
+                    }
+                } else {
+                    // Focus existing window
+                    try {
+                        await chrome.windows.update(cleanerWindowId, { focused: true });
+                    } catch (e) {
+                        cleanerWindowId = undefined; // Window might have been closed/invalid
+                    }
+                }
 
-                console.log('Side panel enabled and badge set. User must click icon to open.');
+                console.log('Side panel enabled and badge set. Popup attempted.');
             } else {
                 console.log('No cleanable items found, disabling side panel.');
                 await chrome.sidePanel.setOptions({
