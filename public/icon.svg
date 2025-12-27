@@ -1,5 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#14b8a6"/>
-  <path d="M84 44L44 84M44 44l40 40" stroke="white" stroke-width="12" stroke-linecap="round"/>
-  <circle cx="64" cy="64" r="50" stroke="white" stroke-width="8" fill="none" opacity="0.3"/>
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="128" height="128" rx="28" fill="url(#paint0_linear)"/>
+<!-- Golden Ratio Lines: 128 * 0.382 ≈ 49, 128 * 0.618 ≈ 79 -->
+<!-- Vertical Lines -->
+<path d="M49 28V100" stroke="white" stroke-width="10" stroke-linecap="round"/>
+<path d="M79 28V100" stroke="white" stroke-width="10" stroke-linecap="round"/>
+<!-- Horizontal Lines -->
+<path d="M28 49H100" stroke="white" stroke-width="10" stroke-linecap="round"/>
+<path d="M28 79H100" stroke="white" stroke-width="10" stroke-linecap="round"/>
+<defs>
+<linearGradient id="paint0_linear" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+<stop stop-color="#4F46E5"/>
+<stop offset="1" stop-color="#9333EA"/>
+</linearGradient>
+</defs>
 </svg>

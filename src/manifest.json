@@ -1,12 +1,13 @@
 {
     "manifest_version": 3,
-    "name": "Chrome Cleaner",
+    "name": "Lattice",
     "version": "0.1.0",
-    "description": "One-click optimization for your download history.",
+    "description": "Your AI-powered browser assistant for organizing tabs and cleaning history.",
     "permissions": [
         "downloads",
         "storage",
         "tabs",
+        "tabGroups",
         "sidePanel",
         "downloads.open"
     ],
