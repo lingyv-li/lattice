@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "Chrome Cleaner",
+    "version": "0.1.0",
+    "description": "One-click optimization for your download history.",
+    "permissions": [
+        "downloads",
+        "storage",
+        "tabs",
+        "sidePanel",
+        "downloads.open"
+    ],
+    "side_panel": {
+        "default_path": "src/sidepanel/index.html"
+    },
+    "background": {
+        "service_worker": "background/index.js",
+        "type": "module"
+    },
+    "options_ui": {
+        "page": "src/options/index.html",
+        "open_in_tab": true
+    },
+    "icons": {
+        "16": "icon.png",
+        "48": "icon.png",
+        "128": "icon.png"
+    }
+}
