@@ -18,11 +18,11 @@ export interface TabGroupMessage {
 }
 
 export interface TabGroupResponse {
-    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR' | 'CACHED_SUGGESTIONS';
+    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR' | 'CACHED_SUGGESTIONS' | 'PROCESSING_STATUS';
     value?: number;
     groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
     cachedSuggestions?: TabSuggestionCache[];
-    processingTabIds?: number[];
+    processingCount?: number;
     error?: string;
 }
 

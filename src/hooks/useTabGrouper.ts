@@ -95,8 +95,10 @@ export const useTabGrouper = () => {
                     setPreviewGroups(null);
                     if (status === 'reviewing') setStatus('idle');
                 }
+            }
 
-                setBackgroundProcessingCount(msg.processingTabIds?.length || 0);
+            if (msg.type === 'PROCESSING_STATUS') {
+                setBackgroundProcessingCount(msg.processingCount ?? 0);
             }
         });
 

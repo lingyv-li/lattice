@@ -47,8 +47,7 @@ const invalidateCache = async () => {
 const broadcastCacheUpdate = () => {
     const response: TabGroupResponse = {
         type: 'CACHED_SUGGESTIONS',
-        cachedSuggestions: Array.from(suggestionCache.values()),
-        processingTabIds: [...processingQueue, ...currentlyProcessing]
+        cachedSuggestions: Array.from(suggestionCache.values())
     };
 
     for (const port of connectedPorts) {
@@ -56,6 +55,22 @@ const broadcastCacheUpdate = () => {
             port.postMessage(response);
         } catch (e) {
             // Port disconnected
+            connectedPorts.delete(port);
+        }
+    }
+};
+
+const broadcastProcessingStatus = () => {
+    const count = processingQueue.size + currentlyProcessing.size;
+    const response: TabGroupResponse = {
+        type: 'PROCESSING_STATUS',
+        processingCount: count
+    };
+
+    for (const port of connectedPorts) {
+        try {
+            port.postMessage(response);
+        } catch (e) {
             connectedPorts.delete(port);
         }
     }
@@ -80,6 +95,9 @@ const queueUngroupedTabs = async () => {
         }
     }
 
+    if (ungroupedTabs.length > 0) {
+        broadcastProcessingStatus();
+    }
     scheduleProcessing();
 };
 
@@ -107,7 +125,7 @@ const processQueue = async () => {
         currentlyProcessing.add(id);
     }
 
-    broadcastCacheUpdate();
+    broadcastProcessingStatus();
 
     try {
         const allTabs = await chrome.tabs.query({ currentWindow: true });
@@ -162,10 +180,12 @@ const processQueue = async () => {
         }
 
         broadcastCacheUpdate();
+        broadcastProcessingStatus();
 
     } catch (err) {
         console.error("[TabGrouper] Background processing error:", err);
         currentlyProcessing.clear();
+        broadcastProcessingStatus();
     }
 };
 
@@ -176,6 +196,7 @@ chrome.tabs.onCreated.addListener((tab) => {
         setTimeout(() => {
             if (tab.id && !suggestionCache.has(tab.id)) {
                 processingQueue.add(tab.id);
+                broadcastProcessingStatus();
                 scheduleProcessing();
             }
         }, 2000);
@@ -194,6 +215,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.groupId === chrome.tabs.TAB_ID_NONE || changeInfo.url) {
         if (tab.groupId === chrome.tabs.TAB_ID_NONE && !suggestionCache.has(tabId)) {
             processingQueue.add(tabId);
+            broadcastProcessingStatus();
             scheduleProcessing();
         }
     }
@@ -226,8 +248,12 @@ chrome.runtime.onConnect.addListener((port) => {
             // Return current cache
             port.postMessage({
                 type: 'CACHED_SUGGESTIONS',
-                cachedSuggestions: Array.from(suggestionCache.values()),
-                processingTabIds: [...processingQueue, ...currentlyProcessing]
+                cachedSuggestions: Array.from(suggestionCache.values())
+            } as TabGroupResponse);
+            // Send current processing status
+            port.postMessage({
+                type: 'PROCESSING_STATUS',
+                processingCount: processingQueue.size + currentlyProcessing.size
             } as TabGroupResponse);
 
             // Also trigger background processing if there are ungrouped tabs not in cache
