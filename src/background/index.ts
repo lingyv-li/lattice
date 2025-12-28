@@ -1,49 +1,62 @@
-import { initializeDownloadMonitor } from '../utils/downloadMonitor';
 import { generateTabGroupSuggestions } from '../utils/ai';
-
+import { StorageManager } from '../utils/storage';
 import { TabGroupResponse, TabSuggestionCache } from '../types/tabGrouper';
 
-console.log("Background Service Worker Initialized");
-console.log("AI Availability:", self.LanguageModel ? "Available" : "Not Available");
+console.log("[Background] Service Worker Initialized");
 
-// ===== CACHE SYSTEM =====
-// Per-tab suggestion cache
-const suggestionCache = new Map<number, TabSuggestionCache>();
+// ===== CONSTANTS =====
+const ALARM_NAME = 'process_tabs_alarm';
+const PROCESS_DELAY_MS = 1000; // Wait 1s after last event before processing
 
-// Track existing groups to detect changes
-// Track existing groups for cache invalidation (stored in invalidateCache)
+// ===== STATE =====
+// In-memory state, hydrated from storage
+let suggestionCache = new Map<number, TabSuggestionCache>();
+let rejectedTabs = new Set<number>();
+let isStateHydrated = false;
 
-// Processing queue (tabs waiting to be processed)
+// Processing queue (in-memory only, rebuilt on scan)
 const processingQueue = new Set<number>();
 const currentlyProcessing = new Set<number>();
-
-// Debounce timer for batch processing
-let processDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const PROCESS_DEBOUNCE_MS = 1000;
-
-// Connected ports for sending cache updates
 const connectedPorts = new Set<chrome.runtime.Port>();
 
-// Rejected tabs (will be re-processed on next cache invalidation)
-const rejectedTabs = new Set<number>();
+// ===== STORAGE & STATE MANAGEMENT =====
+const hydrateState = async () => {
+    if (isStateHydrated) return;
 
-// ===== CACHE INVALIDATION =====
-const invalidateCache = async () => {
-    console.log("[TabGrouper] Invalidating cache due to group change");
-    suggestionCache.clear();
-    rejectedTabs.clear();
+    try {
+        const data = await StorageManager.getLocal();
 
-    // Immediately notify UI that cache is now empty
-    broadcastCacheUpdate();
+        if (data.suggestionCache) {
+            suggestionCache = new Map(data.suggestionCache.map(s => [s.tabId, s]));
+        } else {
+            suggestionCache = new Map();
+        }
 
-    // Update known groups (logged for debugging)
-    const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-    console.log("[TabGrouper] Current groups:", groups.length);
+        if (data.rejectedTabs) {
+            rejectedTabs = new Set(data.rejectedTabs);
+        } else {
+            rejectedTabs = new Set();
+        }
 
-    // Re-queue all ungrouped tabs
-    await queueUngroupedTabs();
+        isStateHydrated = true;
+        // console.log(`[Background] State hydrated: ${suggestionCache.size} suggestions, ${rejectedTabs.size} rejected tabs`);
+    } catch (e) {
+        console.error("[Background] Failed to hydrate state:", e);
+    }
 };
 
+const persistState = async () => {
+    try {
+        await StorageManager.setLocal({
+            suggestionCache: Array.from(suggestionCache.values()),
+            rejectedTabs: Array.from(rejectedTabs)
+        });
+    } catch (e) {
+        console.error("[Background] Failed to persist state:", e);
+    }
+};
+
+// ===== BROADCASTS =====
 const broadcastCacheUpdate = () => {
     const response: TabGroupResponse = {
         type: 'CACHED_SUGGESTIONS',
@@ -54,7 +67,6 @@ const broadcastCacheUpdate = () => {
         try {
             port.postMessage(response);
         } catch (e) {
-            // Port disconnected
             connectedPorts.delete(port);
         }
     }
@@ -76,55 +88,82 @@ const broadcastProcessingStatus = () => {
     }
 };
 
-// ===== BACKGROUND PROCESSING =====
+// ===== LOGIC =====
+
+const invalidateCache = async () => {
+    console.log("[Background] Invalidating cache due to group change");
+
+    await hydrateState();
+    suggestionCache.clear();
+    rejectedTabs.clear(); // Reset rejected tabs when groups occur naturally? Or keep them? 
+    // User logic: "Reset the AI cache when real tab groups have changed."
+    // If groups change, old suggestions might be invalid, so clear everything.
+
+    await persistState();
+    broadcastCacheUpdate();
+
+    // Re-queue
+    await queueUngroupedTabs();
+};
+
 const queueUngroupedTabs = async () => {
+    await hydrateState();
+
     const allTabs = await chrome.tabs.query({ currentWindow: true });
-    const ungroupedTabs = allTabs.filter(t =>
+
+    // Filter out tabs that are already grouped, cached, processing, or rejected
+    const tabsToProcess = allTabs.filter(t =>
         t.groupId === chrome.tabs.TAB_ID_NONE &&
         t.id &&
         t.url &&
         t.title &&
+        t.status === 'complete' && // Only process loaded tabs
         !suggestionCache.has(t.id) &&
         !currentlyProcessing.has(t.id) &&
         !rejectedTabs.has(t.id)
     );
 
-    for (const tab of ungroupedTabs) {
-        if (tab.id) {
+    let added = false;
+    for (const tab of tabsToProcess) {
+        if (tab.id && !processingQueue.has(tab.id)) {
             processingQueue.add(tab.id);
+            added = true;
         }
     }
 
-    if (ungroupedTabs.length > 0) {
+    if (added || processingQueue.size > 0) {
         broadcastProcessingStatus();
+        scheduleProcessing();
     }
-    scheduleProcessing();
 };
 
 const scheduleProcessing = () => {
-    if (processDebounceTimer) {
-        clearTimeout(processDebounceTimer);
-    }
-
-    processDebounceTimer = setTimeout(processQueue, PROCESS_DEBOUNCE_MS);
+    // Use alarms to wake up the SW
+    // We update the alarm to delay it (debounce)
+    console.log("[Background] Scheduling processing alarm");
+    chrome.alarms.create(ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
 };
 
 const processQueue = async () => {
+    await hydrateState();
+
     if (processingQueue.size === 0) return;
+
+    // AI Check
     if (!self.LanguageModel) return;
+    // Note: availability check might be async, skip if needed or do inside
+    try {
+        const availability = await self.LanguageModel.availability();
+        if (availability === 'unavailable') return;
+    } catch (e) {
+        // Fallback or ignore
+        return;
+    }
 
-    const availability = await self.LanguageModel.availability();
-    if (availability === 'unavailable') return;
-
-    // Get tabs to process
     const tabIds = Array.from(processingQueue);
     processingQueue.clear();
 
-    // Move to currently processing
-    for (const id of tabIds) {
-        currentlyProcessing.add(id);
-    }
-
+    for (const id of tabIds) currentlyProcessing.add(id);
     broadcastProcessingStatus();
 
     try {
@@ -132,10 +171,9 @@ const processQueue = async () => {
         const existingGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
         const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
 
-        // Include virtual groups from cache
+        // Virtual groups from cache
         const virtualGroups = new Map<string, { id: number; title: string }>();
         let nextVirtualId = -1;
-
         for (const cached of suggestionCache.values()) {
             if (cached.existingGroupId === null) {
                 if (!virtualGroups.has(cached.groupName)) {
@@ -146,7 +184,6 @@ const processQueue = async () => {
 
         const allGroups = [...existingGroupsData, ...virtualGroups.values()];
 
-        // Get tab data for tabs we're processing
         const tabsToProcess = allTabs
             .filter(t => t.id && tabIds.includes(t.id) && t.url && t.title)
             .map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
@@ -161,11 +198,10 @@ const processQueue = async () => {
                 existingGroups: allGroups,
                 ungroupedTabs: tabsToProcess
             },
-            () => { }, // No progress callback for background
-            () => { }  // No session callback for background
+            () => { },
+            () => { }
         );
 
-        // Store results in cache
         const now = Date.now();
         for (const group of groups) {
             for (const tabId of group.tabIds) {
@@ -179,140 +215,152 @@ const processQueue = async () => {
             }
         }
 
+        await persistState();
         broadcastCacheUpdate();
         broadcastProcessingStatus();
 
     } catch (err) {
-        console.error("[TabGrouper] Background processing error:", err);
-        currentlyProcessing.clear();
+        console.error("[Background] Processing error", err);
+        // On error, maybe just clear processing so they can be picked up again?
+        // Or leave them? For now, clear to allow retry.
+        for (const id of tabIds) currentlyProcessing.delete(id);
         broadcastProcessingStatus();
     }
 };
 
-// ===== TAB EVENT LISTENERS =====
-chrome.tabs.onCreated.addListener((tab) => {
-    if (tab.id && tab.groupId === chrome.tabs.TAB_ID_NONE) {
-        // Wait a bit for the tab to fully load
-        setTimeout(() => {
-            if (tab.id && !suggestionCache.has(tab.id)) {
-                processingQueue.add(tab.id);
-                broadcastProcessingStatus();
-                scheduleProcessing();
-            }
-        }, 2000);
+// ===== LISTENERS =====
+
+// 1. Alarms (The core fix)
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name === ALARM_NAME) {
+        console.log("[Background] Alarm fired, processing queue");
+        await processQueue();
     }
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    // If URL changed, invalidate cache for this tab
-    if (changeInfo.url) {
-        suggestionCache.delete(tabId);
-        rejectedTabs.delete(tabId);
+// 2. Tab Events
+chrome.tabs.onCreated.addListener(async () => {
+    // Just trigger a check, no logic here.
+    // If tab is not complete, queueUngroupedTabs will ignore it but scheduling happens.
+    // Actually, best to wait for update to complete.
+    // But we should check just in case.
+    await queueUngroupedTabs();
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+    if (changeInfo.status === 'complete' || changeInfo.url) {
+        // Tab finished loading or changed URL -> candidate for grouping
+        if (changeInfo.url) {
+            // URL changed: invalidate old cache for this tab
+            await hydrateState();
+            if (suggestionCache.delete(tabId)) {
+                rejectedTabs.delete(tabId);
+                await persistState();
+                broadcastCacheUpdate();
+            }
+        }
+        await queueUngroupedTabs();
+    }
+});
+
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+    await hydrateState();
+    let changed = false;
+    if (suggestionCache.delete(tabId)) changed = true;
+    if (processingQueue.delete(tabId)) changed = true;
+    if (currentlyProcessing.delete(tabId)) changed = true;
+
+    if (changed) {
+        await persistState();
         broadcastCacheUpdate();
     }
-
-    // If tab became ungrouped or URL changed, queue for processing
-    if (changeInfo.groupId === chrome.tabs.TAB_ID_NONE || changeInfo.url) {
-        if (tab.groupId === chrome.tabs.TAB_ID_NONE && !suggestionCache.has(tabId)) {
-            processingQueue.add(tabId);
-            broadcastProcessingStatus();
-            scheduleProcessing();
-        }
-    }
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-    suggestionCache.delete(tabId);
-    processingQueue.delete(tabId);
-    currentlyProcessing.delete(tabId);
-    broadcastCacheUpdate();
-});
+// 3. Group Events
+chrome.tabGroups.onCreated.addListener(invalidateCache);
+chrome.tabGroups.onRemoved.addListener(invalidateCache);
+chrome.tabGroups.onUpdated.addListener(invalidateCache);
 
-// ===== TAB GROUP CHANGE LISTENERS =====
-chrome.tabGroups.onCreated.addListener(() => invalidateCache());
-chrome.tabGroups.onRemoved.addListener(() => invalidateCache());
-chrome.tabGroups.onUpdated.addListener(() => invalidateCache());
-
-// ===== PORT CONNECTIONS =====
+// 4. Connection
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== 'tab-grouper') return;
 
     connectedPorts.add(port);
-
-    port.onDisconnect.addListener(() => {
-        connectedPorts.delete(port);
-    });
+    port.onDisconnect.addListener(() => connectedPorts.delete(port));
 
     port.onMessage.addListener(async (msg) => {
         if (msg.type === 'GET_CACHED_SUGGESTIONS') {
-            // Return current cache
+            await hydrateState();
             port.postMessage({
                 type: 'CACHED_SUGGESTIONS',
                 cachedSuggestions: Array.from(suggestionCache.values())
             } as TabGroupResponse);
-            // Send current processing status
             port.postMessage({
                 type: 'PROCESSING_STATUS',
                 processingCount: processingQueue.size + currentlyProcessing.size
             } as TabGroupResponse);
 
-            // Also trigger background processing if there are ungrouped tabs not in cache
+            // Also trigger a check
             await queueUngroupedTabs();
         }
 
         if (msg.type === 'REJECT_SUGGESTIONS' && msg.rejectedTabIds) {
-            // Remove rejected tabs from cache and add to rejected set
+            await hydrateState();
             for (const tabId of msg.rejectedTabIds) {
                 suggestionCache.delete(tabId);
                 rejectedTabs.add(tabId);
             }
-            console.log("[TabGrouper] Rejected tabs:", msg.rejectedTabIds);
+            await persistState();
             broadcastCacheUpdate();
         }
 
+        // START_GROUPING logic can remain similar or reuse queue?
+        // The original code had specific START_GROUPING for manual trigger.
+        // We can keep logic but ensure it respects/updates storage.
         if (msg.type === 'START_GROUPING') {
+            // ... (keep original manual grouping logic if needed, or redirect to queue?)
+            // For now, let's just trigger queue processing heavily.
+            // But wait, manual grouping usually implies "Group Now" and might force even rejected tabs?
+            // The original implementation re-ran logic explicitly.
+            // Let's copy that block but add persistence.
             try {
                 if (!self.LanguageModel) {
-                    port.postMessage({ type: 'ERROR', error: "AI API not supported in this browser." } as TabGroupResponse);
+                    port.postMessage({ type: 'ERROR', error: "AI API not supported." } as TabGroupResponse);
+                    return;
+                }
+                const availability = await self.LanguageModel.availability();
+                if (availability === 'unavailable') {
+                    port.postMessage({ type: 'ERROR', error: "AI model unavailable." } as TabGroupResponse);
                     return;
                 }
 
-                const availability = await self.LanguageModel.availability();
-                if (availability === 'unavailable') {
-                    port.postMessage({ type: 'ERROR', error: "AI model is not available." } as TabGroupResponse);
-                    return;
-                }
+                await hydrateState();
 
                 const allTabs = await chrome.tabs.query({ currentWindow: true });
                 const existingGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
                 const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
-                const ungroupedTabs = allTabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
-                const tabData = ungroupedTabs
-                    .filter(t => t.id && t.url && t.title)
-                    .map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
+                const ungroupedTabs = allTabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE && t.id && t.url && t.title);
 
-                if (tabData.length === 0) {
-                    port.postMessage({ type: 'ERROR', error: "No ungrouped tabs found." } as TabGroupResponse);
+                // Manual grouping should probably group everything visible? 
+                // Or just follows same rules?
+                // Original code: ungroupedTabs.
+
+                if (ungroupedTabs.length === 0) {
+                    port.postMessage({ type: 'ERROR', error: "No ungrouped tabs." } as TabGroupResponse);
                     return;
                 }
 
-                // Clear cache for regeneration
                 suggestionCache.clear();
+                // Note: Clearing cache here creates a fresh start
+
+                const tabsData = ungroupedTabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
 
                 const groups = await generateTabGroupSuggestions(
-                    {
-                        existingGroups: existingGroupsData,
-                        ungroupedTabs: tabData
-                    },
-                    (progress) => {
-                        port.postMessage({ type: 'PROGRESS', value: progress } as TabGroupResponse);
-                    },
-                    () => {
-                        port.postMessage({ type: 'SESSION_CREATED' } as TabGroupResponse);
-                    }
+                    { existingGroups: existingGroupsData, ungroupedTabs: tabsData },
+                    (p) => port.postMessage({ type: 'PROGRESS', value: p } as TabGroupResponse),
+                    () => port.postMessage({ type: 'SESSION_CREATED' } as TabGroupResponse)
                 );
 
-                // Update cache with new results
                 const now = Date.now();
                 for (const group of groups) {
                     for (const tabId of group.tabIds) {
@@ -325,16 +373,18 @@ chrome.runtime.onConnect.addListener((port) => {
                     }
                 }
 
+                await persistState();
+
                 port.postMessage({ type: 'COMPLETE', groups } as TabGroupResponse);
+                broadcastCacheUpdate();
 
             } catch (err: any) {
                 console.error(err);
-                port.postMessage({ type: 'ERROR', error: err.message || "An error occurred." } as TabGroupResponse);
+                port.postMessage({ type: 'ERROR', error: err.message } as TabGroupResponse);
             }
         }
     });
 });
-
 
 // Track side panel open state per window
 const sidePanelOpenState = new Map<number, boolean>();
@@ -360,9 +410,6 @@ chrome.action.onClicked.addListener(async (tab) => {
     }
 });
 
-// Initialize download monitoring
-initializeDownloadMonitor();
-
-// Initial queue of ungrouped tabs (on service worker start)
-// Defer this to avoid blocking initial setup
-setTimeout(() => queueUngroupedTabs(), 500);
+// Startup check
+// chrome.runtime.onStartup is good, but just running at top level of SW works too for every wake.
+hydrateState().then(() => queueUngroupedTabs());

@@ -2,11 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateTabGroupSuggestions } from './ai';
 import { GroupingContext } from '../types/tabGrouper';
 
-// Mock types
-interface MockSession {
-    prompt: (input: string, options?: any) => Promise<string>;
-    destroy: () => void;
-}
+
 
 // Setup global mock for LanguageModel
 const mockPrompt = vi.fn();
