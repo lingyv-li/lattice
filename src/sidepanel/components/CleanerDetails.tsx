@@ -13,7 +13,7 @@ export const CleanerDetails = ({ missingItems, interruptedItems, onBack }: Clean
             <div className="flex items-center p-4 border-b border-zinc-100 dark:border-zinc-800">
                 <button
                     onClick={onBack}
-                    className="p-2 -ml-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 transition-colors cursor-pointer"
+                    className="p-2 -ml-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 transition-colors cursor-pointer"
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -29,7 +29,7 @@ export const CleanerDetails = ({ missingItems, interruptedItems, onBack }: Clean
                         </h3>
                         <div className="space-y-1">
                             {missingItems.map(item => (
-                                <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 break-all">
+                                <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 break-all">
                                     <div className="font-medium text-zinc-700 dark:text-zinc-300 line-clamp-1">{item.filename}</div>
                                     <div className="text-xs text-zinc-400 font-mono mt-0.5 opacity-60 line-clamp-1">{item.url}</div>
                                 </div>
@@ -46,7 +46,7 @@ export const CleanerDetails = ({ missingItems, interruptedItems, onBack }: Clean
                         </h3>
                         <div className="space-y-1">
                             {interruptedItems.map(item => (
-                                <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 break-all">
+                                <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 break-all">
                                     <div className="font-medium text-zinc-700 dark:text-zinc-300 line-clamp-1">{item.filename}</div>
                                     <div className="text-xs text-zinc-400 font-mono mt-0.5 opacity-60 line-clamp-1">{item.url}</div>
                                 </div>

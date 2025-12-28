@@ -26,9 +26,9 @@ const App = () => {
     }, []);
 
     return (
-        <div className="h-screen w-full bg-white dark:bg-zinc-950 flex flex-col font-sans text-zinc-900 dark:text-zinc-100">
+        <div className="h-screen w-full bg-white dark:bg-zinc-900 flex flex-col font-sans text-zinc-900 dark:text-zinc-100">
             {/* Header */}
-            <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white">
                     <img src="/icon.svg" className="w-5 h-5" alt="Logo" />
                 </div>
