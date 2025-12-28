@@ -183,7 +183,14 @@ chrome.tabs.onCreated.addListener((tab) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    // If tab became ungrouped or URL changed significantly
+    // If URL changed, invalidate cache for this tab
+    if (changeInfo.url) {
+        suggestionCache.delete(tabId);
+        rejectedTabs.delete(tabId);
+        broadcastCacheUpdate();
+    }
+
+    // If tab became ungrouped or URL changed, queue for processing
     if (changeInfo.groupId === chrome.tabs.TAB_ID_NONE || changeInfo.url) {
         if (tab.groupId === chrome.tabs.TAB_ID_NONE && !suggestionCache.has(tabId)) {
             processingQueue.add(tabId);
