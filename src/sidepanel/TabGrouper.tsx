@@ -63,7 +63,7 @@ export const TabGrouper = () => {
                         {status === 'initializing' ? `Initializing AI...` :
                             status === 'processing' ? `Organizing... ${progress ? `(${progress}%)` : ''}` :
                                 status === 'success' ? "Done!" :
-                                    (availability === 'downloadable' ? "Download AI & Group Tabs" : "Group Tabs")
+                                    (availability === 'downloadable' ? "Download AI & Group Tabs" : `Group ${ungroupedCount} Tabs`)
                         }
                     </span>
                     {/* Progress Bar Background */}
