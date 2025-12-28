@@ -1,5 +1,6 @@
 import { TabGroupSuggestion, GroupingContext } from '../types/tabGrouper';
 import { getSettings } from './storage';
+import { generateContentGemini } from './gemini';
 
 let cachedSession: LanguageModel | null = null;
 let cachedRules: string | null = null;
@@ -9,21 +10,19 @@ export const generateTabGroupSuggestions = async (
     onProgress: (progress: number) => void,
     onSessionCreated?: () => void
 ): Promise<TabGroupSuggestion[]> => {
-    if (!self.LanguageModel) {
+
+    // 0. Fetch settings
+    let appSettings = await getSettings();
+    let { customGroupingRules, aiProvider, geminiApiKey, aiModel } = appSettings;
+    customGroupingRules = customGroupingRules || "";
+
+    // Validation for Local
+    if (aiProvider !== 'gemini' && !self.LanguageModel) {
         throw new Error("AI API not supported in this browser.");
     }
 
-    // 0. Fetch custom rules
-    let currentRules = "";
-    try {
-        const appSettings = await getSettings();
-        currentRules = appSettings.customGroupingRules || "";
-    } catch (e) {
-        console.warn("Failed to fetch custom rules", e);
-    }
-
-    // Helper to create session
-    const createSession = async () => {
+    // Helper to Create Session (Local)
+    const createLocalSession = async () => {
         let systemPrompt = `You are a browser tab organizer. 
             I will provide a list of "Existing Groups" and a SINGLE "Ungrouped Tab".
             Your task is to assign the "Ungrouped Tab" to a group.
@@ -38,8 +37,8 @@ export const generateTabGroupSuggestions = async (
             
             Do not include any markdown formatting or explanation.`;
 
-        if (currentRules.trim().length > 0) {
-            systemPrompt += `\n\nAdditional Rules:\n${currentRules}`;
+        if (customGroupingRules.trim().length > 0) {
+            systemPrompt += `\n\nAdditional Rules:\n${customGroupingRules}`;
         }
 
         const session = await self.LanguageModel.create({
@@ -49,38 +48,20 @@ export const generateTabGroupSuggestions = async (
             }]
         });
 
-        cachedRules = currentRules;
+        cachedRules = customGroupingRules;
         return session;
     };
 
-    // Initialize or Re-initialize if rules changed
-    if (!cachedSession || cachedRules !== currentRules) {
-        if (cachedSession) {
-            cachedSession.destroy();
-        }
-        cachedSession = await createSession();
-        onSessionCreated?.();
-    }
-
-    // Helper to execute prompt with options
-    const executePrompt = async (session: LanguageModel, prompt: string, useSchema = false) => {
-        const outputSchema = {
-            type: "object",
-            properties: {
-                groupName: { type: "string" }
-            },
-            required: ["groupName"]
-        };
-
-        const options: LanguageModelPromptOptions = useSchema ? {
-            responseConstraint: {
-                type: 'json',
-                schema: outputSchema
+    // Initialize Local Session logic
+    if (aiProvider !== 'gemini') {
+        if (!cachedSession || cachedRules !== customGroupingRules) {
+            if (cachedSession) {
+                cachedSession.destroy();
             }
-        } : {};
-
-        return await session.prompt(prompt, options);
-    };
+            cachedSession = await createLocalSession();
+            onSessionCreated?.();
+        }
+    }
 
 
     // 1. Build a deterministic map of "Group Name" -> "Group ID"
@@ -97,15 +78,38 @@ export const generateTabGroupSuggestions = async (
     }
 
     const suggestions = new Map<string, TabGroupSuggestion>();
-
-    // We use negative IDs for new groups to allow referencing them in subsequent prompts
     let nextNewGroupId = -1;
-
     const totalTabs = context.ungroupedTabs.length;
     let processedCount = 0;
 
+    // Helper for Prompt Execution
+    const executePrompt = async (prompt: string): Promise<string> => {
+        if (aiProvider === 'gemini') {
+            if (!geminiApiKey) throw new Error("API Key is missing for Gemini Cloud.");
+
+            let systemPrompt = `You are a browser tab organizer. Return a JSON object with: { "groupName": "string" }.
+            Rules:
+            1. STRICTLY PREFER "Existing Groups".
+            2. Only create a NEW group name if needed.
+            3. Use short, concise names (max 3 words).
+            4. Output ONLY valid JSON.
+            `;
+            if (customGroupingRules.trim().length > 0) {
+                systemPrompt += `\nAdditional Custom Rules:\n${customGroupingRules}`;
+            }
+
+            return await generateContentGemini(
+                geminiApiKey,
+                aiModel,
+                systemPrompt,
+                prompt
+            );
+        } else {
+            return await cachedSession!.prompt(prompt);
+        }
+    }
+
     for (const tab of context.ungroupedTabs) {
-        // Filter out any potential empty strings that might have snuck into the map keys
         const currentGroupNames = Array.from(groupNameMap.keys()).filter(name => name.trim().length > 0);
 
         let prompt = `
@@ -117,19 +121,19 @@ Title: ${tab.title}
 URL: ${tab.url}
 `.trim();
 
-        // Note: Custom rules are now in system prompt, no need to append here
-
-
-        let response;
+        let responseText;
         try {
-            response = await executePrompt(cachedSession!, prompt);
+            responseText = await executePrompt(prompt);
         } catch (err: unknown) {
             console.error("Prompt failed", err);
-            throw err;
+            // Don't kill the whole process, just skip this tab
+            processedCount++;
+            onProgress(Math.round((processedCount / totalTabs) * 100));
+            continue;
         }
 
         try {
-            const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+            const cleanResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(cleanResponse);
             const groupName = parsed.groupName;
 
@@ -158,17 +162,15 @@ URL: ${tab.url}
                 });
             }
 
-            const suggestion = suggestions.get(key)!;
-            suggestion.tabIds.push(tab.id);
+            suggestions.get(key)!.tabIds.push(tab.id);
 
         } catch (e) {
-            console.error("Failed to parse response for tab", tab.id, e);
+            console.error("Failed to parse response for tab", tab.title, e);
         }
 
         processedCount++;
         onProgress(Math.round((processedCount / totalTabs) * 100));
     }
 
-    // Convert map to array
     return Array.from(suggestions.values());
 };

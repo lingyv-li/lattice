@@ -2,12 +2,18 @@ export interface AppSettings {
     scanMissing: boolean;
     scanInterrupted: boolean;
     customGroupingRules: string;
+    aiProvider: 'local' | 'gemini';
+    aiModel: string;
+    geminiApiKey: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
     scanMissing: true,
     scanInterrupted: true,
     customGroupingRules: "",
+    aiProvider: 'local',
+    aiModel: '',
+    geminiApiKey: "",
 };
 
 export const getSettings = async (): Promise<AppSettings> => {

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Settings, Save, Sparkles } from 'lucide-react';
+import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings } from '../utils/storage';
+import { listAvailableModels } from '../utils/gemini';
 import './index.css';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
@@ -14,13 +15,28 @@ const App = () => {
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saved, setSaved] = useState(false);
+    const [availableModels, setAvailableModels] = useState<string[]>([]);
+    const [loadingModels, setLoadingModels] = useState(false);
+    const [showApiKey, setShowApiKey] = useState(false);
 
     useEffect(() => {
         getSettings().then((s) => {
             setSettings(s);
             setLoading(false);
+            if (s.aiProvider === 'gemini' && s.geminiApiKey) {
+                fetchModels(s.geminiApiKey);
+            }
         });
     }, []);
+
+    const fetchModels = async (key: string) => {
+        if (!key) return;
+        setLoadingModels(true);
+        const models = await listAvailableModels(key);
+        console.log(models);
+        setAvailableModels(models);
+        setLoadingModels(false);
+    };
 
     const handleSave = async () => {
         await saveSettings(settings);
@@ -49,6 +65,86 @@ const App = () => {
                 </div>
 
                 <div className="space-y-6">
+
+                    <div className="space-y-4">
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">AI Provider</h2>
+
+                        <div className="grid grid-cols-2 gap-2 p-1 bg-surface-dim rounded-2xl border border-border-subtle">
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, aiProvider: 'local' }))}
+                                className={cn(
+                                    "py-2 rounded-xl text-sm font-medium transition-all",
+                                    settings.aiProvider === 'local'
+                                        ? "bg-white shadow-sm text-black"
+                                        : "text-muted hover:text-main"
+                                )}
+                            >
+                                Local (Chrome)
+                            </button>
+                            <button
+                                onClick={() => setSettings(s => ({ ...s, aiProvider: 'gemini' }))}
+                                className={cn(
+                                    "py-2 rounded-xl text-sm font-medium transition-all",
+                                    settings.aiProvider === 'gemini'
+                                        ? "bg-white shadow-sm text-black"
+                                        : "text-muted hover:text-main"
+                                )}
+                            >
+                                Cloud (Gemini)
+                            </button>
+                        </div>
+
+                        {settings.aiProvider === 'gemini' && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
+                                <div>
+                                    <label className="block text-xs font-medium text-muted mb-1 ml-1">API Key</label>
+                                    <div className="relative">
+                                        <input
+                                            type={showApiKey ? "text" : "password"}
+                                            value={settings.geminiApiKey}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setSettings(s => ({ ...s, geminiApiKey: val }));
+                                            }}
+                                            onBlur={() => fetchModels(settings.geminiApiKey)}
+                                            placeholder="Enter Gemini API Key"
+                                            className="w-full bg-surface-dim border border-border-subtle rounded-xl py-2 pl-3 pr-10 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                        />
+                                        <button
+                                            onClick={() => setShowApiKey(!showApiKey)}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main"
+                                        >
+                                            {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-1 ml-1">
+                                        <label className="text-xs font-medium text-muted">Model</label>
+                                        <button
+                                            onClick={() => fetchModels(settings.geminiApiKey)}
+                                            disabled={loadingModels || !settings.geminiApiKey}
+                                            className="text-[10px] flex items-center gap-1 text-teal-600 hover:text-teal-500 disabled:opacity-50"
+                                        >
+                                            <RefreshCw className={cn("w-3 h-3", loadingModels && "animate-spin")} /> Refresh
+                                        </button>
+                                    </div>
+                                    <select
+                                        value={settings.aiModel}
+                                        onChange={(e) => setSettings(s => ({ ...s, aiModel: e.target.value }))}
+                                        className="w-full bg-surface-dim border border-border-subtle rounded-xl py-2 px-3 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all appearance-none"
+                                    >
+                                        {availableModels.length === 0 && <option value={settings.aiModel}>{settings.aiModel || "Enter Key to fetch models"}</option>}
+                                        {availableModels.map(m => (
+                                            <option key={m} value={m}>{m}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="space-y-4">
                         <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Automation</h2>
 

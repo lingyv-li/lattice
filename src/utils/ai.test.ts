@@ -1,12 +1,25 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { generateTabGroupSuggestions } from './ai';
 import { GroupingContext } from '../types/tabGrouper';
-
+import { getSettings } from './storage';
 
 
 // Setup global mock for LanguageModel
 const mockPrompt = vi.fn();
 const mockCreate = vi.fn();
+
+// Mock storage module
+vi.mock('./storage', () => ({
+    getSettings: vi.fn(),
+    DEFAULT_SETTINGS: {
+        scanMissing: true,
+        scanInterrupted: true,
+        customGroupingRules: "",
+        aiProvider: 'local',
+        aiModel: '',
+        geminiApiKey: ""
+    }
+}));
 
 // Add LanguageModel to global object
 // @ts-ignore
@@ -26,6 +39,15 @@ describe('generateTabGroupSuggestions', () => {
         mockCreate.mockResolvedValue({
             prompt: mockPrompt,
             destroy: vi.fn()
+        });
+
+        (getSettings as Mock).mockResolvedValue({
+            scanMissing: true,
+            scanInterrupted: true,
+            customGroupingRules: "",
+            aiProvider: 'local',
+            aiModel: '',
+            geminiApiKey: ""
         });
     });
 
