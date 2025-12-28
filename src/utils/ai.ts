@@ -17,12 +17,12 @@ export const generateTabGroupSuggestions = async (
             initialPrompts: [{
                 role: "system",
                 content: `You are a browser tab organizer. 
-            I will provide a list of "Existing Group Names" and a SINGLE "Ungrouped Tab".
+            I will provide a list of "Existing Groups" and a SINGLE "Ungrouped Tab".
             Your task is to assign the "Ungrouped Tab" to a group.
             
             Rules:
-            1. Check if the tab fits well into one of the "Existing Group Names". If so, use that EXACT name.
-            2. If it doesn't fit an existing group, assign it to a NEW group name based on its topic.
+            1. STRICTLY PREFER "Existing Groups". If the tab fits an existing group, you MUST use that EXACT name.
+            2. Only create a NEW group name if the tab clearly does NOT fit any existing group.
             3. Use short, concise names for new groups (max 3 words).
             
             Return a JSON object with:
@@ -81,15 +81,17 @@ export const generateTabGroupSuggestions = async (
     let processedCount = 0;
 
     for (const tab of context.ungroupedTabs) {
-        const currentGroupNames = Array.from(groupNameMap.keys());
+        // Filter out any potential empty strings that might have snuck into the map keys
+        const currentGroupNames = Array.from(groupNameMap.keys()).filter(name => name.trim().length > 0);
 
-        const prompt = JSON.stringify({
-            existingGroupNames: currentGroupNames,
-            ungroupedTab: {
-                title: tab.title,
-                url: tab.url
-            }
-        });
+        const prompt = `
+Existing Groups:
+${currentGroupNames.map(name => `- ${name}`).join('\n')}
+
+Ungrouped Tab:
+Title: ${tab.title}
+URL: ${tab.url}
+`.trim();
 
         let response;
         try {
@@ -109,10 +111,13 @@ export const generateTabGroupSuggestions = async (
             // Determine Group ID
             if (groupNameMap.has(groupName)) {
                 targetGroupId = groupNameMap.get(groupName)!;
-            } else {
+            } else if (groupName && groupName.trim().length > 0) {
                 // New group! Assign a new negative ID and add to map for future tabs
                 targetGroupId = nextNewGroupId--;
                 groupNameMap.set(groupName, targetGroupId);
+            } else {
+                // Fallback for empty/invalid group name from AI - treat as isolated new group but don't add to map
+                targetGroupId = nextNewGroupId--;
             }
 
             // Group suggestions by their target ID (to handle merging into same new/existing group)

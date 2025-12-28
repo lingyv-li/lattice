@@ -136,20 +136,15 @@ describe('generateTabGroupSuggestions', () => {
                 { id: 303, title: '   ' }    // Whitespace
             ],
             ungroupedTabs: [
-                { id: 1, title: 'Unknown', url: '...' }
+                { id: 1, title: 'Tab 1', url: '...' },
+                { id: 2, title: 'Tab 2', url: '...' }
             ]
         };
 
-        // If AI returns "Valid", it maps
+        // First tab: AI returns empty string (simulating bad output)
+        mockPrompt.mockResolvedValueOnce(JSON.stringify({ groupName: '' }));
+        // Second tab: AI returns valid name
         mockPrompt.mockResolvedValueOnce(JSON.stringify({ groupName: 'Valid' }));
-
-        // If AI returns an empty string (unlikely but possible), it should treat as new group (negative ID)
-        // because we filtered out the empty existing groups from our map.
-        // Actually let's test that it DOES NOT map to 302 when title matches empty (if we passed empty title)
-        // But the prompt logic asks for a name.
-
-        // Let's verify we don't accidentally map to 302 if AI says "New Group"
-        // (This is implicitly tested by "New Group" test, but good to be sure map doesn't contain '' as key)
 
         await generateTabGroupSuggestions(
             context,
@@ -157,8 +152,18 @@ describe('generateTabGroupSuggestions', () => {
             () => { }
         );
 
-        // Verification logic is tricky without spying internals, but checking behavior is key:
-        // Main test is standard behavior works despite garbage in existing groups.
-        expect(true).toBe(true);
+        // Verify the second prompt did NOT receive the empty string in existingGroupNames
+        const secondCallArg = mockPrompt.mock.calls[1][0];
+        // We now use Markdown, so we check string inclusion
+
+        // existingGroupNames should only contain 'Valid', not ''
+        expect(secondCallArg).toContain('- Valid');
+        expect(secondCallArg).not.toContain('- ""'); // Quotes wouldn't be there in markdown typically, but just ensuring empty line isn't added as a bullet
+
+        // More robust check: Split by lines and ensure only one bullet point exists
+        const lines = secondCallArg.split('\n');
+        const bulletPoints = lines.filter((line: string) => line.trim().startsWith('- '));
+        expect(bulletPoints.length).toBe(1);
+        expect(bulletPoints[0]).toContain('Valid');
     });
 });
