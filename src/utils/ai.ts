@@ -1,6 +1,8 @@
 import { TabGroupSuggestion, GroupingContext } from '../types/tabGrouper';
+import { getSettings } from './storage';
 
 let cachedSession: LanguageModel | null = null;
+let cachedRules: string | null = null;
 
 export const generateTabGroupSuggestions = async (
     context: GroupingContext,
@@ -11,12 +13,18 @@ export const generateTabGroupSuggestions = async (
         throw new Error("AI API not supported in this browser.");
     }
 
+    // 0. Fetch custom rules
+    let currentRules = "";
+    try {
+        const appSettings = await getSettings();
+        currentRules = appSettings.customGroupingRules || "";
+    } catch (e) {
+        console.warn("Failed to fetch custom rules", e);
+    }
+
     // Helper to create session
     const createSession = async () => {
-        return await self.LanguageModel.create({
-            initialPrompts: [{
-                role: "system",
-                content: `You are a browser tab organizer. 
+        let systemPrompt = `You are a browser tab organizer. 
             I will provide a list of "Existing Groups" and a SINGLE "Ungrouped Tab".
             Your task is to assign the "Ungrouped Tab" to a group.
             
@@ -28,16 +36,31 @@ export const generateTabGroupSuggestions = async (
             Return a JSON object with:
             - 'groupName' (string): The name of the group.
             
-            Do not include any markdown formatting or explanation.`
+            Do not include any markdown formatting or explanation.`;
+
+        if (currentRules.trim().length > 0) {
+            systemPrompt += `\n\nAdditional Rules:\n${currentRules}`;
+        }
+
+        const session = await self.LanguageModel.create({
+            initialPrompts: [{
+                role: "system",
+                content: systemPrompt
             }]
         });
+
+        cachedRules = currentRules;
+        return session;
     };
 
-    // Initialize if needed
-    if (!cachedSession) {
+    // Initialize or Re-initialize if rules changed
+    if (!cachedSession || cachedRules !== currentRules) {
+        if (cachedSession) {
+            cachedSession.destroy();
+        }
         cachedSession = await createSession();
+        onSessionCreated?.();
     }
-    onSessionCreated?.();
 
     // Helper to execute prompt with options
     const executePrompt = async (session: LanguageModel, prompt: string, useSchema = false) => {
@@ -58,6 +81,7 @@ export const generateTabGroupSuggestions = async (
 
         return await session.prompt(prompt, options);
     };
+
 
     // 1. Build a deterministic map of "Group Name" -> "Group ID"
     // We only care about the FIRST group with a given name
@@ -84,7 +108,7 @@ export const generateTabGroupSuggestions = async (
         // Filter out any potential empty strings that might have snuck into the map keys
         const currentGroupNames = Array.from(groupNameMap.keys()).filter(name => name.trim().length > 0);
 
-        const prompt = `
+        let prompt = `
 Existing Groups:
 ${currentGroupNames.map(name => `- ${name}`).join('\n')}
 
@@ -92,6 +116,9 @@ Ungrouped Tab:
 Title: ${tab.title}
 URL: ${tab.url}
 `.trim();
+
+        // Note: Custom rules are now in system prompt, no need to append here
+
 
         let response;
         try {

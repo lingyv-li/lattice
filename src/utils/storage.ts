@@ -1,11 +1,13 @@
 export interface AppSettings {
     scanMissing: boolean;
     scanInterrupted: boolean;
+    customGroupingRules: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
     scanMissing: true,
     scanInterrupted: true,
+    customGroupingRules: "",
 };
 
 export const getSettings = async (): Promise<AppSettings> => {
