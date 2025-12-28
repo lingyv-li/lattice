@@ -32,11 +32,6 @@ export const CleanerSummary = ({
             <div className="flex items-center gap-[var(--spacing-item-gap)] mb-2">
                 <Trash2 className="size-[var(--size-icon-md)] text-status-info-fg" />
                 <h3 className="font-bold text-sm text-main">Download Cleaner</h3>
-                {selectedCount > 0 && (
-                    <span className="ml-auto bg-status-error-bg text-status-error-fg text-xs font-bold px-2 py-0.5 rounded-full">
-                        {selectedCount} issues
-                    </span>
-                )}
             </div>
 
             <p className="text-xs text-muted mb-4">

@@ -82,31 +82,94 @@ export const generateTabGroupSuggestions = async (
     const totalTabs = context.ungroupedTabs.length;
     let processedCount = 0;
 
-    // Helper for Prompt Execution
-    const executePrompt = async (prompt: string): Promise<string> => {
-        if (aiProvider === 'gemini') {
-            if (!geminiApiKey) throw new Error("API Key is missing for Gemini Cloud.");
+    // --- Branch: Gemini (Batch Processing) ---
+    if (aiProvider === 'gemini') {
+        if (!geminiApiKey) throw new Error("API Key is missing for Gemini Cloud.");
 
-            let systemPrompt = `You are a browser tab organizer. Return a JSON object with: { "groupName": "string" }.
+        const BATCH_SIZE = 10;
+        const batches = [];
+        for (let i = 0; i < totalTabs; i += BATCH_SIZE) {
+            batches.push(context.ungroupedTabs.slice(i, i + BATCH_SIZE));
+        }
+
+        for (const batch of batches) {
+            const currentGroupNames = Array.from(groupNameMap.keys()).filter(name => name.trim().length > 0);
+
+            // Construct Batch Prompt
+            const tabList = batch.map(t => `- [ID: ${t.id}] Title: ${t.title}, URL: ${t.url}`).join('\n');
+
+            const systemPrompt = `You are a browser tab organizer. 
+            I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+            Your task is to assign EACH "Ungrouped Tab" to a group.
+
             Rules:
-            1. STRICTLY PREFER "Existing Groups".
-            2. Only create a NEW group name if needed.
-            3. Use short, concise names (max 3 words).
-            4. Output ONLY valid JSON.
-            `;
-            if (customGroupingRules.trim().length > 0) {
-                systemPrompt += `\nAdditional Custom Rules:\n${customGroupingRules}`;
+            1. STRICTLY PREFER "Existing Groups". If the tab fits an existing group, you MUST use that EXACT name.
+            2. Only create a NEW group name if the tab clearly does NOT fit any existing group.
+            3. Use short, concise names for new groups (max 3 words).
+            4. Return a JSON object containing a list called "assignments".
+            5. Each assignment must have:
+               - "tabId" (number): The ID provided in the input.
+               - "groupName" (string): The assigned group name.
+            ${customGroupingRules ? `\nAdditional Rules:\n${customGroupingRules}` : ''}`;
+
+            const userPrompt = `
+Existing Groups:
+${currentGroupNames.map(name => `- ${name}`).join('\n')}
+
+Ungrouped Tabs:
+${tabList}
+            `.trim();
+
+            try {
+                const responseText = await generateContentGemini(geminiApiKey, aiModel, systemPrompt, userPrompt);
+
+                const cleanResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleanResponse);
+
+                if (parsed.assignments && Array.isArray(parsed.assignments)) {
+                    for (const assignment of parsed.assignments) {
+                        const { tabId, groupName } = assignment;
+
+                        // Find tab object to verify ID exists (security check)
+                        if (!batch.find(t => t.id === tabId)) continue;
+
+                        let targetGroupId: number;
+                        if (groupNameMap.has(groupName)) {
+                            targetGroupId = groupNameMap.get(groupName)!;
+                        } else if (groupName && groupName.trim().length > 0) {
+                            targetGroupId = nextNewGroupId--;
+                            groupNameMap.set(groupName, targetGroupId);
+                        } else {
+                            targetGroupId = nextNewGroupId--;
+                        }
+
+                        const key = `group-id-${targetGroupId}`;
+                        if (!suggestions.has(key)) {
+                            suggestions.set(key, {
+                                groupName: groupName,
+                                tabIds: [],
+                                existingGroupId: targetGroupId >= 0 ? targetGroupId : null
+                            });
+                        }
+                        suggestions.get(key)!.tabIds.push(tabId);
+                    }
+                }
+            } catch (err) {
+                console.error("Batch prompt failed", err);
+                // Continue to next batch, treating these as failed
             }
 
-            return await generateContentGemini(
-                geminiApiKey,
-                aiModel,
-                systemPrompt,
-                prompt
-            );
-        } else {
-            return await cachedSession!.prompt(prompt);
+            processedCount += batch.length;
+            onProgress(Math.round((processedCount / totalTabs) * 100));
         }
+
+        return Array.from(suggestions.values());
+    }
+
+    // --- Branch: Local (Sequential Processing) ---
+    // Helper for Prompt Execution
+    const executePromptLocal = async (prompt: string): Promise<string> => {
+        return await cachedSession!.prompt(prompt);
     }
 
     for (const tab of context.ungroupedTabs) {
@@ -123,7 +186,7 @@ URL: ${tab.url}
 
         let responseText;
         try {
-            responseText = await executePrompt(prompt);
+            responseText = await executePromptLocal(prompt);
         } catch (err: unknown) {
             console.error("Prompt failed", err);
             // Don't kill the whole process, just skip this tab
@@ -162,7 +225,8 @@ URL: ${tab.url}
                 });
             }
 
-            suggestions.get(key)!.tabIds.push(tab.id);
+            const suggestion = suggestions.get(key)!;
+            suggestion.tabIds.push(tab.id);
 
         } catch (e) {
             console.error("Failed to parse response for tab", tab.title, e);
