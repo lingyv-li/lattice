@@ -1,4 +1,4 @@
-# Chrome Cleaner & Tab Organizer
+# Lattice - Chrome Cleaner & Tab Organizer
 
 A powerful Chrome Extension helping you keep your browser clean and organized using on-device AI.
 

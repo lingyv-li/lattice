@@ -15,7 +15,7 @@
         "default_path": "src/sidepanel/index.html"
     },
     "action": {
-        "default_title": "Open Chrome Cleaner",
+        "default_title": "Open Lattice",
         "default_icon": {
             "16": "icon.png",
             "48": "icon.png",

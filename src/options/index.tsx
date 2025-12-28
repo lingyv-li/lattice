@@ -43,7 +43,7 @@ const App = () => {
                         <Sparkles className="w-6 h-6 text-teal-600 dark:text-teal-400" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">Chrome Cleaner</h1>
+                        <h1 className="text-2xl font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">Lattice</h1>
                         <p className="text-sm text-zinc-500 font-medium">One-click optimization</p>
                     </div>
                 </div>
