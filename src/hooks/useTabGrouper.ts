@@ -201,6 +201,20 @@ export const useTabGrouper = () => {
             setStatus('success');
             setPreviewGroups(null);
             setTimeout(() => setStatus('idle'), 3000);
+
+            // Reject unselected groups so they don't come back
+            const unselectedTabIds: number[] = [];
+            for (let i = 0; i < previewGroups.length; i++) {
+                if (!selectedPreviewIndices.has(i)) {
+                    unselectedTabIds.push(...previewGroups[i].tabIds);
+                }
+            }
+            if (unselectedTabIds.length > 0 && portRef.current) {
+                portRef.current.postMessage({
+                    type: 'REJECT_SUGGESTIONS',
+                    rejectedTabIds: unselectedTabIds
+                });
+            }
         } catch (err: any) {
             setError(err.message || "Failed to apply groups.");
             setStatus('error');
@@ -208,6 +222,14 @@ export const useTabGrouper = () => {
     };
 
     const cancelGroups = () => {
+        // Reject all suggestions when cancelling
+        if (previewGroups && portRef.current) {
+            const allTabIds = previewGroups.flatMap(g => g.tabIds);
+            portRef.current.postMessage({
+                type: 'REJECT_SUGGESTIONS',
+                rejectedTabIds: allTabIds
+            });
+        }
         setPreviewGroups(null);
         setStatus('idle');
     };

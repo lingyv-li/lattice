@@ -72,7 +72,7 @@ export const TabGroupPreview = ({
                     onClick={onCancel}
                     className="flex-1 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                 >
-                    Cancel
+                    Dismiss All
                 </button>
                 <button
                     onClick={onApply}
