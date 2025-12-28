@@ -11,6 +11,7 @@ export const useTabGrouper = () => {
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
+    const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -27,10 +28,25 @@ export const useTabGrouper = () => {
         };
         checkAvailability();
 
+        const scanUngrouped = async () => {
+            const tabs = await chrome.tabs.query({ currentWindow: true });
+            const ungrouped = tabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
+            setUngroupedCount(ungrouped.length);
+        };
+        scanUngrouped();
+
+        const handleTabEvent = () => scanUngrouped();
+        chrome.tabs.onUpdated.addListener(handleTabEvent);
+        chrome.tabs.onCreated.addListener(handleTabEvent);
+        chrome.tabs.onRemoved.addListener(handleTabEvent);
+
         return () => {
             if (portRef.current) {
                 portRef.current.disconnect();
             }
+            chrome.tabs.onUpdated.removeListener(handleTabEvent);
+            chrome.tabs.onCreated.removeListener(handleTabEvent);
+            chrome.tabs.onRemoved.removeListener(handleTabEvent);
         };
     }, []);
 
@@ -162,6 +178,7 @@ export const useTabGrouper = () => {
         selectedPreviewIndices,
         tabDataMap,
         availability,
+        ungroupedCount,
         generateGroups,
         applyGroups,
         cancelGroups,
