@@ -12,7 +12,7 @@ export const useTabGrouper = () => {
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
-    const [processingInBackground, setProcessingInBackground] = useState(false);
+    const [backgroundProcessingCount, setBackgroundProcessingCount] = useState(0);
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -86,10 +86,17 @@ export const useTabGrouper = () => {
                         setPreviewGroups(groups);
                         setSelectedPreviewIndices(new Set(groups.map((_, i) => i)));
                         setStatus('reviewing');
+                    } else if (groups.length === 0) {
+                        setPreviewGroups(null);
+                        if (status === 'reviewing') setStatus('idle');
                     }
+                } else {
+                    // No cached suggestions, clear preview
+                    setPreviewGroups(null);
+                    if (status === 'reviewing') setStatus('idle');
                 }
 
-                setProcessingInBackground((msg.processingTabIds?.length || 0) > 0);
+                setBackgroundProcessingCount(msg.processingTabIds?.length || 0);
             }
         });
 
@@ -287,7 +294,7 @@ export const useTabGrouper = () => {
         tabDataMap,
         availability,
         ungroupedCount,
-        processingInBackground,
+        backgroundProcessingCount,
         generateGroups,
         applyGroups,
         cancelGroups,

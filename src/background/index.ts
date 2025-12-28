@@ -33,15 +33,15 @@ const invalidateCache = async () => {
     suggestionCache.clear();
     rejectedTabs.clear();
 
+    // Immediately notify UI that cache is now empty
+    broadcastCacheUpdate();
+
     // Update known groups (logged for debugging)
     const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     console.log("[TabGrouper] Current groups:", groups.length);
 
     // Re-queue all ungrouped tabs
     await queueUngroupedTabs();
-
-    // Notify connected ports
-    broadcastCacheUpdate();
 };
 
 const broadcastCacheUpdate = () => {
