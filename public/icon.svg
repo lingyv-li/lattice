@@ -1,16 +1,16 @@
 <svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="128" height="128" rx="28" fill="url(#paint0_linear)"/>
-<!-- Golden Ratio Lines: 128 * 0.382 ≈ 49, 128 * 0.618 ≈ 79 -->
-<!-- Vertical Lines -->
-<path d="M49 28V100" stroke="white" stroke-width="10" stroke-linecap="round"/>
-<path d="M79 28V100" stroke="white" stroke-width="10" stroke-linecap="round"/>
-<!-- Horizontal Lines -->
-<path d="M28 49H100" stroke="white" stroke-width="10" stroke-linecap="round"/>
-<path d="M28 79H100" stroke="white" stroke-width="10" stroke-linecap="round"/>
+<!-- Balanced spacing: roughly thirds -->
+<!-- Vertical Lines at 42 and 86 -->
+<path d="M42 28V100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<path d="M86 28V100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<!-- Horizontal Lines at 42 and 86 -->
+<path d="M28 42H100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<path d="M28 86H100" stroke="white" stroke-width="12" stroke-linecap="round"/>
 <defs>
 <linearGradient id="paint0_linear" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
-<stop stop-color="#4F46E5"/>
-<stop offset="1" stop-color="#9333EA"/>
+<stop stop-color="#3B82F6"/>
+<stop offset="1" stop-color="#8B5CF6"/>
 </linearGradient>
 </defs>
 </svg>
