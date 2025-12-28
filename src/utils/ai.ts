@@ -5,7 +5,7 @@ export interface GroupingContext {
     ungroupedTabs: { id: number; title: string; url: string }[];
 }
 
-let cachedSession: any = null;
+let cachedSession: LanguageModel | null = null;
 
 export const generateTabGroupSuggestions = async (
     context: GroupingContext,
@@ -22,28 +22,21 @@ export const generateTabGroupSuggestions = async (
             initialPrompts: [{
                 role: "system",
                 content: `You are a browser tab organizer. 
-            I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
-            Your task is to organize the "Ungrouped Tabs".
-            1. Prefer if an ungrouped tab fits well into an "Existing Group", assign it to that group.
-            2. If a set of ungrouped tabs form a new topic, create a NEW group for them.
-            3. Return ONLY a JSON object with a 'groups' key containing an array of objects.
-            4. For new groups, use short, concise, and descriptive names (e.g., "News", "Dev", "Shopping"). Maximum 3 words.
+            I will provide a list of "Existing Groups" and a SINGLE "Ungrouped Tab".
+            Your task is to assign the "Ungrouped Tab" to a group.
             
-            Each object in the array must have:
-            - 'groupName' (string): Name of the group. If using an existing group, MUST match the existing group's title exactly.
-            - 'tabIds' (array of numbers): The IDs of the ungrouped tabs to add to this group.
-            - 'existingGroupId' (number | null): The ID of the existing group if adding to one, otherwise null.
+            Rules:
+            1. Check if the tab fits well into an "Existing Group". If so, assign it there.
+            2. If it doesn't fit an existing group, assign it to a NEW group name based on its topic.
+            3. Use short, concise names for new groups (max 3 words).
+            
+            Return a JSON object with:
+            - 'groupName' (string): The name of the group.
+            - 'existingGroupId' (number | null): The ID of the existing group if used, otherwise null.
             
             Do not include any markdown formatting or explanation.`
-            }],
-            monitor(m: any) {
-                m.addEventListener('downloadprogress', (e: any) => {
-                    const loaded = e.loaded || 0;
-                    const total = e.total || 1;
-                    onProgress(Math.round((loaded / total) * 100));
-                    // Note: onProgress maps to INITIALIZING event
-                });
-            }
+            }]
+            // Note: We removed the download monitor here because onProgress is now used for task progress.
         });
     };
 
@@ -53,90 +46,101 @@ export const generateTabGroupSuggestions = async (
     }
     onSessionCreated?.();
 
-    const prompt = JSON.stringify({
-        existingGroups: context.existingGroups,
-        ungroupedTabs: context.ungroupedTabs
-    });
+    // Helper to execute prompt with options
+    const executePrompt = async (session: LanguageModel, prompt: string, useSchema = false) => {
+        const outputSchema = {
+            type: "object",
+            properties: {
+                groupName: { type: "string" },
+                existingGroupId: { type: "number", nullable: true }
+            },
+            required: ["groupName"]
+        };
 
-    let response;
-    try {
-        // Try prompting with current session
-        response = await cachedSession.prompt(prompt, {
-            outputLanguage: 'en',
+        const options: LanguageModelPromptOptions = useSchema ? {
             responseConstraint: {
                 type: 'json',
-                schema: {
-                    type: "object",
-                    properties: {
-                        groups: {
-                            type: "array",
-                            items: {
-                                type: "object",
-                                properties: {
-                                    groupName: { type: "string" },
-                                    tabIds: { type: "array", items: { type: "number" } },
-                                    existingGroupId: { type: "number", nullable: true }
-                                },
-                                required: ["groupName", "tabIds"]
-                            }
-                        }
-                    },
-                    required: ["groups"]
-                }
+                schema: outputSchema
+            }
+        } : {};
+
+        return await session.prompt(prompt, options);
+    };
+
+    // Dynamic state
+    const currentGroups = [...context.existingGroups];
+    const suggestions = new Map<string, TabGroupSuggestion>();
+
+    // We use negative IDs for new groups to allow referencing them in subsequent prompts
+    let nextNewGroupId = -1;
+
+    const totalTabs = context.ungroupedTabs.length;
+    let processedCount = 0;
+
+    for (const tab of context.ungroupedTabs) {
+        const prompt = JSON.stringify({
+            existingGroups: currentGroups,
+            ungroupedTab: {
+                title: tab.title,
+                url: tab.url
             }
         });
-    } catch (err: any) {
-        console.warn("Prompt failed with cached session, retrying with new session...", err);
 
-        // Destroy old session if possible
-        if (cachedSession && typeof cachedSession.destroy === 'function') {
-            cachedSession.destroy();
+        let response;
+        try {
+            response = await executePrompt(cachedSession!, prompt);
+        } catch (err: any) {
+            console.error("Prompt failed", err);
+            throw err;
         }
-        cachedSession = null;
-
-        // Create new and retry
-        cachedSession = await createSession();
-        onSessionCreated?.();
 
         try {
-            // @ts-ignore
-            response = await cachedSession.prompt(prompt, {
-                outputLanguage: 'en',
-                responseConstraint: {
-                    type: 'json',
-                    schema: {
-                        type: "object",
-                        properties: {
-                            groups: {
-                                type: "array",
-                                items: {
-                                    type: "object",
-                                    properties: {
-                                        groupName: { type: "string" },
-                                        tabIds: { type: "array", items: { type: "number" } },
-                                        existingGroupId: { type: "number", nullable: true }
-                                    },
-                                    required: ["groupName", "tabIds"]
-                                }
-                            }
-                        },
-                        required: ["groups"]
-                    }
+            const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+            const parsed = JSON.parse(cleanResponse);
+
+            const groupName = parsed.groupName;
+            let existingGroupId = parsed.existingGroupId;
+
+            // Update dynamic groups if it's a new group
+            if (!existingGroupId) {
+                // Check if we already created a pending group with this name
+                const alreadyProposed = currentGroups.find(g => g.title === groupName && g.id < 0);
+                if (alreadyProposed) {
+                    existingGroupId = alreadyProposed.id;
+                } else {
+                    // It is truly new
+                    existingGroupId = nextNewGroupId--;
+                    currentGroups.push({ id: existingGroupId, title: groupName });
                 }
-            });
-        } catch (constraintError) {
-            // If constraint fails even on fresh session, fallback to text
-            // @ts-ignore
-            response = await cachedSession.prompt(prompt, { outputLanguage: 'en' });
+            }
+
+            // Add to suggestions map
+            // We key by the "current effective ID" (which might be negative) to group them
+            const key = `group-${existingGroupId}`;
+
+            if (!suggestions.has(key)) {
+                suggestions.set(key, {
+                    groupName: groupName,
+                    tabIds: [],
+                    existingGroupId: existingGroupId >= 0 ? existingGroupId : null // Only return real IDs to the caller? 
+                    // Actually, the caller probably expects existingGroupId to be a real chrome group ID.
+                    // If it's null, the caller will create a new group. 
+                    // So we should map negative IDs back to null for the final result.
+                });
+            }
+
+            const suggestion = suggestions.get(key)!;
+            suggestion.tabIds.push(tab.id);
+
+        } catch (e) {
+            console.error("Failed to parse response for tab", tab.id, e);
+            // Optionally continue or fail? We'll continue and leave this tab ungrouped.
         }
+
+        processedCount++;
+        onProgress(Math.round((processedCount / totalTabs) * 100));
     }
 
-    try {
-        const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanResponse);
-        return parsed.groups;
-    } catch (e) {
-        console.error("Failed to parse AI response", e);
-        throw new Error("Failed to parse AI response.");
-    }
+    // Convert map to array and cleanup
+    return Array.from(suggestions.values());
 };

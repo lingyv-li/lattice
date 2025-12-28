@@ -8,7 +8,7 @@ export type TabGrouperStatus = 'idle' | 'initializing' | 'processing' | 'reviewi
 export const useTabGrouper = () => {
     const [status, setStatus] = useState<TabGrouperStatus>('idle');
     const [error, setError] = useState<string | null>(null);
-    const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+    const [progress, setProgress] = useState<number | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
@@ -39,7 +39,7 @@ export const useTabGrouper = () => {
     const generateGroups = async () => {
         setStatus('processing');
         setError(null);
-        setDownloadProgress(null);
+        setProgress(null);
         setPreviewGroups(null);
 
         try {
@@ -58,8 +58,12 @@ export const useTabGrouper = () => {
 
             port.onMessage.addListener((msg: TabGroupResponse) => {
                 if (msg.type === 'INITIALIZING') {
-                    setDownloadProgress(msg.value || 0);
+                    // This refers to model initialization
                     setStatus('initializing');
+                } else if (msg.type === 'PROGRESS') {
+                    // This refers to processing progress
+                    setProgress(msg.value || 0);
+                    setStatus('processing');
                 } else if (msg.type === 'SESSION_CREATED') {
                     setStatus('processing');
                 } else if (msg.type === 'COMPLETE') {
@@ -143,7 +147,7 @@ export const useTabGrouper = () => {
     return {
         status,
         error,
-        downloadProgress,
+        progress,
         previewGroups,
         setPreviewGroups,
         selectedPreviewIndices,

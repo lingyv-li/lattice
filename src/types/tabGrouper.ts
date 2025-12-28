@@ -1,6 +1,7 @@
 export interface TabGroupSuggestion {
     groupName: string;
     tabIds: number[];
+    existingGroupId?: number | null;
 }
 
 export interface TabGroupMessage {
@@ -8,7 +9,7 @@ export interface TabGroupMessage {
 }
 
 export interface TabGroupResponse {
-    type: 'INITIALIZING' | 'SESSION_CREATED' | 'COMPLETE' | 'ERROR';
+    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR';
     value?: number;
     groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
     error?: string;

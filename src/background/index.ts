@@ -44,7 +44,7 @@ chrome.runtime.onConnect.addListener((port) => {
                         ungroupedTabs: tabData
                     },
                     (progress) => {
-                        port.postMessage({ type: 'INITIALIZING', value: progress } as TabGroupResponse);
+                        port.postMessage({ type: 'PROGRESS', value: progress } as TabGroupResponse);
                     },
                     () => {
                         port.postMessage({ type: 'SESSION_CREATED' } as TabGroupResponse);

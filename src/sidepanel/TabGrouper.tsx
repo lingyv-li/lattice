@@ -6,6 +6,7 @@ export const TabGrouper = () => {
     const {
         status,
         error,
+        progress,
         previewGroups,
         selectedPreviewIndices,
         tabDataMap,
@@ -48,14 +49,23 @@ export const TabGrouper = () => {
                 <button
                     onClick={generateGroups}
                     disabled={status === 'processing' || status === 'initializing' || availability === 'unavailable'}
-                    className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
+                    className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale relative overflow-hidden"
                 >
-                    {(status === 'processing' || status === 'initializing') ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
-                    {status === 'initializing' ? `Initializing AI...` :
-                        status === 'processing' ? "Organizing..." :
-                            status === 'success' ? "Done!" :
-                                (availability === 'downloadable' ? "Download AI & Group Tabs" : "Group Tabs")
-                    }
+                    {(status === 'processing' || status === 'initializing') ? <Loader2 className="w-4 h-4 animate-spin relative z-10" /> : <Layers className="w-4 h-4 relative z-10" />}
+                    <span className="relative z-10">
+                        {status === 'initializing' ? `Initializing AI...` :
+                            status === 'processing' ? `Organizing... ${progress ? `(${progress}%)` : ''}` :
+                                status === 'success' ? "Done!" :
+                                    (availability === 'downloadable' ? "Download AI & Group Tabs" : "Group Tabs")
+                        }
+                    </span>
+                    {/* Progress Bar Background */}
+                    {status === 'processing' && progress !== null && (
+                        <div
+                            className="absolute left-0 top-0 bottom-0 bg-purple-800 transition-all duration-300"
+                            style={{ width: `${progress}%`, opacity: 0.3 }}
+                        />
+                    )}
                 </button>
             )}
         </div>
