@@ -12,7 +12,7 @@ export const useTabGrouper = () => {
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
-    const [backgroundProcessingCount, setBackgroundProcessingCount] = useState(0);
+    const [isBackgroundProcessing, setBackgroundProcessing] = useState(false);
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -109,7 +109,7 @@ export const useTabGrouper = () => {
             }
 
             if (msg.type === 'PROCESSING_STATUS') {
-                setBackgroundProcessingCount(msg.processingCount ?? 0);
+                setBackgroundProcessing(msg.isProcessing ?? false);
             }
         });
 
@@ -314,7 +314,7 @@ export const useTabGrouper = () => {
         tabDataMap,
         availability,
         ungroupedCount,
-        backgroundProcessingCount,
+        isBackgroundProcessing,
         generateGroups,
         applyGroups,
         cancelGroups,

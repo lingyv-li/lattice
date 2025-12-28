@@ -13,7 +13,7 @@ export const TabGrouper = () => {
         tabDataMap,
         availability,
         ungroupedCount,
-        backgroundProcessingCount,
+        isBackgroundProcessing,
         generateGroups,
         applyGroups,
         cancelGroups,
@@ -37,7 +37,7 @@ export const TabGrouper = () => {
         status === 'error' ||
         status === 'processing' ||
         status === 'initializing' ||
-        (!previewGroups && backgroundProcessingCount === 0)
+        (!previewGroups && !isBackgroundProcessing)
     );
 
     return (
@@ -95,10 +95,10 @@ export const TabGrouper = () => {
                 </button>
             )}
 
-            {backgroundProcessingCount > 0 && !previewGroups && status === 'idle' && (
+            {isBackgroundProcessing && status !== 'processing' && status !== 'initializing' && (
                 <p className="text-xs text-muted mt-2 text-center">
                     <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
-                    Analyzing {backgroundProcessingCount} tab{backgroundProcessingCount !== 1 ? 's' : ''} in background...
+                    Analyzing tabs in background...
                 </p>
             )}
         </div>

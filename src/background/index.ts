@@ -73,10 +73,10 @@ const broadcastCacheUpdate = () => {
 };
 
 const broadcastProcessingStatus = () => {
-    const count = processingQueue.size + currentlyProcessing.size;
+    const isProcessing = (processingQueue.size + currentlyProcessing.size) > 0;
     const response: TabGroupResponse = {
         type: 'PROCESSING_STATUS',
-        processingCount: count
+        isProcessing
     };
 
     for (const port of connectedPorts) {
@@ -317,7 +317,7 @@ chrome.runtime.onConnect.addListener((port) => {
             } as TabGroupResponse);
             port.postMessage({
                 type: 'PROCESSING_STATUS',
-                processingCount: processingQueue.size + currentlyProcessing.size
+                isProcessing: (processingQueue.size + currentlyProcessing.size) > 0
             } as TabGroupResponse);
 
             // Also trigger a check

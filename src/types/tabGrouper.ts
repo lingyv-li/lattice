@@ -23,7 +23,7 @@ export interface TabGroupResponse {
     value?: number;
     groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
     cachedSuggestions?: TabSuggestionCache[];
-    processingCount?: number;
+    isProcessing?: boolean;
     error?: string;
 }
 
