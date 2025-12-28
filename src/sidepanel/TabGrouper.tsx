@@ -73,7 +73,7 @@ export const TabGrouper = () => {
                 <button
                     onClick={generateGroups}
                     disabled={status === 'processing' || status === 'initializing' || availability === 'unavailable'}
-                    className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale relative overflow-hidden"
+                    className="w-full py-2 px-4 bg-btn-primary-bg hover:bg-btn-primary-hover active:scale-95 text-btn-primary-fg rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale relative overflow-hidden"
                 >
                     {(status === 'processing' || status === 'initializing') ? <Loader2 className="w-4 h-4 animate-spin relative z-10" /> :
                         availability === 'downloadable' ? <Download className="w-4 h-4 relative z-10" /> :

@@ -11,9 +11,9 @@ export const DuplicateTabCleaner = () => {
     }
 
     return (
-        <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4">
-            <div className="flex items-center gap-2 mb-2">
-                <CopyMinus className={`w-5 h-5 ${duplicateCount > 0 ? 'text-orange-500' : 'text-muted'}`} />
+        <div className="p-[var(--spacing-card-padding)] bg-surface-dim rounded-xl border border-border-subtle mb-4">
+            <div className="flex items-center gap-[var(--spacing-item-gap)] mb-2">
+                <CopyMinus className={`size-[var(--size-icon-md)] ${duplicateCount > 0 ? 'text-orange-500' : 'text-muted'}`} />
                 <h3 className="font-bold text-sm text-main">Duplicate Cleaner</h3>
             </div>
 
@@ -24,25 +24,25 @@ export const DuplicateTabCleaner = () => {
             <button
                 onClick={closeDuplicates}
                 disabled={status === 'cleaning'}
-                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 
+                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-[var(--spacing-item-gap)] 
                     ${status === 'success'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-border-subtle hover:bg-surface-dim text-main'
+                        ? 'bg-status-success-bg text-status-success-fg'
+                        : 'bg-btn-primary-bg hover:bg-btn-primary-hover text-btn-primary-fg shadow-sm'
                     } disabled:opacity-50`}
             >
                 {status === 'cleaning' ? (
                     <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <Loader2 className="size-[var(--size-icon-sm)] animate-spin" />
                         <span>Cleaning...</span>
                     </>
                 ) : status === 'success' ? (
                     <>
-                        <CheckCircle className="w-4 h-4" />
+                        <CheckCircle className="size-[var(--size-icon-sm)]" />
                         <span>{closedCount > 0 ? `Closed ${closedCount} tabs` : 'Cleaned!'}</span>
                     </>
                 ) : status === 'error' ? (
                     <>
-                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        <AlertCircle className="size-[var(--size-icon-sm)] text-status-error-fg" />
                         <span>Error</span>
                     </>
                 ) : (

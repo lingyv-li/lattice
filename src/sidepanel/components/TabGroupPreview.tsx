@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { TabGroupSuggestion } from '../../hooks/useTabGrouper';
 
 interface TabGroupPreviewProps {
@@ -27,20 +27,26 @@ export const TabGroupPreview = ({
                 <div
                     key={idx}
                     onClick={() => onToggleSelection(idx)}
-                    className="bg-surface p-3 rounded-lg border border-border-subtle cursor-pointer hover:bg-surface-dim transition-colors"
+                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 ${selectedPreviewIndices.has(idx)
+                        ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
+                        : 'bg-surface border-border-subtle hover:bg-surface-dim'
+                        }`}
                 >
-                    <div className="flex items-start gap-3 mb-2">
-                        <div className="pt-1">
-                            <input
-                                type="checkbox"
-                                checked={selectedPreviewIndices.has(idx)}
-                                readOnly
-                                className="w-5 h-5 rounded border-zinc-300 text-purple-600 focus:ring-purple-500 pointer-events-none"
-                            />
+                    <div className="flex items-start gap-[var(--spacing-item-gap)] mb-0.5">
+                        <div className="pt-0.5">
+                            <div className={`flex items-center justify-center size-[var(--size-icon-sm)] rounded transition-colors ${selectedPreviewIndices.has(idx)
+                                ? 'bg-btn-primary-bg text-btn-primary-fg'
+                                : 'border border-border-strong bg-surface'
+                                }`}>
+                                {selectedPreviewIndices.has(idx) && <Check className="size-3" strokeWidth={3} />}
+                            </div>
                         </div>
                         <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold px-2 py-0.5 bg-border-subtle rounded text-main">
+                            <div className="flex items-center gap-[var(--spacing-item-gap)] mb-1">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded ${group.existingGroupId
+                                    ? 'bg-status-info-bg text-status-info-fg'
+                                    : 'bg-status-neutral-bg text-status-neutral-fg'
+                                    }`}>
                                     {group.existingGroupId ? 'Merge' : 'New'}
                                 </span>
                                 <span className="text-sm font-medium text-main">{group.groupName}</span>
@@ -59,10 +65,10 @@ export const TabGroupPreview = ({
                                 e.stopPropagation();
                                 onReject(idx);
                             }}
-                            className="p-1 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                            className="p-1 text-muted hover:text-btn-negative-fg hover:bg-btn-negative-hover rounded transition-colors"
                             title="Reject this suggestion"
                         >
-                            <X className="w-4 h-4" />
+                            <X className="size-[var(--size-icon-sm)]" />
                         </button>
                     </div>
                 </div>
@@ -70,13 +76,13 @@ export const TabGroupPreview = ({
             <div className="sticky bottom-0 z-10 flex gap-2 -mx-4 -mb-4 px-4 py-3 mt-4 bg-surface-dim border-t border-border-subtle rounded-b-xl backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
                 <button
                     onClick={onCancel}
-                    className="flex-1 py-2 text-xs font-medium text-muted hover:text-main"
+                    className="flex-1 py-2 text-xs font-medium bg-btn-secondary-bg text-btn-secondary-fg border border-btn-secondary-border rounded-lg hover:bg-btn-secondary-hover shadow-sm transition-all"
                 >
                     Dismiss All
                 </button>
                 <button
                     onClick={onApply}
-                    className="flex-1 py-2 text-xs font-bold bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-sm"
+                    className="flex-1 py-2 text-xs font-bold bg-btn-primary-bg text-btn-primary-fg rounded-lg hover:bg-btn-primary-hover shadow-sm"
                 >
                     Apply Groups
                 </button>

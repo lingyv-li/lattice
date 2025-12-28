@@ -89,7 +89,7 @@ const App = () => {
                         onClick={handleSave}
                         className={cn(
                             "w-full py-4 rounded-2xl font-bold text-white transition-all flex items-center justify-center gap-2",
-                            saved ? "bg-green-500 hover:bg-green-600" : "bg-text-main text-text-inverted hover:opacity-90"
+                            saved ? "bg-green-500 hover:bg-green-600" : "bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover"
                         )}
                     >
                         {saved ? (

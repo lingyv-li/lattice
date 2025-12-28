@@ -6,7 +6,23 @@
     --color-text-main: var(--text-main);
     --color-text-muted: var(--text-muted);
     --color-border-subtle: var(--border-subtle);
+    --color-border-strong: var(--border-strong);
+    --color-surface-highlight: var(--surface-highlight);
     --color-text-inverted: var(--text-inverted);
+
+    /* Button Tokens */
+    --color-btn-primary-bg: var(--btn-primary-bg);
+    --color-btn-primary-fg: var(--btn-primary-fg);
+    --color-btn-primary-hover: var(--btn-primary-hover);
+
+    --color-btn-secondary-bg: var(--btn-secondary-bg);
+    --color-btn-secondary-fg: var(--btn-secondary-fg);
+    --color-btn-secondary-border: var(--btn-secondary-border);
+    --color-btn-secondary-hover: var(--btn-secondary-hover);
+
+    --color-btn-negative-bg: var(--btn-negative-bg);
+    --color-btn-negative-fg: var(--btn-negative-fg);
+    --color-btn-negative-hover: var(--btn-negative-hover);
 }
 
 :root {
@@ -14,13 +30,36 @@
     --surface: #ffffff;
     --surface-dim: #fafafa;
     /* zinc-50 */
+    --surface-highlight: #f4f4f5;
+    /* zinc-100 */
     --text-main: #18181b;
     /* zinc-900 */
     --text-muted: #71717a;
     /* zinc-500 */
     --border-subtle: #e4e4e7;
     /* zinc-200 */
+    --border-strong: #d4d4d8;
+    /* zinc-300 */
     --text-inverted: #ffffff;
+
+    /* Button - Light */
+    --btn-primary-bg: #7c3aed;
+    /* violet-600 */
+    --btn-primary-fg: #ffffff;
+    --btn-primary-hover: #6d28d9;
+    /* violet-700 */
+
+    --btn-secondary-bg: #ffffff;
+    --btn-secondary-fg: #18181b;
+    --btn-secondary-border: #d4d4d8;
+    --btn-secondary-hover: #f4f4f5;
+
+    --btn-negative-bg: #fef2f2;
+    /* red-50 */
+    --btn-negative-fg: #dc2626;
+    /* red-600 */
+    --btn-negative-hover: #fee2e2;
+    /* red-100 */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,12 +69,36 @@
         /* zinc-900 */
         --surface-dim: #27272a;
         /* zinc-800 */
+        --surface-highlight: #3f3f46;
+        /* zinc-700 */
         --text-main: #f4f4f5;
         /* zinc-100 */
         --text-muted: #a1a1aa;
         /* zinc-400 */
         --border-subtle: #27272a;
         /* zinc-800 */
+        --border-strong: #52525b;
+        /* zinc-600 */
         --text-inverted: #18181b;
+
+        /* Button - Dark */
+        --btn-primary-bg: #7c3aed;
+        /* violet-600 */
+        --btn-primary-fg: #ffffff;
+        --btn-primary-hover: #6d28d9;
+        /* violet-700 */
+
+        --btn-secondary-bg: #27272a;
+        /* zinc-800 */
+        --btn-secondary-fg: #f4f4f5;
+        --btn-secondary-border: #52525b;
+        --btn-secondary-hover: #3f3f46;
+
+        --btn-negative-bg: rgba(127, 29, 29, 0.3);
+        /* red-900/30 */
+        --btn-negative-fg: #f87171;
+        /* red-400 */
+        --btn-negative-hover: rgba(127, 29, 29, 0.5);
+        /* red-900/50 */
     }
 }
