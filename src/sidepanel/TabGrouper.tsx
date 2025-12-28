@@ -41,12 +41,12 @@ export const TabGrouper = () => {
     );
 
     return (
-        <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 mb-4">
+        <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4">
             <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-purple-500" />
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">AI Tab Grouper</h3>
+                <h3 className="font-bold text-sm text-main">AI Tab Grouper</h3>
             </div>
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-muted mb-4">
                 Automatically organize your open tabs into groups using on-device AI.
             </p>
 
@@ -96,7 +96,7 @@ export const TabGrouper = () => {
             )}
 
             {backgroundProcessingCount > 0 && !previewGroups && status === 'idle' && (
-                <p className="text-xs text-zinc-400 mt-2 text-center">
+                <p className="text-xs text-muted mt-2 text-center">
                     <Loader2 className="w-3 h-3 inline animate-spin mr-1" />
                     Analyzing {backgroundProcessingCount} tab{backgroundProcessingCount !== 1 ? 's' : ''} in background...
                 </p>

@@ -1,1 +1,41 @@
 @import "tailwindcss";
+
+@theme {
+    --color-surface: var(--surface);
+    --color-surface-dim: var(--surface-dim);
+    --color-text-main: var(--text-main);
+    --color-text-muted: var(--text-muted);
+    --color-border-subtle: var(--border-subtle);
+    --color-text-inverted: var(--text-inverted);
+}
+
+:root {
+    /* Light Mode (Default) */
+    --surface: #ffffff;
+    --surface-dim: #fafafa;
+    /* zinc-50 */
+    --text-main: #18181b;
+    /* zinc-900 */
+    --text-muted: #71717a;
+    /* zinc-500 */
+    --border-subtle: #e4e4e7;
+    /* zinc-200 */
+    --text-inverted: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Dark Mode Overrides */
+        --surface: #18181b;
+        /* zinc-900 */
+        --surface-dim: #27272a;
+        /* zinc-800 */
+        --text-main: #f4f4f5;
+        /* zinc-100 */
+        --text-muted: #a1a1aa;
+        /* zinc-400 */
+        --border-subtle: #27272a;
+        /* zinc-800 */
+        --text-inverted: #18181b;
+    }
+}

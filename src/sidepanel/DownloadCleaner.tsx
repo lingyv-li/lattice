@@ -24,7 +24,7 @@ export const DownloadCleaner = () => {
 
     if (loading) {
         return (
-            <div className="p-6 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
+            <div className="p-6 bg-surface-dim rounded-xl border border-border-subtle flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
             </div>
         );

@@ -28,10 +28,10 @@ export const CleanerSummary = ({
     const selectedCount = (cleanMissing ? missingItems.length : 0) + (cleanInterrupted ? interruptedItems.length : 0);
 
     return (
-        <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 mb-4 relative">
+        <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4 relative">
             <div className="flex items-center gap-2 mb-2">
                 <Trash2 className="w-5 h-5 text-blue-500" />
-                <h3 className="font-bold text-sm text-zinc-900 dark:text-zinc-100">Download Cleaner</h3>
+                <h3 className="font-bold text-sm text-main">Download Cleaner</h3>
                 {selectedCount > 0 && (
                     <span className="ml-auto bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">
                         {selectedCount} issues
@@ -39,7 +39,7 @@ export const CleanerSummary = ({
                 )}
             </div>
 
-            <p className="text-xs text-zinc-500 mb-4">
+            <p className="text-xs text-muted mb-4">
                 Found {totalFound} useless files taking up space in your download history.
             </p>
 
@@ -47,8 +47,8 @@ export const CleanerSummary = ({
                 <button
                     onClick={() => missingItems.length > 0 && setCleanMissing(!cleanMissing)}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-all ${cleanMissing
-                        ? 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                        : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                        ? 'bg-surface border-border-subtle text-main shadow-sm'
+                        : 'bg-transparent border-transparent text-muted hover:bg-surface-dim'
                         } ${missingItems.length === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                     {cleanMissing && <CheckCircle className="w-3 h-3 text-blue-500" />}
@@ -58,8 +58,8 @@ export const CleanerSummary = ({
                 <button
                     onClick={() => interruptedItems.length > 0 && setCleanInterrupted(!cleanInterrupted)}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border transition-all ${cleanInterrupted
-                        ? 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                        : 'bg-transparent border-transparent text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                        ? 'bg-surface border-border-subtle text-main shadow-sm'
+                        : 'bg-transparent border-transparent text-muted hover:bg-surface-dim'
                         } ${interruptedItems.length === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 >
                     {cleanInterrupted && <CheckCircle className="w-3 h-3 text-blue-500" />}
@@ -70,7 +70,7 @@ export const CleanerSummary = ({
             <div className="flex gap-2">
                 <button
                     onClick={onDetails}
-                    className="py-2 px-3 rounded-lg font-medium text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors text-xs"
+                    className="py-2 px-3 rounded-lg font-medium text-muted hover:bg-border-subtle transition-colors text-xs"
                 >
                     Details
                 </button>
