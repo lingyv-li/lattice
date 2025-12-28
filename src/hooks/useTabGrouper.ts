@@ -17,6 +17,17 @@ export const useTabGrouper = () => {
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
 
+    // Helper to safely post messages (handles disconnected ports)
+    const safePostMessage = useCallback((message: any) => {
+        if (!portRef.current) return;
+        try {
+            portRef.current.postMessage(message);
+        } catch (e) {
+            // Port disconnected, clear the reference
+            portRef.current = null;
+        }
+    }, []);
+
     // Convert cached suggestions to preview groups
     const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], tabMap: Map<number, { title: string, url: string }>) => {
         const groupMap = new Map<string, TabGroupSuggestion & { existingGroupId?: number | null }>();
@@ -218,8 +229,8 @@ export const useTabGrouper = () => {
                     unselectedTabIds.push(...previewGroups[i].tabIds);
                 }
             }
-            if (unselectedTabIds.length > 0 && portRef.current) {
-                portRef.current.postMessage({
+            if (unselectedTabIds.length > 0) {
+                safePostMessage({
                     type: 'REJECT_SUGGESTIONS',
                     rejectedTabIds: unselectedTabIds
                 });
@@ -232,9 +243,9 @@ export const useTabGrouper = () => {
 
     const cancelGroups = () => {
         // Reject all suggestions when cancelling
-        if (previewGroups && portRef.current) {
+        if (previewGroups) {
             const allTabIds = previewGroups.flatMap(g => g.tabIds);
-            portRef.current.postMessage({
+            safePostMessage({
                 type: 'REJECT_SUGGESTIONS',
                 rejectedTabIds: allTabIds
             });
@@ -249,12 +260,10 @@ export const useTabGrouper = () => {
         if (!group) return;
 
         // Send rejection to background
-        if (portRef.current) {
-            portRef.current.postMessage({
-                type: 'REJECT_SUGGESTIONS',
-                rejectedTabIds: group.tabIds
-            });
-        }
+        safePostMessage({
+            type: 'REJECT_SUGGESTIONS',
+            rejectedTabIds: group.tabIds
+        });
 
         // Remove from preview
         const newGroups = previewGroups.filter((_, i) => i !== groupIndex);

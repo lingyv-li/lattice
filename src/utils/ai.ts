@@ -17,21 +17,19 @@ export const generateTabGroupSuggestions = async (
             initialPrompts: [{
                 role: "system",
                 content: `You are a browser tab organizer. 
-            I will provide a list of "Existing Groups" and a SINGLE "Ungrouped Tab".
+            I will provide a list of "Existing Group Names" and a SINGLE "Ungrouped Tab".
             Your task is to assign the "Ungrouped Tab" to a group.
             
             Rules:
-            1. Check if the tab fits well into an "Existing Group". If so, assign it there.
+            1. Check if the tab fits well into one of the "Existing Group Names". If so, use that EXACT name.
             2. If it doesn't fit an existing group, assign it to a NEW group name based on its topic.
             3. Use short, concise names for new groups (max 3 words).
             
             Return a JSON object with:
             - 'groupName' (string): The name of the group.
-            - 'existingGroupId' (number | null): The ID of the existing group if used, otherwise null.
             
             Do not include any markdown formatting or explanation.`
             }]
-            // Note: We removed the download monitor here because onProgress is now used for task progress.
         });
     };
 
@@ -46,8 +44,7 @@ export const generateTabGroupSuggestions = async (
         const outputSchema = {
             type: "object",
             properties: {
-                groupName: { type: "string" },
-                existingGroupId: { type: "number", nullable: true }
+                groupName: { type: "string" }
             },
             required: ["groupName"]
         };
@@ -62,8 +59,19 @@ export const generateTabGroupSuggestions = async (
         return await session.prompt(prompt, options);
     };
 
-    // Dynamic state
-    const currentGroups = [...context.existingGroups];
+    // 1. Build a deterministic map of "Group Name" -> "Group ID"
+    // We only care about the FIRST group with a given name
+    const groupNameMap = new Map<string, number>();
+
+    // Filter out empty names and populate map
+    for (const group of context.existingGroups) {
+        if (group.title && group.title.trim().length > 0) {
+            if (!groupNameMap.has(group.title)) {
+                groupNameMap.set(group.title, group.id);
+            }
+        }
+    }
+
     const suggestions = new Map<string, TabGroupSuggestion>();
 
     // We use negative IDs for new groups to allow referencing them in subsequent prompts
@@ -73,8 +81,10 @@ export const generateTabGroupSuggestions = async (
     let processedCount = 0;
 
     for (const tab of context.ungroupedTabs) {
+        const currentGroupNames = Array.from(groupNameMap.keys());
+
         const prompt = JSON.stringify({
-            existingGroups: currentGroups,
+            existingGroupNames: currentGroupNames,
             ungroupedTab: {
                 title: tab.title,
                 url: tab.url
@@ -92,35 +102,27 @@ export const generateTabGroupSuggestions = async (
         try {
             const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsed = JSON.parse(cleanResponse);
-
             const groupName = parsed.groupName;
-            let existingGroupId = parsed.existingGroupId;
 
-            // Update dynamic groups if it's a new group
-            if (!existingGroupId) {
-                // Check if we already created a pending group with this name
-                const alreadyProposed = currentGroups.find(g => g.title === groupName && g.id < 0);
-                if (alreadyProposed) {
-                    existingGroupId = alreadyProposed.id;
-                } else {
-                    // It is truly new
-                    existingGroupId = nextNewGroupId--;
-                    currentGroups.push({ id: existingGroupId, title: groupName });
-                }
+            let targetGroupId: number;
+
+            // Determine Group ID
+            if (groupNameMap.has(groupName)) {
+                targetGroupId = groupNameMap.get(groupName)!;
+            } else {
+                // New group! Assign a new negative ID and add to map for future tabs
+                targetGroupId = nextNewGroupId--;
+                groupNameMap.set(groupName, targetGroupId);
             }
 
-            // Add to suggestions map
-            // We key by the "current effective ID" (which might be negative) to group them
-            const key = `group-${existingGroupId}`;
+            // Group suggestions by their target ID (to handle merging into same new/existing group)
+            const key = `group-id-${targetGroupId}`;
 
             if (!suggestions.has(key)) {
                 suggestions.set(key, {
                     groupName: groupName,
                     tabIds: [],
-                    existingGroupId: existingGroupId >= 0 ? existingGroupId : null // Only return real IDs to the caller? 
-                    // Actually, the caller probably expects existingGroupId to be a real chrome group ID.
-                    // If it's null, the caller will create a new group. 
-                    // So we should map negative IDs back to null for the final result.
+                    existingGroupId: targetGroupId >= 0 ? targetGroupId : null
                 });
             }
 
@@ -129,13 +131,12 @@ export const generateTabGroupSuggestions = async (
 
         } catch (e) {
             console.error("Failed to parse response for tab", tab.id, e);
-            // Optionally continue or fail? We'll continue and leave this tab ungrouped.
         }
 
         processedCount++;
         onProgress(Math.round((processedCount / totalTabs) * 100));
     }
 
-    // Convert map to array and cleanup
+    // Convert map to array
     return Array.from(suggestions.values());
 };
