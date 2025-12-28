@@ -1,4 +1,4 @@
-import { Sparkles, Layers, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Layers, AlertCircle, Loader2, Download } from 'lucide-react';
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { TabGroupPreview } from './components/TabGroupPreview';
 import { CleanState } from './components/CleanState';
@@ -17,6 +17,7 @@ export const TabGrouper = () => {
         generateGroups,
         applyGroups,
         cancelGroups,
+        rejectGroup,
         toggleGroupSelection
     } = useTabGrouper();
 
@@ -24,6 +25,20 @@ export const TabGrouper = () => {
     if (ungroupedCount === 0 && status !== 'processing' && status !== 'initializing') {
         return <CleanState icon={Sparkles} title="AI Tab Grouper" message="All tabs organized!" />;
     }
+
+    // Determine if we should show the manual Group Tabs button:
+    // - Show if AI needs downloading
+    // - Show if there's an error
+    // - Show if actively processing/initializing
+    // - Hide if background processing is active and there are no suggestions yet
+    const showGroupButton = (
+        availability === 'downloadable' ||
+        availability === 'downloading' ||
+        status === 'error' ||
+        status === 'processing' ||
+        status === 'initializing' ||
+        (!previewGroups && !processingInBackground)
+    );
 
     return (
         <div className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 mb-4">
@@ -48,23 +63,26 @@ export const TabGrouper = () => {
                     selectedPreviewIndices={selectedPreviewIndices}
                     tabDataMap={tabDataMap}
                     onToggleSelection={toggleGroupSelection}
+                    onReject={rejectGroup}
                     onApply={applyGroups}
                     onCancel={cancelGroups}
                 />
             )}
 
-            {!previewGroups && (
+            {!previewGroups && showGroupButton && (
                 <button
                     onClick={generateGroups}
                     disabled={status === 'processing' || status === 'initializing' || availability === 'unavailable'}
                     className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale relative overflow-hidden"
                 >
-                    {(status === 'processing' || status === 'initializing') ? <Loader2 className="w-4 h-4 animate-spin relative z-10" /> : <Layers className="w-4 h-4 relative z-10" />}
+                    {(status === 'processing' || status === 'initializing') ? <Loader2 className="w-4 h-4 animate-spin relative z-10" /> :
+                        availability === 'downloadable' ? <Download className="w-4 h-4 relative z-10" /> :
+                            <Layers className="w-4 h-4 relative z-10" />}
                     <span className="relative z-10">
                         {status === 'initializing' ? `Initializing AI...` :
                             status === 'processing' ? `Organizing... ${progress ? `(${progress}%)` : ''}` :
                                 status === 'success' ? "Done!" :
-                                    (availability === 'downloadable' ? "Download AI & Group Tabs" : `Group ${ungroupedCount} Tabs`)
+                                    (availability === 'downloadable' ? "Download AI Model" : `Group ${ungroupedCount} Tabs`)
                         }
                     </span>
                     {/* Progress Bar Background */}

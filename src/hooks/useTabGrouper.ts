@@ -212,6 +212,39 @@ export const useTabGrouper = () => {
         setStatus('idle');
     };
 
+    const rejectGroup = (groupIndex: number) => {
+        if (!previewGroups) return;
+        const group = previewGroups[groupIndex];
+        if (!group) return;
+
+        // Send rejection to background
+        if (portRef.current) {
+            portRef.current.postMessage({
+                type: 'REJECT_SUGGESTIONS',
+                rejectedTabIds: group.tabIds
+            });
+        }
+
+        // Remove from preview
+        const newGroups = previewGroups.filter((_, i) => i !== groupIndex);
+        if (newGroups.length === 0) {
+            setPreviewGroups(null);
+            setStatus('idle');
+        } else {
+            setPreviewGroups(newGroups);
+            // Update selected indices
+            const newSelected = new Set<number>();
+            for (const oldIdx of selectedPreviewIndices) {
+                if (oldIdx < groupIndex) {
+                    newSelected.add(oldIdx);
+                } else if (oldIdx > groupIndex) {
+                    newSelected.add(oldIdx - 1);
+                }
+            }
+            setSelectedPreviewIndices(newSelected);
+        }
+    };
+
     const toggleGroupSelection = (idx: number) => {
         const newSet = new Set(selectedPreviewIndices);
         if (newSet.has(idx)) {
@@ -236,6 +269,7 @@ export const useTabGrouper = () => {
         generateGroups,
         applyGroups,
         cancelGroups,
+        rejectGroup,
         toggleGroupSelection
     };
 };

@@ -13,7 +13,8 @@ export interface TabSuggestionCache {
 }
 
 export interface TabGroupMessage {
-    type: 'START_GROUPING' | 'GET_CACHED_SUGGESTIONS';
+    type: 'START_GROUPING' | 'GET_CACHED_SUGGESTIONS' | 'REJECT_SUGGESTIONS';
+    rejectedTabIds?: number[];
 }
 
 export interface TabGroupResponse {

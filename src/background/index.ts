@@ -24,10 +24,14 @@ const PROCESS_DEBOUNCE_MS = 1000;
 // Connected ports for sending cache updates
 const connectedPorts = new Set<chrome.runtime.Port>();
 
+// Rejected tabs (will be re-processed on next cache invalidation)
+const rejectedTabs = new Set<number>();
+
 // ===== CACHE INVALIDATION =====
 const invalidateCache = async () => {
     console.log("[TabGrouper] Invalidating cache due to group change");
     suggestionCache.clear();
+    rejectedTabs.clear();
 
     // Update known groups (logged for debugging)
     const groups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
@@ -66,7 +70,8 @@ const queueUngroupedTabs = async () => {
         t.url &&
         t.title &&
         !suggestionCache.has(t.id) &&
-        !currentlyProcessing.has(t.id)
+        !currentlyProcessing.has(t.id) &&
+        !rejectedTabs.has(t.id)
     );
 
     for (const tab of ungroupedTabs) {
@@ -222,6 +227,16 @@ chrome.runtime.onConnect.addListener((port) => {
             await queueUngroupedTabs();
         }
 
+        if (msg.type === 'REJECT_SUGGESTIONS' && msg.rejectedTabIds) {
+            // Remove rejected tabs from cache and add to rejected set
+            for (const tabId of msg.rejectedTabIds) {
+                suggestionCache.delete(tabId);
+                rejectedTabs.add(tabId);
+            }
+            console.log("[TabGrouper] Rejected tabs:", msg.rejectedTabIds);
+            broadcastCacheUpdate();
+        }
+
         if (msg.type === 'START_GROUPING') {
             try {
                 if (!self.LanguageModel) {
@@ -288,11 +303,33 @@ chrome.runtime.onConnect.addListener((port) => {
 });
 
 
-// Ensure clicking the icon opens the side panel
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+// Track side panel open state per window
+const sidePanelOpenState = new Map<number, boolean>();
+
+// Toggle side panel on action click
+chrome.action.onClicked.addListener(async (tab) => {
+    if (!tab.windowId) return;
+
+    const isOpen = sidePanelOpenState.get(tab.windowId) ?? false;
+    try {
+        if (isOpen) {
+            // Close by disabling for this tab
+            await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: false });
+            // Re-enable for future use
+            await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: true });
+            sidePanelOpenState.set(tab.windowId, false);
+        } else {
+            await chrome.sidePanel.open({ windowId: tab.windowId });
+            sidePanelOpenState.set(tab.windowId, true);
+        }
+    } catch (error) {
+        console.error("[SidePanel] Failed to toggle side panel:", error);
+    }
+});
 
 // Initialize download monitoring
 initializeDownloadMonitor();
 
 // Initial queue of ungrouped tabs (on service worker start)
-queueUngroupedTabs();
+// Defer this to avoid blocking initial setup
+setTimeout(() => queueUngroupedTabs(), 500);
