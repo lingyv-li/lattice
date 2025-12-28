@@ -14,3 +14,10 @@ export interface TabGroupResponse {
     groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
     error?: string;
 }
+
+export interface GroupingContext {
+    existingGroups: { id: number; title: string }[];
+    ungroupedTabs: { id: number; title: string; url: string }[];
+}
+
+export type TabGrouperStatus = 'idle' | 'initializing' | 'processing' | 'reviewing' | 'success' | 'error';

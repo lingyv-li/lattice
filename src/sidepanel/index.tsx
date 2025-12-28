@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Bot } from 'lucide-react';
 import './index.css';
 import { TabGrouper } from './TabGrouper';
 import { DownloadCleaner } from './DownloadCleaner';
@@ -16,15 +15,9 @@ const App = () => {
                     setModelInfo("AI API not supported");
                     return;
                 }
-                if ('capabilities' in window.LanguageModel) {
-                    // @ts-ignore
-                    const caps = await window.LanguageModel.capabilities();
-                    setModelInfo(`Local AI Model (${caps.available})`);
-                } else {
-                    // Fallback to availability check
-                    const text = await window.LanguageModel.availability();
-                    setModelInfo(`Local AI Model (${text})`);
-                }
+                // Fallback to availability check
+                const text = await window.LanguageModel.availability();
+                setModelInfo(`Local AI Model (${text})`);
             } catch (e) {
                 setModelInfo("Model check failed");
             }
@@ -37,7 +30,7 @@ const App = () => {
             {/* Header */}
             <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white">
-                    <Bot className="w-5 h-5" />
+                    <img src="/icon.svg" className="w-5 h-5" alt="Logo" />
                 </div>
                 <div>
                     <h1 className="font-bold text-sm leading-tight">Lattice</h1>

@@ -1,9 +1,4 @@
-import { TabGroupSuggestion } from '../types/tabGrouper';
-
-export interface GroupingContext {
-    existingGroups: { id: number; title: string }[];
-    ungroupedTabs: { id: number; title: string; url: string }[];
-}
+import { TabGroupSuggestion, GroupingContext } from '../types/tabGrouper';
 
 let cachedSession: LanguageModel | null = null;
 
@@ -89,7 +84,7 @@ export const generateTabGroupSuggestions = async (
         let response;
         try {
             response = await executePrompt(cachedSession!, prompt);
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Prompt failed", err);
             throw err;
         }

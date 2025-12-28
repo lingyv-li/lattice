@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { TabGroupResponse, TabGroupSuggestion } from '../types/tabGrouper';
+import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus } from '../types/tabGrouper';
 
 export type { TabGroupSuggestion };
-
-export type TabGrouperStatus = 'idle' | 'initializing' | 'processing' | 'reviewing' | 'success' | 'error';
 
 export const useTabGrouper = () => {
     const [status, setStatus] = useState<TabGrouperStatus>('idle');
@@ -107,11 +105,22 @@ export const useTabGrouper = () => {
 
                     if (validTabIds.length > 0) {
                         if (group.existingGroupId) {
-                            // Add to existing group
-                            await chrome.tabs.group({
-                                tabIds: validTabIds as [number, ...number[]],
-                                groupId: group.existingGroupId
-                            });
+                            try {
+                                // Add to existing group
+                                await chrome.tabs.group({
+                                    tabIds: validTabIds as [number, ...number[]],
+                                    groupId: group.existingGroupId
+                                });
+                            } catch (e: any) {
+                                // Check for specific error message regarding missing group
+                                if (e.message && e.message.includes("No group with id")) {
+                                    // Fallback: Create new group instead
+                                    const groupId = await chrome.tabs.group({ tabIds: validTabIds as [number, ...number[]] });
+                                    await chrome.tabGroups.update(groupId, { title: group.groupName });
+                                } else {
+                                    throw e;
+                                }
+                            }
                         } else {
                             // Create new group
                             const groupId = await chrome.tabs.group({ tabIds: validTabIds as [number, ...number[]] });
