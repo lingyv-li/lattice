@@ -6,6 +6,31 @@ import { TabGrouper } from './TabGrouper';
 import { DownloadCleaner } from './DownloadCleaner';
 
 const App = () => {
+    const [modelInfo, setModelInfo] = React.useState<string>("Checking model...");
+
+    React.useEffect(() => {
+        const checkModel = async () => {
+            try {
+                if (!window.LanguageModel) {
+                    setModelInfo("AI API not supported");
+                    return;
+                }
+                if ('capabilities' in window.LanguageModel) {
+                    // @ts-ignore
+                    const caps = await window.LanguageModel.capabilities();
+                    setModelInfo(`Local AI Model (${caps.available})`);
+                } else {
+                    // Fallback to availability check
+                    const text = await window.LanguageModel.availability();
+                    setModelInfo(`Local AI Model (${text})`);
+                }
+            } catch (e) {
+                setModelInfo("Model check failed");
+            }
+        };
+        checkModel();
+    }, []);
+
     return (
         <div className="min-h-screen w-screen bg-white dark:bg-zinc-950 flex flex-col font-sans text-zinc-900 dark:text-zinc-100">
             {/* Header */}
@@ -36,7 +61,7 @@ const App = () => {
 
                 <div className="text-center py-6 opacity-40">
                     <p className="text-[10px] text-zinc-500">
-                        Running local Gemini Nano model
+                        {modelInfo}
                     </p>
                 </div>
             </div>

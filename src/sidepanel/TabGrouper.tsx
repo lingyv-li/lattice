@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Layers, AlertCircle, Loader2 } from 'lucide-react';
 
 interface TabGroupSuggestion {
@@ -14,6 +14,23 @@ export const TabGrouper = () => {
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
+    const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
+
+    useEffect(() => {
+        const checkAndRun = async () => {
+            if (!window.LanguageModel) {
+                setAvailability('unavailable');
+                return;
+            }
+            const avail = await window.LanguageModel.availability();
+            setAvailability(avail);
+
+            if (avail === 'available') {
+                generateGroups();
+            }
+        };
+        checkAndRun();
+    }, []);
 
     const generateGroups = async () => {
         setLoading(true);
@@ -23,13 +40,24 @@ export const TabGrouper = () => {
         setPreviewGroups(null);
 
         try {
-            if (!("LanguageModel" in window)) {
+            if (!window.LanguageModel) {
                 throw new Error("AI API not supported in this browser.");
             }
 
+            console.log("Checking Window.LanguageModel availability...");
             const availability = await window.LanguageModel.availability();
-            if (availability === 'no') {
+            console.log("Availability:", availability);
+            if (availability === 'unavailable') {
                 throw new Error("AI model is not available.");
+            }
+
+            if ('capabilities' in window.LanguageModel) {
+                console.log("Checking Capabilities...");
+                // @ts-ignore
+                const capabilities = await window.LanguageModel.capabilities();
+                console.log("Capabilities:", capabilities);
+            } else {
+                console.log("Capabilities API not available.");
             }
 
             const allTabs = await chrome.tabs.query({ currentWindow: true });
@@ -53,7 +81,9 @@ export const TabGrouper = () => {
             tabData.forEach(t => map.set(t.id, t));
             setTabDataMap(map);
 
+            console.log("Creating AI Session...");
             const session = await window.LanguageModel.create({
+
                 initialPrompts: [{
                     role: "system",
                     content: `You are a browser tab organizer. 
@@ -70,9 +100,7 @@ export const TabGrouper = () => {
                     
                     Do not include any markdown formatting or explanation.`
                 }],
-                expectedInputs: [{ type: 'text', languages: ['en'] }],
-                expectedOutputs: [{ type: 'text', languages: ['en'] }],
-                monitor(m) {
+                monitor(m: any) {
                     m.addEventListener('downloadprogress', (e: any) => {
                         const loaded = e.loaded || 0;
                         const total = e.total || 1;
@@ -82,21 +110,60 @@ export const TabGrouper = () => {
             });
 
             setDownloadProgress(null); // Download complete (if any), now processing
+            console.log("Session created successfully.");
 
             const prompt = JSON.stringify({
                 existingGroups: existingGroupsData,
                 ungroupedTabs: tabData
             });
 
-            const response = await session.prompt(prompt);
+            console.log("Types being sent to prompt:", prompt);
+
+            let response;
+            try {
+                console.log("Attempting prompt with JSON constraint...");
+                // @ts-ignore - types might be slightly behind features
+                response = await session.prompt(prompt, {
+                    outputLanguage: 'en',
+                    responseConstraint: {
+                        type: 'json',
+                        schema: {
+                            type: "object",
+                            properties: {
+                                groups: {
+                                    type: "array",
+                                    items: {
+                                        type: "object",
+                                        properties: {
+                                            groupName: { type: "string" },
+                                            tabIds: { type: "array", items: { type: "number" } },
+                                            existingGroupId: { type: "number", nullable: true }
+                                        },
+                                        required: ["groupName", "tabIds"]
+                                    }
+                                }
+                            },
+                            required: ["groups"]
+                        }
+                    }
+                });
+            } catch (constraintError: any) {
+                console.warn("Prompt with constraint failed. Retrying without constraint...", constraintError);
+                console.log("Prompt payload size:", prompt.length);
+
+                // Fallback: try without responseConstraint
+                // @ts-ignore
+                response = await session.prompt(prompt, {
+                    outputLanguage: 'en'
+                });
+            }
 
             console.log("AI Response:", response);
 
-            // Clean up code blocks if present
-            const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
-
             let groups: { groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] };
             try {
+                // Strip markdown code blocks if present (common in fallback mode)
+                const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
                 groups = JSON.parse(cleanResponse);
                 setPreviewGroups(groups.groups);
                 // Select all by default
@@ -231,13 +298,13 @@ export const TabGrouper = () => {
             {!previewGroups && (
                 <button
                     onClick={generateGroups}
-                    disabled={loading}
+                    disabled={loading || availability === 'unavailable'}
                     className="w-full py-2 px-4 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale"
                 >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
                     {downloadProgress !== null ?
                         `Downloading Model ${downloadProgress}%` :
-                        (loading ? "Organizing Tabs..." : (success ? "Tabs Grouped!" : "Group Tabs Now"))
+                        (loading ? "Organizing Tabs..." : (success ? "Tabs Grouped!" : (availability === 'downloadable' || availability === 'downloading' ? "Download AI & Group Tabs" : "Regenerate Groups")))
                     }
                 </button>
             )}

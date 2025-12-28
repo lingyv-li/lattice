@@ -1,7 +1,13 @@
 import { getSettings } from '../utils/storage';
 import { scanDownloads } from '../utils/cleaner';
 
-console.log('Chrome Cleaner Background Service Worker Started');
+console.log("Background Service Worker Initialized");
+console.log("AI Availability in SW:", self.LanguageModel ? "Available" : "Not Available");
+if (self.LanguageModel) {
+    (async () => {
+        console.log("LanguageModel in SW:", await self.LanguageModel.availability());
+    })();
+}
 
 
 // Ensure clicking the icon opens the side panel

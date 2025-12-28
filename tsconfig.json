@@ -23,7 +23,9 @@
         "noFallthroughCasesInSwitch": true,
         "types": [
             "chrome",
-            "vite/client"
+            "vite/client",
+            "node",
+            "dom-chromium-ai"
         ]
     },
     "include": [
