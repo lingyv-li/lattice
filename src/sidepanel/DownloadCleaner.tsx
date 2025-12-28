@@ -1,65 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Trash2, CheckCircle, Loader2, FileQuestion, Ban, ArrowLeft } from 'lucide-react';
-import { scanDownloads, cleanDownloads } from '../utils/cleaner';
-import { getSettings } from '../utils/storage';
-
-interface CleanableItem {
-    id: number;
-    filename: string;
-    url: string;
-}
+import { useState } from 'react';
+import { Trash2, CheckCircle, Loader2 } from 'lucide-react';
+import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
+import { CleanerDetails } from './components/CleanerDetails';
 
 export const DownloadCleaner = () => {
-    const [missingItems, setMissingItems] = useState<CleanableItem[]>([]);
-    const [interruptedItems, setInterruptedItems] = useState<CleanableItem[]>([]);
     const [view, setView] = useState<'summary' | 'details'>('summary');
-    const [cleanMissing, setCleanMissing] = useState(true);
-    const [cleanInterrupted, setCleanInterrupted] = useState(true);
-    const [loading, setLoading] = useState(true);
-    const [cleaning, setCleaning] = useState(false);
-    const [done, setDone] = useState(false);
-
-    useEffect(() => {
-        const init = async () => {
-            const settings = await getSettings();
-            const result = await scanDownloads();
-
-            setMissingItems(result.missingFiles as CleanableItem[]);
-            setInterruptedItems(result.interruptedFiles as CleanableItem[]);
-
-            setCleanMissing(settings.scanMissing && result.missingFiles.length > 0);
-            setCleanInterrupted(settings.scanInterrupted && result.interruptedFiles.length > 0);
-
-            setLoading(false);
-        };
-        init();
-    }, []);
-
-    const handleClean = async () => {
-        if (!cleanMissing && !cleanInterrupted) return;
-
-        setCleaning(true);
-        let ids: number[] = [];
-        if (cleanMissing) ids = [...ids, ...missingItems.map(i => i.id)];
-        if (cleanInterrupted) ids = [...ids, ...interruptedItems.map(i => i.id)];
-
-        await cleanDownloads(ids);
-        setCleaning(false);
-        setDone(true);
-
-        // Reset after delay to allow cleaning again or showing empty state
-        setTimeout(() => {
-            setDone(false);
-            // Re-scan? Or just hide? For dashboard, maybe just show "Cleaned" state.
-            // Let's re-scan to show 0 items.
-            const init = async () => {
-                const result = await scanDownloads();
-                setMissingItems(result.missingFiles as CleanableItem[]);
-                setInterruptedItems(result.interruptedFiles as CleanableItem[]);
-            };
-            init();
-        }, 2000);
-    };
+    const {
+        missingItems,
+        interruptedItems,
+        cleanMissing,
+        setCleanMissing,
+        cleanInterrupted,
+        setCleanInterrupted,
+        loading,
+        cleaning,
+        done,
+        handleClean
+    } = useDownloadCleaner();
 
     const totalFound = missingItems.length + interruptedItems.length;
     const selectedCount = (cleanMissing ? missingItems.length : 0) + (cleanInterrupted ? interruptedItems.length : 0);
@@ -91,53 +48,11 @@ export const DownloadCleaner = () => {
 
     if (view === 'details') {
         return (
-            <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-900 flex flex-col font-sans">
-                <div className="flex items-center p-4 border-b border-zinc-100 dark:border-zinc-800">
-                    <button
-                        onClick={() => setView('summary')}
-                        className="p-2 -ml-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 transition-colors cursor-pointer"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <h2 className="font-bold text-zinc-900 dark:text-zinc-100 ml-2">Cleanable Items</h2>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                    {missingItems.length > 0 && (
-                        <div>
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <FileQuestion className="w-3 h-3" />
-                                Missing Files ({missingItems.length})
-                            </h3>
-                            <div className="space-y-1">
-                                {missingItems.map(item => (
-                                    <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 break-all">
-                                        <div className="font-medium text-zinc-700 dark:text-zinc-300 line-clamp-1">{item.filename}</div>
-                                        <div className="text-xs text-zinc-400 font-mono mt-0.5 opacity-60 line-clamp-1">{item.url}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {interruptedItems.length > 0 && (
-                        <div>
-                            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                <Ban className="w-3 h-3" />
-                                Interrupted Downloads ({interruptedItems.length})
-                            </h3>
-                            <div className="space-y-1">
-                                {interruptedItems.map(item => (
-                                    <div key={item.id} className="text-sm p-3 rounded-lg bg-zinc-50 dark:bg-zinc-900 break-all">
-                                        <div className="font-medium text-zinc-700 dark:text-zinc-300 line-clamp-1">{item.filename}</div>
-                                        <div className="text-xs text-zinc-400 font-mono mt-0.5 opacity-60 line-clamp-1">{item.url}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
+            <CleanerDetails
+                missingItems={missingItems}
+                interruptedItems={interruptedItems}
+                onBack={() => setView('summary')}
+            />
         );
     }
 
