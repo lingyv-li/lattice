@@ -4,6 +4,7 @@ import { Bot } from 'lucide-react';
 import './index.css';
 import { TabGrouper } from './TabGrouper';
 import { DownloadCleaner } from './DownloadCleaner';
+import { DuplicateTabCleaner } from './DuplicateTabCleaner';
 
 const App = () => {
     const [modelInfo, setModelInfo] = React.useState<string>("Checking model...");
@@ -51,6 +52,7 @@ const App = () => {
                 <div className="space-y-2">
                     <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">Organization</h2>
                     <TabGrouper />
+                    <DuplicateTabCleaner />
                 </div>
 
                 {/* Section: Optimization */}
