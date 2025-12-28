@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus } from '../types/tabGrouper';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus, TabSuggestionCache } from '../types/tabGrouper';
 
 export type { TabGroupSuggestion };
 
@@ -12,13 +12,54 @@ export const useTabGrouper = () => {
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
+    const [processingInBackground, setProcessingInBackground] = useState(false);
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
 
+    // Convert cached suggestions to preview groups
+    const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], tabMap: Map<number, { title: string, url: string }>) => {
+        const groupMap = new Map<string, TabGroupSuggestion & { existingGroupId?: number | null }>();
+
+        for (const cached of cache) {
+            // Only include if tab still exists in our map
+            if (!tabMap.has(cached.tabId)) continue;
+
+            const key = cached.existingGroupId !== null
+                ? `existing-${cached.existingGroupId}`
+                : `new-${cached.groupName}`;
+
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    groupName: cached.groupName,
+                    tabIds: [],
+                    existingGroupId: cached.existingGroupId
+                });
+            }
+
+            groupMap.get(key)!.tabIds.push(cached.tabId);
+        }
+
+        return Array.from(groupMap.values());
+    }, []);
+
+    // Scan ungrouped tabs and update tab data map
+    const scanUngrouped = useCallback(async () => {
+        const tabs = await chrome.tabs.query({ currentWindow: true });
+        const ungrouped = tabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
+        setUngroupedCount(ungrouped.length);
+
+        const map = new Map<number, { title: string, url: string }>();
+        ungrouped.forEach(t => {
+            if (t.id) map.set(t.id, { title: t.title || '', url: t.url || '' });
+        });
+        setTabDataMap(map);
+
+        return map;
+    }, []);
+
     useEffect(() => {
         const checkAvailability = async () => {
-            // Check local availability first as a hint, but real work happens in background.
             if (window.LanguageModel) {
                 const avail = await window.LanguageModel.availability();
                 setAvailability(avail);
@@ -28,12 +69,32 @@ export const useTabGrouper = () => {
         };
         checkAvailability();
 
-        const scanUngrouped = async () => {
-            const tabs = await chrome.tabs.query({ currentWindow: true });
-            const ungrouped = tabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
-            setUngroupedCount(ungrouped.length);
-        };
+        // Initial scan
         scanUngrouped();
+
+        // Connect to background for cache updates
+        const port = chrome.runtime.connect({ name: 'tab-grouper' });
+        portRef.current = port;
+
+        port.onMessage.addListener(async (msg: TabGroupResponse) => {
+            if (msg.type === 'CACHED_SUGGESTIONS') {
+                const map = await scanUngrouped();
+
+                if (msg.cachedSuggestions && msg.cachedSuggestions.length > 0) {
+                    const groups = convertCacheToGroups(msg.cachedSuggestions, map);
+                    if (groups.length > 0 && status !== 'processing' && status !== 'initializing') {
+                        setPreviewGroups(groups);
+                        setSelectedPreviewIndices(new Set(groups.map((_, i) => i)));
+                        setStatus('reviewing');
+                    }
+                }
+
+                setProcessingInBackground((msg.processingTabIds?.length || 0) > 0);
+            }
+        });
+
+        // Request cached suggestions
+        port.postMessage({ type: 'GET_CACHED_SUGGESTIONS' });
 
         const handleTabEvent = () => scanUngrouped();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
@@ -48,7 +109,7 @@ export const useTabGrouper = () => {
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
         };
-    }, []);
+    }, [scanUngrouped, convertCacheToGroups]);
 
     const generateGroups = async () => {
         setStatus('processing');
@@ -58,13 +119,7 @@ export const useTabGrouper = () => {
 
         try {
             // Re-populate tab map for previews
-            const allTabs = await chrome.tabs.query({ currentWindow: true });
-            const ungroupedTabs = allTabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
-            const map = new Map();
-            ungroupedTabs.forEach(t => {
-                if (t.id) map.set(t.id, { title: t.title, url: t.url });
-            });
-            setTabDataMap(map);
+            await scanUngrouped();
 
             // Connect to background
             const port = chrome.runtime.connect({ name: 'tab-grouper' });
@@ -72,10 +127,8 @@ export const useTabGrouper = () => {
 
             port.onMessage.addListener((msg: TabGroupResponse) => {
                 if (msg.type === 'INITIALIZING') {
-                    // This refers to model initialization
                     setStatus('initializing');
                 } else if (msg.type === 'PROGRESS') {
-                    // This refers to processing progress
                     setProgress(msg.value || 0);
                     setStatus('processing');
                 } else if (msg.type === 'SESSION_CREATED') {
@@ -120,7 +173,7 @@ export const useTabGrouper = () => {
                     const validTabIds = group.tabIds.filter(id => tabDataMap.has(id));
 
                     if (validTabIds.length > 0) {
-                        if (group.existingGroupId) {
+                        if (group.existingGroupId && group.existingGroupId > 0) {
                             try {
                                 // Add to existing group
                                 await chrome.tabs.group({
@@ -179,6 +232,7 @@ export const useTabGrouper = () => {
         tabDataMap,
         availability,
         ungroupedCount,
+        processingInBackground,
         generateGroups,
         applyGroups,
         cancelGroups,
