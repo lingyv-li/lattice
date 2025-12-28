@@ -113,8 +113,12 @@ export const useTabGrouper = () => {
             }
         });
 
-        // Request cached suggestions
-        port.postMessage({ type: 'GET_CACHED_SUGGESTIONS' });
+        // Request cached suggestions for current window
+        chrome.windows.getCurrent().then(win => {
+            if (win.id) {
+                port.postMessage({ type: 'GET_CACHED_SUGGESTIONS', windowId: win.id });
+            }
+        });
 
         const handleTabEvent = () => scanUngrouped();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
@@ -171,7 +175,12 @@ export const useTabGrouper = () => {
                 }
             });
 
-            port.postMessage({ type: 'START_GROUPING' });
+            const window = await chrome.windows.getCurrent();
+            if (window.id) {
+                port.postMessage({ type: 'START_GROUPING', windowId: window.id });
+            } else {
+                throw new Error("Could not determine current window ID");
+            }
 
         } catch (err: any) {
             console.error(err);

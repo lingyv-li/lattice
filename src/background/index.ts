@@ -106,10 +106,13 @@ const invalidateCache = async () => {
     await queueUngroupedTabs();
 };
 
-const queueUngroupedTabs = async () => {
+const queueUngroupedTabs = async (windowId?: number) => {
     await hydrateState();
 
-    const allTabs = await chrome.tabs.query({ currentWindow: true });
+    const queryInfo: chrome.tabs.QueryInfo = {};
+    if (windowId) queryInfo.windowId = windowId;
+
+    const allTabs = await chrome.tabs.query(queryInfo);
 
     // Filter out tabs that are already grouped, cached, processing, or rejected
     const tabsToProcess = allTabs.filter(t =>
@@ -151,12 +154,10 @@ const processQueue = async () => {
 
     // AI Check
     if (!self.LanguageModel) return;
-    // Note: availability check might be async, skip if needed or do inside
     try {
         const availability = await self.LanguageModel.availability();
         if (availability === 'unavailable') return;
     } catch (e) {
-        // Fallback or ignore
         return;
     }
 
@@ -167,51 +168,72 @@ const processQueue = async () => {
     broadcastProcessingStatus();
 
     try {
-        const allTabs = await chrome.tabs.query({ currentWindow: true });
-        const existingGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-        const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
+        // Fetch all tabs in the queue to determine their windows
+        const tabsInQueue = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
+        const validTabs = tabsInQueue.filter(t => t !== null && t.id && t.url && t.title) as chrome.tabs.Tab[];
 
-        // Virtual groups from cache
-        const virtualGroups = new Map<string, { id: number; title: string }>();
-        let nextVirtualId = -1;
-        for (const cached of suggestionCache.values()) {
-            if (cached.existingGroupId === null) {
-                if (!virtualGroups.has(cached.groupName)) {
-                    virtualGroups.set(cached.groupName, { id: nextVirtualId--, title: cached.groupName });
-                }
-            }
+        // Group by windowId
+        const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
+        for (const tab of validTabs) {
+            const winId = tab.windowId;
+            if (!tabsByWindow.has(winId)) tabsByWindow.set(winId, []);
+            tabsByWindow.get(winId)!.push(tab);
         }
-
-        const allGroups = [...existingGroupsData, ...virtualGroups.values()];
-
-        const tabsToProcess = allTabs
-            .filter(t => t.id && tabIds.includes(t.id) && t.url && t.title)
-            .map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
-
-        if (tabsToProcess.length === 0) {
-            currentlyProcessing.clear();
-            return;
-        }
-
-        const groups = await generateTabGroupSuggestions(
-            {
-                existingGroups: allGroups,
-                ungroupedTabs: tabsToProcess
-            },
-            () => { },
-            () => { }
-        );
 
         const now = Date.now();
-        for (const group of groups) {
-            for (const tabId of group.tabIds) {
-                suggestionCache.set(tabId, {
-                    tabId,
-                    groupName: group.groupName,
-                    existingGroupId: group.existingGroupId || null,
-                    timestamp: now
-                });
-                currentlyProcessing.delete(tabId);
+
+        // Process per window
+        for (const [windowId, tabs] of tabsByWindow) {
+            const existingGroups = await chrome.tabGroups.query({ windowId });
+            const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
+
+            // Virtual groups from cache (global or per window? Cache is global map, but we should reuse names if they make sense)
+            // Ideally we check if virtual group name exists in cache and map to it? 
+            // For now, let's just stick to the logic of finding existing virtual groups.
+            // But wait, if we have a virtual group "News" in Window A, and we get "News" in Window B, should they share ID? 
+            // No, tab groups are per window.
+            // But the cache structure doesn't store windowId for the *Group*.
+            // Simple approach: Treat virtual groups as just names. 
+
+            const virtualGroups = new Map<string, { id: number; title: string }>();
+            let nextVirtualId = -1;
+
+            // We only care about virtual groups that *could* be relevant? 
+            // Actually, if we reuse the same cache map, we might mix windows. 
+            // But the existingGroupId logic handles real groups.
+            // For virtual groups, we effectively just need to avoid collisions in the prompt context.
+            // Let's just pass what we have.
+
+            for (const cached of suggestionCache.values()) {
+                if (cached.existingGroupId === null) {
+                    if (!virtualGroups.has(cached.groupName)) {
+                        virtualGroups.set(cached.groupName, { id: nextVirtualId--, title: cached.groupName });
+                    }
+                }
+            }
+
+            const allGroups = [...existingGroupsData, ...virtualGroups.values()];
+            const tabsData = tabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
+
+            const groups = await generateTabGroupSuggestions(
+                {
+                    existingGroups: allGroups,
+                    ungroupedTabs: tabsData
+                },
+                () => { },
+                () => { }
+            );
+
+            for (const group of groups) {
+                for (const tabId of group.tabIds) {
+                    suggestionCache.set(tabId, {
+                        tabId,
+                        groupName: group.groupName,
+                        existingGroupId: group.existingGroupId || null,
+                        timestamp: now
+                    });
+                    currentlyProcessing.delete(tabId);
+                }
             }
         }
 
@@ -221,8 +243,6 @@ const processQueue = async () => {
 
     } catch (err) {
         console.error("[Background] Processing error", err);
-        // On error, maybe just clear processing so they can be picked up again?
-        // Or leave them? For now, clear to allow retry.
         for (const id of tabIds) currentlyProcessing.delete(id);
         broadcastProcessingStatus();
     }
@@ -336,14 +356,17 @@ chrome.runtime.onConnect.addListener((port) => {
 
                 await hydrateState();
 
-                const allTabs = await chrome.tabs.query({ currentWindow: true });
-                const existingGroups = await chrome.tabGroups.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+                // Expect windowId to be passed for manual grouping
+                if (!msg.windowId) {
+                    port.postMessage({ type: 'ERROR', error: "Window ID not specified." } as TabGroupResponse);
+                    return;
+                }
+                const windowId = msg.windowId;
+
+                const allTabs = await chrome.tabs.query({ windowId });
+                const existingGroups = await chrome.tabGroups.query({ windowId });
                 const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
                 const ungroupedTabs = allTabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE && t.id && t.url && t.title);
-
-                // Manual grouping should probably group everything visible? 
-                // Or just follows same rules?
-                // Original code: ungroupedTabs.
 
                 if (ungroupedTabs.length === 0) {
                     port.postMessage({ type: 'ERROR', error: "No ungrouped tabs." } as TabGroupResponse);
