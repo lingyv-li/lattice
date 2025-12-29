@@ -4,18 +4,48 @@ import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings } from '../utils/storage';
-import { listAvailableModels } from '../utils/gemini';
+import { listAvailableModels, ModelInfo } from '../utils/gemini';
 import './index.css';
 
-function cn(...inputs: (string | undefined | null | false)[]) {
+const cn = (...inputs: (string | undefined | null | false)[]) => {
     return twMerge(clsx(inputs));
-}
+};
+
+const sortModels = (models: ModelInfo[]) => {
+    return [...models].sort((a, b) => {
+        // Extract version from ID: gemini-1.5-flash -> 1.5
+        const getVersion = (s: string) => {
+            const match = s.match(/gemini-(\d+(\.\d+)?)/);
+            return match ? parseFloat(match[1]) : 0;
+        };
+
+        const vA = getVersion(a.id);
+        const vB = getVersion(b.id);
+
+        if (vA !== vB) return vB - vA; // Higher version first
+
+        // Priority tiers if versions match
+        const getTier = (s: string) => {
+            if (s.includes('pro')) return 3;
+            if (s.includes('flash')) return 2;
+            if (s.includes('lite')) return 1;
+            return 0;
+        };
+
+        const tA = getTier(a.id);
+        const tB = getTier(b.id);
+
+        if (tA !== tB) return tB - tA; // Pro > Flash > Lite
+
+        return a.displayName.localeCompare(b.displayName);
+    });
+};
 
 const App = () => {
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saved, setSaved] = useState(false);
-    const [availableModels, setAvailableModels] = useState<string[]>([]);
+    const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
     const [loadingModels, setLoadingModels] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
 
@@ -32,10 +62,14 @@ const App = () => {
     const fetchModels = async (key: string) => {
         if (!key) return;
         setLoadingModels(true);
-        const models = await listAvailableModels(key);
-        console.log(models);
-        setAvailableModels(models);
-        setLoadingModels(false);
+        try {
+            const models = await listAvailableModels(key);
+            setAvailableModels(sortModels(models));
+        } catch (e) {
+            console.error("Failed to fetch models", e);
+        } finally {
+            setLoadingModels(false);
+        }
     };
 
     const handleSave = async () => {
@@ -137,7 +171,7 @@ const App = () => {
                                     >
                                         {availableModels.length === 0 && <option value={settings.aiModel}>{settings.aiModel || "Enter Key to fetch models"}</option>}
                                         {availableModels.map(m => (
-                                            <option key={m} value={m}>{m}</option>
+                                            <option key={m.id} value={m.id}>{m.displayName}</option>
                                         ))}
                                     </select>
                                 </div>

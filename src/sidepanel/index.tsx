@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Settings } from 'lucide-react';
 import './index.css';
 import { TabGrouper } from './TabGrouper';
 import { DownloadCleaner } from './DownloadCleaner';
@@ -28,14 +29,24 @@ const App = () => {
     return (
         <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
             {/* Header */}
-            <div className="p-4 border-b border-border-subtle flex items-center gap-2 bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white">
-                    <img src="/icon.svg" className="w-5 h-5" alt="Logo" />
+            {/* Header */}
+            <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                        <img src="/icon.svg" className="w-5 h-5" alt="Logo" />
+                    </div>
+                    <div>
+                        <h1 className="font-bold text-sm leading-tight text-main">Lattice</h1>
+                        <p className="text-[10px] text-muted font-medium">AI Browser Organizer</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 className="font-bold text-sm leading-tight">Lattice</h1>
-                    <p className="text-[10px] text-muted font-medium">AI Browser Organizer</p>
-                </div>
+                <button
+                    onClick={() => chrome.runtime.openOptionsPage()}
+                    className="p-2 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer"
+                    title="Settings"
+                >
+                    <Settings className="w-4 h-4" />
+                </button>
             </div>
 
             {/* Dashboard Content */}
