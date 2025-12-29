@@ -74,12 +74,12 @@ const App = () => {
     // Derived States uses effective set
     const isProcessing =
         tabGrouper.status === 'processing' ||
-        tabGrouper.status === 'initializing'
-    duplicateCleaner.status === 'cleaning' ||
+        tabGrouper.status === 'initializing' ||
+        tabGrouper.isBackgroundProcessing ||
+        duplicateCleaner.status === 'cleaning' ||
         downloadCleaner.cleaning;
 
     const hasWork =
-        (effectiveSelectedCards.has('tab-grouper') && (tabGrouper.ungroupedCount ?? 0) > 0) ||
         (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) ||
         (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0) ||
         (effectiveSelectedCards.has('download-cleaner') && (downloadCleaner.missingItems.length > 0 || downloadCleaner.interruptedItems.length > 0));
@@ -100,12 +100,12 @@ const App = () => {
 
         // 3. Tab Grouper
         if (effectiveSelectedCards.has('tab-grouper')) {
+            // If processing (foreground or background), do nothing
+            if (tabGrouper.status === 'processing' || tabGrouper.isBackgroundProcessing) return;
+
             if (tabGrouper.previewGroups) {
                 // If already previewing, applying
                 tabGrouper.applyGroups();
-            } else if ((tabGrouper.ungroupedCount ?? 0) > 0 || tabGrouper.availability === 'downloadable') {
-                // Generate
-                tabGrouper.generateGroups();
             }
         }
     };
