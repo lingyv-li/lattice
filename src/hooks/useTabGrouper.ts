@@ -37,8 +37,8 @@ export const useTabGrouper = () => {
         const groupMap = new Map<string, TabGroupSuggestion & { existingGroupId?: number | null }>();
 
         for (const cached of cache) {
-            // Only include if tab still exists in our map
-            if (!tabMap.has(cached.tabId)) continue;
+            // Only include if tab still exists in our map and has a group name
+            if (!tabMap.has(cached.tabId) || !cached.groupName) continue;
 
             const key = cached.existingGroupId !== null
                 ? `existing-${cached.existingGroupId}`

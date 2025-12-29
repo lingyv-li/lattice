@@ -25,7 +25,8 @@
             "chrome",
             "vite/client",
             "node",
-            "dom-chromium-ai"
+            "dom-chromium-ai",
+            "@testing-library/jest-dom"
         ]
     },
     "include": [

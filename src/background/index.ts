@@ -1,4 +1,5 @@
 import { generateTabGroupSuggestions } from '../utils/ai';
+import { updateWindowBadge } from '../utils/badge';
 
 import { TabGroupResponse, TabSuggestionCache } from '../types/tabGrouper';
 
@@ -57,14 +58,58 @@ const persistState = async () => {
 const broadcastCacheUpdate = async () => {
     // Ensure storage is updated first
     await persistState();
+    // Update badge on data change
+    await performBadgeUpdate();
 };
 
-const broadcastProcessingStatus = () => {
+// ===== BADGE LOGIC =====
+// Removed local implementation in favor of utils/badge.ts
+
+const performBadgeUpdate = async () => {
+    const isProcessing = (processingQueue.size + currentlyProcessing.size) > 0;
+
+    // We need to calculate group counts PER WINDOW
+    // 1. Fetch all tabs to map tabId -> windowId
+    const allTabs = await chrome.tabs.query({});
+    const tabWindowMap = new Map<number, number>();
+    const windows = new Set<number>();
+
+    for (const tab of allTabs) {
+        if (tab.id && tab.windowId) {
+            tabWindowMap.set(tab.id, tab.windowId);
+            windows.add(tab.windowId);
+        }
+    }
+
+    // 2. Count unique groups per window from cache
+    const windowGroupCounts = new Map<number, Set<string>>();
+
+    for (const cached of suggestionCache.values()) {
+        const winId = tabWindowMap.get(cached.tabId);
+        if (winId && cached.groupName && cached.existingGroupId === null) {
+            if (!windowGroupCounts.has(winId)) {
+                windowGroupCounts.set(winId, new Set());
+            }
+            windowGroupCounts.get(winId)!.add(cached.groupName);
+        }
+    }
+
+    // 3. Update badge for each window
+    for (const windowId of windows) {
+        const groupCount = windowGroupCounts.get(windowId)?.size || 0;
+        await updateWindowBadge(windowId, isProcessing, groupCount);
+    }
+};
+
+const broadcastProcessingStatus = async () => {
     const isProcessing = (processingQueue.size + currentlyProcessing.size) > 0;
     const response: TabGroupResponse = {
         type: 'PROCESSING_STATUS',
         isProcessing
     };
+
+    // Update badge on status change
+    await performBadgeUpdate();
 
     for (const port of connectedPorts) {
         try {
@@ -74,6 +119,7 @@ const broadcastProcessingStatus = () => {
         }
     }
 };
+
 
 // ===== LOGIC =====
 
@@ -201,7 +247,7 @@ const processQueue = async () => {
             // Let's just pass what we have.
 
             for (const cached of suggestionCache.values()) {
-                if (cached.existingGroupId === null) {
+                if (cached.existingGroupId === null && cached.groupName) {
                     if (!virtualGroups.has(cached.groupName)) {
                         virtualGroups.set(cached.groupName, { id: nextVirtualId--, title: cached.groupName });
                     }
@@ -220,16 +266,31 @@ const processQueue = async () => {
                 () => { }
             );
 
+            const groupedTabIds = new Set<number>();
             for (const group of groups) {
                 for (const tabId of group.tabIds) {
+                    groupedTabIds.add(tabId);
                     suggestionCache.set(tabId, {
                         tabId,
                         groupName: group.groupName,
                         existingGroupId: group.existingGroupId || null,
                         timestamp: now
                     });
-                    currentlyProcessing.delete(tabId);
                 }
+            }
+
+            // Also cache negative results (tabs analyzed but not grouped)
+            // and clear from currentlyProcessing
+            for (const tab of tabsData) {
+                if (!groupedTabIds.has(tab.id)) {
+                    suggestionCache.set(tab.id, {
+                        tabId: tab.id,
+                        groupName: null,
+                        existingGroupId: null,
+                        timestamp: now
+                    });
+                }
+                currentlyProcessing.delete(tab.id);
             }
         }
 
@@ -296,7 +357,12 @@ chrome.tabGroups.onCreated.addListener(invalidateCache);
 chrome.tabGroups.onRemoved.addListener(invalidateCache);
 chrome.tabGroups.onUpdated.addListener(invalidateCache);
 
-// 4. Connection
+// 5. Active Tab Change (Update badge for new active tab)
+chrome.tabs.onActivated.addListener(async (_activeInfo) => {
+    await performBadgeUpdate();
+});
+
+// 6. Connection
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== 'tab-grouper') return;
 
@@ -376,12 +442,26 @@ chrome.runtime.onConnect.addListener((port) => {
                 );
 
                 const now = Date.now();
+                const groupedTabIds = new Set<number>();
                 for (const group of groups) {
                     for (const tabId of group.tabIds) {
+                        groupedTabIds.add(tabId);
                         suggestionCache.set(tabId, {
                             tabId,
                             groupName: group.groupName,
                             existingGroupId: group.existingGroupId || null,
+                            timestamp: now
+                        });
+                    }
+                }
+
+                // Cache negative results for manual run too
+                for (const tab of tabsData) {
+                    if (!groupedTabIds.has(tab.id)) {
+                        suggestionCache.set(tab.id, {
+                            tabId: tab.id,
+                            groupName: null,
+                            existingGroupId: null,
                             timestamp: now
                         });
                     }
