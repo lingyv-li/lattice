@@ -90,6 +90,22 @@ export class StateService {
         await this.persist();
     }
 
+    private static listeners: Set<() => void> = new Set();
+
+    /**
+     * Subscribe to changes
+     */
+    static subscribe(callback: () => void): () => void {
+        this.listeners.add(callback);
+        return () => this.listeners.delete(callback);
+    }
+
+    private static notifyListeners() {
+        for (const listener of this.listeners) {
+            listener();
+        }
+    }
+
     /**
      * Persist current in-memory cache to session storage
      */
@@ -98,6 +114,7 @@ export class StateService {
         try {
             const serialized = Array.from(this.cache.values());
             await chrome.storage.session.set({ suggestionCache: serialized });
+            this.notifyListeners();
         } catch (e) {
             console.error("[StateService] Failed to persist:", e);
         }

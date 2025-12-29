@@ -140,4 +140,34 @@ describe('StateService', () => {
         const removed = await StateService.removeSuggestion(999);
         expect(removed).toBe(false);
     });
+
+    it('should notify listeners on update', async () => {
+        await StateService.clearCache();
+        const listener = vi.fn();
+        const unsubscribe = StateService.subscribe(listener);
+
+        const suggestion: TabSuggestionCache = {
+            tabId: 303,
+            groupName: 'Listener Test',
+            existingGroupId: null,
+            timestamp: Date.now()
+        };
+
+        // Update
+        await StateService.updateSuggestion(suggestion);
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        // Remove
+        await StateService.removeSuggestion(303);
+        expect(listener).toHaveBeenCalledTimes(2);
+
+        // Clear
+        await StateService.clearCache();
+        expect(listener).toHaveBeenCalledTimes(3);
+
+        // Unsubscribe
+        unsubscribe();
+        await StateService.updateSuggestion(suggestion);
+        expect(listener).toHaveBeenCalledTimes(3); // Should not increase
+    });
 });

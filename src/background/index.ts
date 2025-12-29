@@ -1,4 +1,5 @@
 import { StateService } from './state';
+import { ProcessingState } from './processing';
 import { generateTabGroupSuggestions } from '../utils/ai';
 import { updateWindowBadge } from '../utils/badge';
 
@@ -7,26 +8,30 @@ import { TabGroupResponse } from '../types/tabGrouper';
 console.log("[Background] Service Worker Initialized");
 
 // ===== CONSTANTS =====
-const ALARM_NAME = 'process_tabs_alarm';
+const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
 const PROCESS_DELAY_MS = 1000; // Wait 1s after last event before processing
 
 // ===== STATE =====
-// Processing queue (in-memory only, rebuilt on scan)
-const processingQueue = new Set<number>();
-const currentlyProcessing = new Set<number>();
+// ===== STATE =====
+// Processing queue managed by ProcessingState
+// This handles status updates internally and fires the callback on change
+const processingState = new ProcessingState(async (isProcessing) => {
+    await broadcastProcessingStatus(isProcessing);
+});
+
 const connectedPorts = new Set<chrome.runtime.Port>();
 
 // ===== BROADCASTS =====
-const broadcastCacheUpdate = async () => {
-    // Update badge on data change
+// Update badge on data change
+StateService.subscribe(async () => {
     await performBadgeUpdate();
-};
+});
 
 // ===== BADGE LOGIC =====
 // Removed local implementation in favor of utils/badge.ts
 
 const performBadgeUpdate = async () => {
-    const isProcessing = (processingQueue.size + currentlyProcessing.size) > 0;
+    const isProcessing = processingState.isProcessing;
 
     // We need to calculate group counts PER WINDOW
     // 1. Fetch all tabs to map tabId -> windowId
@@ -62,8 +67,7 @@ const performBadgeUpdate = async () => {
     }
 };
 
-const broadcastProcessingStatus = async () => {
-    const isProcessing = (processingQueue.size + currentlyProcessing.size) > 0;
+const broadcastProcessingStatus = async (isProcessing: boolean) => {
     const response: TabGroupResponse = {
         type: 'PROCESSING_STATUS',
         isProcessing
@@ -88,7 +92,7 @@ const invalidateCache = async () => {
     console.log("[Background] Invalidating cache due to group change");
 
     await StateService.clearCache();
-    await broadcastCacheUpdate();
+    await StateService.clearCache();
 
     // Re-queue
     await queueUngroupedTabs();
@@ -109,19 +113,17 @@ const queueUngroupedTabs = async (windowId?: number) => {
         t.title &&
         t.status === 'complete' && // Only process loaded tabs
         !cache.has(t.id) &&
-        !currentlyProcessing.has(t.id)
+        !processingState.has(t.id)
     );
 
     let added = false;
     for (const tab of tabsToProcess) {
-        if (tab.id && !processingQueue.has(tab.id)) {
-            processingQueue.add(tab.id);
+        if (tab.id && processingState.add(tab.id)) {
             added = true;
         }
     }
 
-    if (added || processingQueue.size > 0) {
-        broadcastProcessingStatus();
+    if (added || processingState.size > 0) {
         scheduleProcessing();
     }
 };
@@ -130,11 +132,11 @@ const scheduleProcessing = () => {
     // Use alarms to wake up the SW
     // We update the alarm to delay it (debounce)
     console.log("[Background] Scheduling processing alarm");
-    chrome.alarms.create(ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
+    chrome.alarms.create(PROCESS_TABS_ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
 };
 
 const processQueue = async () => {
-    if (processingQueue.size === 0) return;
+    if (processingState.size === 0) return;
 
     // AI Check
     if (!self.LanguageModel) return;
@@ -145,11 +147,7 @@ const processQueue = async () => {
         return;
     }
 
-    const tabIds = Array.from(processingQueue);
-    processingQueue.clear();
-
-    for (const id of tabIds) currentlyProcessing.add(id);
-    broadcastProcessingStatus();
+    const tabIds = processingState.startProcessing();
 
     try {
         // Fetch all tabs in the queue to determine their windows
@@ -228,17 +226,13 @@ const processQueue = async () => {
                         timestamp: now
                     });
                 }
-                currentlyProcessing.delete(tab.id);
+                processingState.finish(tab.id);
             }
         }
 
-        broadcastCacheUpdate();
-        broadcastProcessingStatus();
-
     } catch (err) {
         console.error("[Background] Processing error", err);
-        for (const id of tabIds) currentlyProcessing.delete(id);
-        broadcastProcessingStatus();
+        for (const id of tabIds) processingState.finish(id);
     }
 };
 
@@ -246,44 +240,35 @@ const processQueue = async () => {
 
 // 1. Alarms (The core fix)
 chrome.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === ALARM_NAME) {
+    if (alarm.name === PROCESS_TABS_ALARM_NAME) {
         console.log("[Background] Alarm fired, processing queue");
         await processQueue();
     }
 });
 
 // 2. Tab Events
-chrome.tabs.onCreated.addListener(async () => {
-    // Just trigger a check, no logic here.
+chrome.tabs.onCreated.addListener(async (tab) => {
     // If tab is not complete, queueUngroupedTabs will ignore it but scheduling happens.
-    // Actually, best to wait for update to complete.
-    // But we should check just in case.
-    await queueUngroupedTabs();
+    // Check just in case.
+    if (tab.status !== 'loading') {
+        await queueUngroupedTabs();
+    }
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-    if (changeInfo.status === 'complete' || changeInfo.url) {
-        // Tab finished loading or changed URL -> candidate for grouping
-        if (changeInfo.url) {
-            // URL changed: invalidate old cache for this tab
-            const removed = await StateService.removeSuggestion(tabId);
-            if (removed) {
-                await broadcastCacheUpdate();
-            }
-        }
+    if (changeInfo.url) {
+        // URL changed: invalidate old cache for this tab
+        await StateService.removeSuggestion(tabId);
+    }
+    if (changeInfo.status === 'complete') {
+        // Tab finished loading -> candidate for grouping
         await queueUngroupedTabs();
     }
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-    let changed = false;
-    if (await StateService.removeSuggestion(tabId)) changed = true;
-    if (processingQueue.delete(tabId)) changed = true;
-    if (currentlyProcessing.delete(tabId)) changed = true;
-
-    if (changed) {
-        await broadcastCacheUpdate();
-    }
+    await StateService.removeSuggestion(tabId);
+    processingState.remove(tabId);
 });
 
 // 3. Group Events
@@ -311,7 +296,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
             port.postMessage({
                 type: 'PROCESSING_STATUS',
-                isProcessing: (processingQueue.size + currentlyProcessing.size) > 0
+                isProcessing: processingState.isProcessing
             } as TabGroupResponse);
 
             // Also trigger a check
@@ -400,7 +385,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 }
 
                 port.postMessage({ type: 'COMPLETE', groups } as TabGroupResponse);
-                broadcastCacheUpdate();
+                // Cache update happens via StateService listener
 
             } catch (err: any) {
                 console.error(err);
