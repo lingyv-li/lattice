@@ -83,16 +83,15 @@ export const useTabGrouper = () => {
         // Initial scan
         scanUngrouped();
 
-        // Connect to background for cache updates
-        const port = chrome.runtime.connect({ name: 'tab-grouper' });
-        portRef.current = port;
-
-        port.onMessage.addListener(async (msg: TabGroupResponse) => {
-            if (msg.type === 'CACHED_SUGGESTIONS') {
+        // --- 1. Storage Listener for Suggestions (Source of Truth) ---
+        const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+            if (areaName === 'session' && changes.suggestionCache) {
+                const newValue = changes.suggestionCache.newValue as TabSuggestionCache[] | undefined;
                 const map = await scanUngrouped();
 
-                if (msg.cachedSuggestions && msg.cachedSuggestions.length > 0) {
-                    const groups = convertCacheToGroups(msg.cachedSuggestions, map);
+                if (newValue && Array.isArray(newValue) && newValue.length > 0) {
+                    const groups = convertCacheToGroups(newValue, map);
+                    // console.log("DEBUG: handleStorageChange groups", groups.length, "map size", map.size);
                     if (groups.length > 0 && status !== 'processing' && status !== 'initializing') {
                         setPreviewGroups(groups);
                         setSelectedPreviewIndices(new Set(groups.map((_, i) => i)));
@@ -107,18 +106,70 @@ export const useTabGrouper = () => {
                     if (status === 'reviewing') setStatus('idle');
                 }
             }
+        };
 
-            if (msg.type === 'PROCESSING_STATUS') {
-                setBackgroundProcessing(msg.isProcessing ?? false);
+        chrome.storage.onChanged.addListener(handleStorageChange);
+
+        // Initial load from storage
+        chrome.storage.session.get('suggestionCache').then(async (data) => {
+            if (data && Array.isArray(data.suggestionCache)) {
+                // Simulate change event to reuse logic
+                handleStorageChange({
+                    suggestionCache: { newValue: data.suggestionCache, oldValue: undefined }
+                }, 'session');
             }
         });
 
-        // Request cached suggestions for current window
-        chrome.windows.getCurrent().then(win => {
-            if (win.id) {
-                port.postMessage({ type: 'GET_CACHED_SUGGESTIONS', windowId: win.id });
+
+        // --- 2. Port Connection (Transient Status & Progress) ---
+        let reconnectTimeout: NodeJS.Timeout;
+        let isPortConnected = false;
+
+        const connectPort = () => {
+            if (isPortConnected) return;
+
+            try {
+                const port = chrome.runtime.connect({ name: 'tab-grouper' });
+                portRef.current = port;
+                isPortConnected = true;
+
+                port.onDisconnect.addListener(() => {
+                    console.log("[useTabGrouper] Port disconnected");
+                    isPortConnected = false;
+                    portRef.current = null;
+                    setBackgroundProcessing(false); // Assume stopped processing if disconn? Or unknown?
+                    // Attempt reconnect
+                    reconnectTimeout = setTimeout(connectPort, 2000);
+                });
+
+                port.onMessage.addListener((msg: TabGroupResponse) => {
+                    // We can still use CACHED_SUGGESTIONS from port as a "fast path" or ping,
+                    // but we primarily rely on storage. 
+                    // However, we MUST handle PROCESSING_STATUS here.
+                    if (msg.type === 'PROCESSING_STATUS') {
+                        setBackgroundProcessing(msg.isProcessing ?? false);
+                    }
+                    if (msg.type === 'CACHED_SUGGESTIONS') {
+                        // Optional: Trigger manual storage check in case we missed event?
+                        // Or just let storage listener handle it. 
+                        // Let's just rely on storage listener to avoid double updates.
+                    }
+                });
+
+                // Request status immediately
+                chrome.windows.getCurrent().then(win => {
+                    if (win.id && portRef.current) {
+                        port.postMessage({ type: 'GET_CACHED_SUGGESTIONS', windowId: win.id });
+                    }
+                });
+
+            } catch (e) {
+                console.error("[useTabGrouper] Connection failed", e);
+                reconnectTimeout = setTimeout(connectPort, 5000);
             }
-        });
+        };
+
+        connectPort();
 
         const handleTabEvent = () => scanUngrouped();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
@@ -126,6 +177,8 @@ export const useTabGrouper = () => {
         chrome.tabs.onRemoved.addListener(handleTabEvent);
 
         return () => {
+            chrome.storage.onChanged.removeListener(handleStorageChange);
+            clearTimeout(reconnectTimeout);
             if (portRef.current) {
                 portRef.current.disconnect();
             }

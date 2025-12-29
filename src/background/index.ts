@@ -24,16 +24,19 @@ const hydrateState = async () => {
     if (isStateHydrated) return;
 
     try {
-        const data = await StorageManager.getLocal();
-
-        if (data.suggestionCache) {
-            suggestionCache = new Map(data.suggestionCache.map(s => [s.tabId, s]));
+        // 1. Hydrate Session Data (Suggestions)
+        // Check for storage.session support (some contexts might not have it, but Manifest V3 usually does)
+        const sessionData = await chrome.storage.session.get('suggestionCache');
+        if (sessionData && Array.isArray(sessionData.suggestionCache)) {
+            suggestionCache = new Map(sessionData.suggestionCache.map((s: TabSuggestionCache) => [s.tabId, s]));
         } else {
             suggestionCache = new Map();
         }
 
-        if (data.rejectedTabs) {
-            rejectedTabs = new Set(data.rejectedTabs);
+        // 2. Hydrate Local Data (Rejected Tabs)
+        const localData = await StorageManager.getLocal();
+        if (localData.rejectedTabs) {
+            rejectedTabs = new Set(localData.rejectedTabs);
         } else {
             rejectedTabs = new Set();
         }
@@ -47,8 +50,16 @@ const hydrateState = async () => {
 
 const persistState = async () => {
     try {
+        // 1. Persist Session Data
+        await chrome.storage.session.set({
+            suggestionCache: Array.from(suggestionCache.values())
+        });
+
+        // 2. Persist Local Data
+        // Note: We only need to update if changed, but simple set is fine.
+        // Optimizing: only write rejectedTabs logic if we changed it? 
+        // For safety, just write it.
         await StorageManager.setLocal({
-            suggestionCache: Array.from(suggestionCache.values()),
             rejectedTabs: Array.from(rejectedTabs)
         });
     } catch (e) {
@@ -57,7 +68,14 @@ const persistState = async () => {
 };
 
 // ===== BROADCASTS =====
-const broadcastCacheUpdate = () => {
+// Broadcsts are now just "pings" to tell UI to check storage, OR providing transient status.
+// UI listens to storage.onChanged for data, so we don't strictly need to send data here,
+// but sending it is a nice optimization if port is alive.
+const broadcastCacheUpdate = async () => {
+    // Ensure storage is updated first
+    await persistState();
+
+    // Notify connected ports (optional but good for rapid updates if open)
     const response: TabGroupResponse = {
         type: 'CACHED_SUGGESTIONS',
         cachedSuggestions: Array.from(suggestionCache.values())
@@ -95,12 +113,13 @@ const invalidateCache = async () => {
 
     await hydrateState();
     suggestionCache.clear();
-    rejectedTabs.clear(); // Reset rejected tabs when groups occur naturally? Or keep them? 
-    // User logic: "Reset the AI cache when real tab groups have changed."
-    // If groups change, old suggestions might be invalid, so clear everything.
+    // rejectedTabs.clear(); // Keep rejected tabs persistent even if groups change? 
+    // Actually, if groups change, maybe a rejected tab is now valid for a new group?
+    // Let's keep rejectedTabs for now to prevent annoyance. 
 
     await persistState();
-    broadcastCacheUpdate();
+    // broadcastCacheUpdate handles the storage set, so we can just call it or persist then broadcast
+    await broadcastCacheUpdate();
 
     // Re-queue
     await queueUngroupedTabs();
@@ -274,6 +293,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
             // URL changed: invalidate old cache for this tab
             await hydrateState();
             if (suggestionCache.delete(tabId)) {
+                // If it was rejected but now URL changed, maybe it's valid again? 
+                // Let's remove rejection.
                 rejectedTabs.delete(tabId);
                 await persistState();
                 broadcastCacheUpdate();
@@ -311,10 +332,12 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener(async (msg) => {
         if (msg.type === 'GET_CACHED_SUGGESTIONS') {
             await hydrateState();
+            // Send cache immediately
             port.postMessage({
                 type: 'CACHED_SUGGESTIONS',
                 cachedSuggestions: Array.from(suggestionCache.values())
             } as TabGroupResponse);
+
             port.postMessage({
                 type: 'PROCESSING_STATUS',
                 isProcessing: (processingQueue.size + currentlyProcessing.size) > 0
@@ -356,7 +379,6 @@ chrome.runtime.onConnect.addListener((port) => {
 
                 await hydrateState();
 
-                // Expect windowId to be passed for manual grouping
                 if (!msg.windowId) {
                     port.postMessage({ type: 'ERROR', error: "Window ID not specified." } as TabGroupResponse);
                     return;
@@ -374,7 +396,6 @@ chrome.runtime.onConnect.addListener((port) => {
                 }
 
                 suggestionCache.clear();
-                // Note: Clearing cache here creates a fresh start
 
                 const tabsData = ungroupedTabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
 
@@ -434,5 +455,5 @@ chrome.action.onClicked.addListener(async (tab) => {
 });
 
 // Startup check
-// chrome.runtime.onStartup is good, but just running at top level of SW works too for every wake.
 hydrateState().then(() => queueUngroupedTabs());
+

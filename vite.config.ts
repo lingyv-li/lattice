@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -37,8 +38,12 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name]-[hash].js',
                 assetFileNames: 'assets/[name]-[hash].[ext]',
             }
-        },
+        }, // Added missing closing brace for rollupOptions
         outDir: 'dist',
         emptyOutDir: true
+    },
+    test: {
+        environment: 'jsdom',
+        setupFiles: ['./src/setupTests.ts']
     }
 });
