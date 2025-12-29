@@ -19,10 +19,9 @@ export interface TabGroupMessage {
 }
 
 export interface TabGroupResponse {
-    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR' | 'CACHED_SUGGESTIONS' | 'PROCESSING_STATUS';
+    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR' | 'PROCESSING_STATUS';
     value?: number;
     groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
-    cachedSuggestions?: TabSuggestionCache[];
     isProcessing?: boolean;
     error?: string;
 }

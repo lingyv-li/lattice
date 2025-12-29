@@ -1,4 +1,4 @@
-import { vi, expect, afterEach } from 'vitest';
+import { vi, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
 // Run cleanup after each test
@@ -33,35 +33,35 @@ const chromeMock = {
     },
     storage: {
         session: {
-            get: vi.fn().mockImplementation((keys, callback) => {
+            get: vi.fn().mockImplementation((_keys, callback) => {
                 const result = {}; // Return empty or mock data
                 if (callback) callback(result);
                 return Promise.resolve(result);
             }),
-            set: vi.fn().mockImplementation((data, callback) => {
+            set: vi.fn().mockImplementation((_data, callback) => {
                 if (callback) callback();
                 return Promise.resolve();
             })
         },
         local: {
-            get: vi.fn().mockImplementation((keys, callback) => {
+            get: vi.fn().mockImplementation((_keys, callback) => {
                 const result = {};
                 if (callback) callback(result);
                 return Promise.resolve(result);
             }),
-            set: vi.fn().mockImplementation((data, callback) => {
+            set: vi.fn().mockImplementation((_data, callback) => {
                 if (callback) callback();
                 return Promise.resolve();
             })
         },
         sync: {
-            get: vi.fn().mockImplementation((defaults, callback) => {
+            get: vi.fn().mockImplementation((_defaults, callback) => {
                 // If defaults passed, return them as result for simplicity in tests
-                const result = (typeof defaults === 'object') ? defaults : {};
+                const result = (typeof _defaults === 'object') ? _defaults : {};
                 if (callback) callback(result);
                 return Promise.resolve(result);
             }),
-            set: vi.fn().mockImplementation((data, callback) => {
+            set: vi.fn().mockImplementation((_data, callback) => {
                 if (callback) callback();
                 return Promise.resolve();
             })

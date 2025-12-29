@@ -149,11 +149,6 @@ export const useTabGrouper = () => {
                     if (msg.type === 'PROCESSING_STATUS') {
                         setBackgroundProcessing(msg.isProcessing ?? false);
                     }
-                    if (msg.type === 'CACHED_SUGGESTIONS') {
-                        // Optional: Trigger manual storage check in case we missed event?
-                        // Or just let storage listener handle it. 
-                        // Let's just rely on storage listener to avoid double updates.
-                    }
                 });
 
                 // Request status immediately

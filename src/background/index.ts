@@ -74,20 +74,6 @@ const persistState = async () => {
 const broadcastCacheUpdate = async () => {
     // Ensure storage is updated first
     await persistState();
-
-    // Notify connected ports (optional but good for rapid updates if open)
-    const response: TabGroupResponse = {
-        type: 'CACHED_SUGGESTIONS',
-        cachedSuggestions: Array.from(suggestionCache.values())
-    };
-
-    for (const port of connectedPorts) {
-        try {
-            port.postMessage(response);
-        } catch (e) {
-            connectedPorts.delete(port);
-        }
-    }
 };
 
 const broadcastProcessingStatus = () => {
@@ -128,7 +114,7 @@ const invalidateCache = async () => {
 const queueUngroupedTabs = async (windowId?: number) => {
     await hydrateState();
 
-    const queryInfo: chrome.tabs.QueryInfo = {};
+    const queryInfo: chrome.tabs.QueryInfo = { windowType: chrome.tabs.WindowType.NORMAL };
     if (windowId) queryInfo.windowId = windowId;
 
     const allTabs = await chrome.tabs.query(queryInfo);
@@ -203,6 +189,15 @@ const processQueue = async () => {
 
         // Process per window
         for (const [windowId, tabs] of tabsByWindow) {
+            // Verify window type is normal
+            try {
+                const window = await chrome.windows.get(windowId);
+                if (window.type !== chrome.tabs.WindowType.NORMAL) continue;
+            } catch (e) {
+                // Window might have closed
+                continue;
+            }
+
             const existingGroups = await chrome.tabGroups.query({ windowId });
             const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
 
@@ -332,11 +327,8 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener(async (msg) => {
         if (msg.type === 'GET_CACHED_SUGGESTIONS') {
             await hydrateState();
-            // Send cache immediately
-            port.postMessage({
-                type: 'CACHED_SUGGESTIONS',
-                cachedSuggestions: Array.from(suggestionCache.values())
-            } as TabGroupResponse);
+            // Send processing status
+
 
             port.postMessage({
                 type: 'PROCESSING_STATUS',
@@ -384,6 +376,13 @@ chrome.runtime.onConnect.addListener((port) => {
                     return;
                 }
                 const windowId = msg.windowId;
+
+                // Verify window type
+                const window = await chrome.windows.get(windowId);
+                if (window.type !== chrome.tabs.WindowType.NORMAL) {
+                    port.postMessage({ type: 'ERROR', error: "Grouping not supported in this window type." } as TabGroupResponse);
+                    return;
+                }
 
                 const allTabs = await chrome.tabs.query({ windowId });
                 const existingGroups = await chrome.tabGroups.query({ windowId });
