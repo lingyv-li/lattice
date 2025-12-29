@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
 import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
+import { getSettings, saveSettings } from '../utils/storage';
 
 const App = () => {
     const [modelInfo, setModelInfo] = useState<string>("Checking model...");
@@ -20,21 +21,20 @@ const App = () => {
     const downloadCleaner = useDownloadCleaner();
 
     // Selection State with Persistence
-    const [selectedCards, setSelectedCards] = useState<Set<string>>(() => {
-        const saved = localStorage.getItem('lattice_selected_cards');
-        if (saved) {
-            try {
-                return new Set(JSON.parse(saved));
-            } catch (e) {
-                console.warn('Failed to parse saved selection', e);
+    const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set(['tab-grouper', 'duplicate-cleaner']));
+
+    // Load persisted selection
+    useEffect(() => {
+        getSettings().then(settings => {
+            if (settings.selectedCards) {
+                setSelectedCards(new Set(settings.selectedCards));
             }
-        }
-        return new Set(['tab-grouper', 'duplicate-cleaner']); // Default defaults
-    });
+        });
+    }, []);
 
     // Persist selection changes
     useEffect(() => {
-        localStorage.setItem('lattice_selected_cards', JSON.stringify(Array.from(selectedCards)));
+        saveSettings({ selectedCards: Array.from(selectedCards) });
     }, [selectedCards]);
 
     const toggleCard = (id: string) => {

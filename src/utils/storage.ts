@@ -5,6 +5,7 @@ export interface AppSettings {
     aiProvider: 'local' | 'gemini';
     aiModel: string;
     geminiApiKey: string;
+    selectedCards?: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
