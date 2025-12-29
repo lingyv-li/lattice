@@ -6,9 +6,9 @@ interface TabGroupPreviewProps {
     selectedPreviewIndices: Set<number>;
     tabDataMap: Map<number, { title: string, url: string }>;
     onToggleSelection: (idx: number) => void;
-    onReject: (idx: number) => void;
-    onApply: () => void;
-    onCancel: () => void;
+    onReject: () => void;
+    onApply?: () => void;
+    onCancel?: () => void;
 }
 
 export const TabGroupPreview = ({
@@ -16,9 +16,7 @@ export const TabGroupPreview = ({
     selectedPreviewIndices,
     tabDataMap,
     onToggleSelection,
-    onReject,
-    onApply,
-    onCancel
+    onReject
 }: TabGroupPreviewProps) => {
     return (
         <div className="mb-4 space-y-3">
@@ -63,7 +61,7 @@ export const TabGroupPreview = ({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                onReject(idx);
+                                onReject();
                             }}
                             className="p-1 text-muted hover:text-btn-negative-fg hover:bg-btn-negative-hover rounded transition-colors"
                             title="Reject this suggestion"
@@ -73,20 +71,6 @@ export const TabGroupPreview = ({
                     </div>
                 </div>
             ))}
-            <div className="sticky bottom-0 z-10 flex gap-2 -mx-4 -mb-4 px-4 py-3 mt-4 bg-surface-dim border-t border-border-subtle rounded-b-xl backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95">
-                <button
-                    onClick={onCancel}
-                    className="flex-1 py-2 text-xs font-medium bg-btn-secondary-bg text-btn-secondary-fg border border-btn-secondary-border rounded-lg hover:bg-btn-secondary-hover shadow-sm transition-all"
-                >
-                    Dismiss All
-                </button>
-                <button
-                    onClick={onApply}
-                    className="flex-1 py-2 text-xs font-bold bg-btn-primary-bg text-btn-primary-fg rounded-lg hover:bg-btn-primary-hover shadow-sm"
-                >
-                    Apply Groups
-                </button>
-            </div>
         </div>
     );
 };

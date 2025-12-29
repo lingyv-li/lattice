@@ -186,4 +186,123 @@ describe('useTabGrouper', () => {
 
         expect(result.current.status).toBe('processing');
     });
+
+    it('should maintain user selection when identical storage updates occur', async () => {
+        const { result } = renderHook(() => useTabGrouper());
+
+        // 1. Initial State
+        await waitFor(() => expect(result.current.status).toBe('idle'));
+
+        // 2. Simulate Storage Update
+        const storageListener = (global.chrome.storage.onChanged.addListener as any).mock.calls[0][0];
+        const suggestions = [
+            { tabId: 101, groupName: 'Search', existingGroupId: null, timestamp: 123 },
+            { tabId: 102, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
+        ];
+
+        act(() => {
+            storageListener({
+                suggestionCache: { newValue: suggestions, oldValue: undefined }
+            }, 'session');
+        });
+
+        await waitFor(() => {
+            expect(result.current.status).toBe('reviewing');
+            expect(result.current.selectedPreviewIndices.size).toBe(2);
+        });
+
+        // 3. User deselects one group (Index 1: 'Dev')
+        act(() => {
+            result.current.toggleGroupSelection(1);
+        });
+
+        await waitFor(() => {
+            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
+            expect(result.current.selectedPreviewIndices.size).toBe(1);
+        });
+
+        // 4. Simulate IDENTICAL storage update
+        // We ensure we pass a COPY to ensure reference equality check in hook (if any) doesn't false-positive,
+        // though the hook explicitly checks JSON content. 
+        act(() => {
+            storageListener({
+                suggestionCache: { newValue: [...suggestions], oldValue: undefined }
+            }, 'session');
+        });
+
+        // 5. Verify selection persists (should NOT reset to all selected)
+        await waitFor(() => {
+            expect(result.current.selectedPreviewIndices.size).toBe(1);
+            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
+            expect(result.current.selectedPreviewIndices.has(0)).toBe(true);
+        });
+
+        // 6. Simulate PARTIAL update (Adding a new group, keeping old ones)
+        // 'Search' (Index 0) is still there. 'Dev' (Index 1) is still there. 'New' (Index 2) added.
+        // Expect: 'Search' remains SELECTED. 'Dev' remains UNSELECTED. 'New' defaults to SELECTED? 
+        // Logic says: if new selection set is empty (fail to preserve), select all.
+        // If we preserve, we keep 0, skip 1. New one (2) might be skipped unless we default-select new ones.
+        // Let's check logic: "If it matches a selected group, select it." 
+        // So 0 matches selected -> 0 selected.
+        // 1 matches unselected -> 1 NOT selected.
+        // 2 is new -> checks "selectedSignatures". No match. 
+        // Result: 0 selected, 1 unselected, 2 unselected.
+        // This effectively "selects all that were selected before".
+        // Is this desired? "Smart Selection Preservation" usually implies partial updates shouldn't disturb existing choices.
+        // New items being unchecked by default might be safer than checking them? 
+        // Or should we default new items to checked? 
+        // Current logic: only adds to `newSelection` if it MATCHES a `selectedSignature`.
+        // So completely new items will be UNCHECKED. 
+        // Let's verify this behavior.
+
+        const newSuggestions = [
+            ...suggestions,
+            { tabId: 103, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
+        ];
+
+        act(() => {
+            storageListener({
+                suggestionCache: { newValue: newSuggestions, oldValue: undefined }
+            }, 'session');
+        });
+
+        await waitFor(() => {
+            // Index 0 ('Search') should be selected (preserved)
+            expect(result.current.selectedPreviewIndices.has(0)).toBe(true);
+            // Index 1 ('Dev') should be unselected (preserved)
+            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
+            // Index 2 ('New Group') should be unselected (because it wasn't in signature set)
+            expect(result.current.selectedPreviewIndices.has(2)).toBe(false);
+        });
+    });
+
+    it('should select or deselect all groups using setAllGroupsSelected', async () => {
+        // Setup groups
+        const suggestions = [
+            { tabId: 101, groupName: 'One', existingGroupId: null, timestamp: 1 },
+            { tabId: 102, groupName: 'Two', existingGroupId: null, timestamp: 2 }
+        ];
+        (global.chrome.storage.session.get as any).mockResolvedValue({
+            suggestionCache: suggestions
+        });
+
+        const { result: loadedResult } = renderHook(() => useTabGrouper());
+
+        await waitFor(() => {
+            expect(loadedResult.current.status).toBe('reviewing');
+            expect(loadedResult.current.selectedPreviewIndices.size).toBe(2);
+        });
+
+        // Deselect All
+        act(() => {
+            loadedResult.current.setAllGroupsSelected(false);
+        });
+        expect(loadedResult.current.selectedPreviewIndices.size).toBe(0);
+
+        // Select All
+        act(() => {
+            loadedResult.current.setAllGroupsSelected(true);
+        });
+        expect(loadedResult.current.selectedPreviewIndices.size).toBe(2);
+    });
 });

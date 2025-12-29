@@ -1,5 +1,5 @@
 import { generateTabGroupSuggestions } from '../utils/ai';
-import { StorageManager } from '../utils/storage';
+
 import { TabGroupResponse, TabSuggestionCache } from '../types/tabGrouper';
 
 console.log("[Background] Service Worker Initialized");
@@ -11,7 +11,7 @@ const PROCESS_DELAY_MS = 1000; // Wait 1s after last event before processing
 // ===== STATE =====
 // In-memory state, hydrated from storage
 let suggestionCache = new Map<number, TabSuggestionCache>();
-let rejectedTabs = new Set<number>();
+// let rejectedTabs = new Set<number>(); // REMOVED
 let isStateHydrated = false;
 
 // Processing queue (in-memory only, rebuilt on scan)
@@ -33,16 +33,7 @@ const hydrateState = async () => {
             suggestionCache = new Map();
         }
 
-        // 2. Hydrate Local Data (Rejected Tabs)
-        const localData = await StorageManager.getLocal();
-        if (localData.rejectedTabs) {
-            rejectedTabs = new Set(localData.rejectedTabs);
-        } else {
-            rejectedTabs = new Set();
-        }
-
         isStateHydrated = true;
-        // console.log(`[Background] State hydrated: ${suggestionCache.size} suggestions, ${rejectedTabs.size} rejected tabs`);
     } catch (e) {
         console.error("[Background] Failed to hydrate state:", e);
     }
@@ -53,14 +44,6 @@ const persistState = async () => {
         // 1. Persist Session Data
         await chrome.storage.session.set({
             suggestionCache: Array.from(suggestionCache.values())
-        });
-
-        // 2. Persist Local Data
-        // Note: We only need to update if changed, but simple set is fine.
-        // Optimizing: only write rejectedTabs logic if we changed it? 
-        // For safety, just write it.
-        await StorageManager.setLocal({
-            rejectedTabs: Array.from(rejectedTabs)
         });
     } catch (e) {
         console.error("[Background] Failed to persist state:", e);
@@ -119,7 +102,7 @@ const queueUngroupedTabs = async (windowId?: number) => {
 
     const allTabs = await chrome.tabs.query(queryInfo);
 
-    // Filter out tabs that are already grouped, cached, processing, or rejected
+    // Filter out tabs that are already grouped, cached, or processing
     const tabsToProcess = allTabs.filter(t =>
         t.groupId === chrome.tabs.TAB_ID_NONE &&
         t.id &&
@@ -127,8 +110,7 @@ const queueUngroupedTabs = async (windowId?: number) => {
         t.title &&
         t.status === 'complete' && // Only process loaded tabs
         !suggestionCache.has(t.id) &&
-        !currentlyProcessing.has(t.id) &&
-        !rejectedTabs.has(t.id)
+        !currentlyProcessing.has(t.id)
     );
 
     let added = false;
@@ -174,7 +156,7 @@ const processQueue = async () => {
 
     try {
         // Fetch all tabs in the queue to determine their windows
-        const tabsInQueue = await Promise.all(tabIds.map(id => chrome.tabs.get(id).catch(() => null)));
+        const tabsInQueue = await Promise.all(tabIds.map((id: number) => chrome.tabs.get(id).catch(() => null)));
         const validTabs = tabsInQueue.filter(t => t !== null && t.id && t.url && t.title) as chrome.tabs.Tab[];
 
         // Group by windowId
@@ -288,9 +270,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
             // URL changed: invalidate old cache for this tab
             await hydrateState();
             if (suggestionCache.delete(tabId)) {
-                // If it was rejected but now URL changed, maybe it's valid again? 
-                // Let's remove rejection.
-                rejectedTabs.delete(tabId);
                 await persistState();
                 broadcastCacheUpdate();
             }
@@ -339,15 +318,7 @@ chrome.runtime.onConnect.addListener((port) => {
             await queueUngroupedTabs();
         }
 
-        if (msg.type === 'REJECT_SUGGESTIONS' && msg.rejectedTabIds) {
-            await hydrateState();
-            for (const tabId of msg.rejectedTabIds) {
-                suggestionCache.delete(tabId);
-                rejectedTabs.add(tabId);
-            }
-            await persistState();
-            broadcastCacheUpdate();
-        }
+
 
         // START_GROUPING logic can remain similar or reuse queue?
         // The original code had specific START_GROUPING for manual trigger.

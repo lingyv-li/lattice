@@ -16,17 +16,21 @@ export const useTabGrouper = () => {
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
+    // Store current previews in ref to access inside listeners without re-subscribing
+    const previewGroupsRef = useRef<typeof previewGroups>(null);
+    // Store status in ref to access inside listeners without re-subscribing
+    const statusRef = useRef<TabGrouperStatus>(status);
 
-    // Helper to safely post messages (handles disconnected ports)
-    const safePostMessage = useCallback((message: any) => {
-        if (!portRef.current) return;
-        try {
-            portRef.current.postMessage(message);
-        } catch (e) {
-            // Port disconnected, clear the reference
-            portRef.current = null;
-        }
-    }, []);
+    // Update refs when state changes
+    useEffect(() => {
+        previewGroupsRef.current = previewGroups;
+    }, [previewGroups]);
+
+    useEffect(() => {
+        statusRef.current = status;
+    }, [status]);
+
+
 
     // Convert cached suggestions to preview groups
     const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], tabMap: Map<number, { title: string, url: string }>) => {
@@ -83,45 +87,7 @@ export const useTabGrouper = () => {
         // Initial scan
         scanUngrouped();
 
-        // --- 1. Storage Listener for Suggestions (Source of Truth) ---
-        const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-            if (areaName === 'session' && changes.suggestionCache) {
-                const newValue = changes.suggestionCache.newValue as TabSuggestionCache[] | undefined;
-                const map = await scanUngrouped();
-
-                if (newValue && Array.isArray(newValue) && newValue.length > 0) {
-                    const groups = convertCacheToGroups(newValue, map);
-                    // console.log("DEBUG: handleStorageChange groups", groups.length, "map size", map.size);
-                    if (groups.length > 0 && status !== 'processing' && status !== 'initializing') {
-                        setPreviewGroups(groups);
-                        setSelectedPreviewIndices(new Set(groups.map((_, i) => i)));
-                        setStatus('reviewing');
-                    } else if (groups.length === 0) {
-                        setPreviewGroups(null);
-                        if (status === 'reviewing') setStatus('idle');
-                    }
-                } else {
-                    // No cached suggestions, clear preview
-                    setPreviewGroups(null);
-                    if (status === 'reviewing') setStatus('idle');
-                }
-            }
-        };
-
-        chrome.storage.onChanged.addListener(handleStorageChange);
-
-        // Initial load from storage
-        chrome.storage.session.get('suggestionCache').then(async (data) => {
-            if (data && Array.isArray(data.suggestionCache)) {
-                // Simulate change event to reuse logic
-                handleStorageChange({
-                    suggestionCache: { newValue: data.suggestionCache, oldValue: undefined }
-                }, 'session');
-            }
-        });
-
-
-        // --- 2. Port Connection (Transient Status & Progress) ---
+        // --- Port Connection (Transient Status & Progress) ---
         let reconnectTimeout: NodeJS.Timeout;
         let isPortConnected = false;
 
@@ -172,7 +138,6 @@ export const useTabGrouper = () => {
         chrome.tabs.onRemoved.addListener(handleTabEvent);
 
         return () => {
-            chrome.storage.onChanged.removeListener(handleStorageChange);
             clearTimeout(reconnectTimeout);
             if (portRef.current) {
                 portRef.current.disconnect();
@@ -181,7 +146,90 @@ export const useTabGrouper = () => {
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
         };
-    }, [scanUngrouped, convertCacheToGroups]);
+    }, [scanUngrouped]);
+
+    // --- Storage Listener for Suggestions ---
+    useEffect(() => {
+        const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+            if (areaName === 'session' && changes.suggestionCache) {
+                const newValue = changes.suggestionCache.newValue as TabSuggestionCache[] | undefined;
+                const map = await scanUngrouped();
+
+                let groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
+                if (newValue && Array.isArray(newValue) && newValue.length > 0) {
+                    groups = convertCacheToGroups(newValue, map);
+                }
+
+                // Check if groups actually changed to prevent resetting selection
+                // Use ref to compare against current state without adding dependency
+                const currentGroups = previewGroupsRef.current;
+                if (currentGroups && JSON.stringify(groups) === JSON.stringify(currentGroups)) {
+                    return;
+                }
+
+                const currentStatus = statusRef.current;
+                if (groups.length > 0 && currentStatus !== 'processing' && currentStatus !== 'initializing') {
+                    // Smart Selection Preservation:
+                    // If we have previous groups, try to preserve the selection state for identical groups
+                    let newSelection = new Set<number>();
+
+                    if (currentGroups && selectedPreviewIndices.size > 0) {
+                        // Create a signature set of currently selected groups
+                        const selectedSignatures = new Set<string>();
+                        currentGroups.forEach((g, idx) => {
+                            if (selectedPreviewIndices.has(idx)) {
+                                selectedSignatures.add(JSON.stringify(g));
+                            }
+                        });
+
+                        // For each new group, check if it matches a previously selected one
+                        groups.forEach((g, idx) => {
+                            // If it matches a selected group, select it. 
+                            // Or if it's a completely new set (no previous groups), select all (handled by default below).
+                            if (selectedSignatures.has(JSON.stringify(g))) {
+                                newSelection.add(idx);
+                            }
+                        });
+
+                        // If we found NO matches (totally new suggestions), default to Select All
+                        // But if we found *some* matches, implies a partial update, so we trust our preservation.
+                        // Edge case: entire set changed but we wanted to select all? 
+                        // If selectedSignatures was NOT empty, but newSelection IS empty, it means we lost all selected groups.
+                        // In that case, maybe default to Select All again?
+                        if (newSelection.size === 0 && selectedSignatures.size > 0) {
+                            newSelection = new Set(groups.map((_, i) => i));
+                        }
+                    } else {
+                        // No previous selection or groups, select all by default
+                        newSelection = new Set(groups.map((_, i) => i));
+                    }
+
+                    setPreviewGroups(groups);
+                    setSelectedPreviewIndices(newSelection);
+                    setStatus('reviewing');
+                } else if (groups.length === 0) {
+                    setPreviewGroups(null);
+                    if (currentStatus === 'reviewing') setStatus('idle');
+                }
+            }
+        };
+
+        chrome.storage.onChanged.addListener(handleStorageChange);
+
+        // Initial load from storage
+        chrome.storage.session.get('suggestionCache').then(async (data) => {
+            if (data && Array.isArray(data.suggestionCache)) {
+                // Simulate change event to reuse logic
+                handleStorageChange({
+                    suggestionCache: { newValue: data.suggestionCache, oldValue: undefined }
+                }, 'session');
+            }
+        });
+
+        return () => {
+            chrome.storage.onChanged.removeListener(handleStorageChange);
+        };
+    }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]); // Added selectedPreviewIndices dependency for smart preservation
 
     const generateGroups = async () => {
         setStatus('processing');
@@ -279,19 +327,8 @@ export const useTabGrouper = () => {
             setPreviewGroups(null);
             setTimeout(() => setStatus('idle'), 3000);
 
-            // Reject unselected groups so they don't come back
-            const unselectedTabIds: number[] = [];
-            for (let i = 0; i < previewGroups.length; i++) {
-                if (!selectedPreviewIndices.has(i)) {
-                    unselectedTabIds.push(...previewGroups[i].tabIds);
-                }
-            }
-            if (unselectedTabIds.length > 0) {
-                safePostMessage({
-                    type: 'REJECT_SUGGESTIONS',
-                    rejectedTabIds: unselectedTabIds
-                });
-            }
+            // We do NOT reject unselected groups anymore, per "just unselect" instruction.
+            // They remain available for future grouping.
         } catch (err: any) {
             setError(err.message || "Failed to apply groups.");
             setStatus('error');
@@ -299,47 +336,21 @@ export const useTabGrouper = () => {
     };
 
     const cancelGroups = () => {
-        // Reject all suggestions when cancelling
-        if (previewGroups) {
-            const allTabIds = previewGroups.flatMap(g => g.tabIds);
-            safePostMessage({
-                type: 'REJECT_SUGGESTIONS',
-                rejectedTabIds: allTabIds
-            });
-        }
+        // Just clear the preview, do NOT reject suggestions (allow them to specific later)
+        // User requested: "in unselect, just unselect, don't regenerate"
         setPreviewGroups(null);
         setStatus('idle');
     };
 
-    const rejectGroup = (groupIndex: number) => {
-        if (!previewGroups) return;
-        const group = previewGroups[groupIndex];
-        if (!group) return;
+    const rejectGroup = () => {
+        // User requested: "Change the logic about rejection, don't reject, change to re-generate."
+        // This implies 'X' on a group means "I don't like this, try again".
+        // Use generateGroups() to trigger a fresh analysis.
 
-        // Send rejection to background
-        safePostMessage({
-            type: 'REJECT_SUGGESTIONS',
-            rejectedTabIds: group.tabIds
-        });
-
-        // Remove from preview
-        const newGroups = previewGroups.filter((_, i) => i !== groupIndex);
-        if (newGroups.length === 0) {
-            setPreviewGroups(null);
-            setStatus('idle');
-        } else {
-            setPreviewGroups(newGroups);
-            // Update selected indices
-            const newSelected = new Set<number>();
-            for (const oldIdx of selectedPreviewIndices) {
-                if (oldIdx < groupIndex) {
-                    newSelected.add(oldIdx);
-                } else if (oldIdx > groupIndex) {
-                    newSelected.add(oldIdx - 1);
-                }
-            }
-            setSelectedPreviewIndices(newSelected);
-        }
+        // Optimistic UI update: Remove the group from view immediately while we re-generate?
+        // Actually, generateGroups() clears previewGroups immediately anyway.
+        // So we just call generateGroups().
+        generateGroups();
     };
 
     const toggleGroupSelection = (idx: number) => {
@@ -350,6 +361,15 @@ export const useTabGrouper = () => {
             newSet.add(idx);
         }
         setSelectedPreviewIndices(newSet);
+    };
+
+    const setAllGroupsSelected = (selected: boolean) => {
+        if (!previewGroups) return;
+        if (selected) {
+            setSelectedPreviewIndices(new Set(previewGroups.map((_, i) => i)));
+        } else {
+            setSelectedPreviewIndices(new Set());
+        }
     };
 
     return {
@@ -367,6 +387,8 @@ export const useTabGrouper = () => {
         applyGroups,
         cancelGroups,
         rejectGroup,
-        toggleGroupSelection
+        toggleGroupSelection,
+        setAllGroupsSelected
     };
 };
+

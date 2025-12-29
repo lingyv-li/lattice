@@ -1,22 +1,123 @@
-import React from 'react';
+import { useMemo, useEffect, useState, StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Settings } from 'lucide-react';
 import './index.css';
-import { TabGrouper } from './TabGrouper';
-import { DownloadCleaner } from './DownloadCleaner';
-import { DuplicateTabCleaner } from './DuplicateTabCleaner';
+import { TabGrouperCard } from './components/TabGrouperCard';
+import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
+import { DownloadCleanerCard } from './components/DownloadCleanerCard';
+import { Loader2 } from 'lucide-react';
+
+import { useTabGrouper } from '../hooks/useTabGrouper';
+import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
+import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
 
 const App = () => {
-    const [modelInfo, setModelInfo] = React.useState<string>("Checking model...");
+    const [modelInfo, setModelInfo] = useState<string>("Checking model...");
 
-    React.useEffect(() => {
+    // Hooks
+    const tabGrouper = useTabGrouper();
+    const duplicateCleaner = useDuplicateCleaner();
+    const downloadCleaner = useDownloadCleaner();
+
+    // Selection State with Persistence
+    const [selectedCards, setSelectedCards] = useState<Set<string>>(() => {
+        const saved = localStorage.getItem('lattice_selected_cards');
+        if (saved) {
+            try {
+                return new Set(JSON.parse(saved));
+            } catch (e) {
+                console.warn('Failed to parse saved selection', e);
+            }
+        }
+        return new Set(['tab-grouper', 'duplicate-cleaner']); // Default defaults
+    });
+
+    // Persist selection changes
+    useEffect(() => {
+        localStorage.setItem('lattice_selected_cards', JSON.stringify(Array.from(selectedCards)));
+    }, [selectedCards]);
+
+    const toggleCard = (id: string) => {
+        const newSet = new Set(selectedCards);
+
+        // Toggle the persistent selection state
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+
+        // Feature-specific side effects
+        if (id === 'tab-grouper') {
+            const isNowSelected = newSet.has(id);
+            // If the user toggles the card, we want to select/deselect all inner items
+            tabGrouper.setAllGroupsSelected(isNowSelected);
+
+            // If turning ON and we have no groups but can generate, maybe we should?
+            // Current behavior: User must click "Organize" to generate. This is fine.
+        }
+
+        setSelectedCards(newSet);
+    };
+
+    // Declarative Selection State:
+    // A card is selected if it's in the persisted set OR if it has active internal selections (e.g. tab groups).
+    // This derived state ensures the UI reflects if a "part" of the card is active.
+    const effectiveSelectedCards = useMemo(() => {
+        const set = new Set(selectedCards);
+        if (tabGrouper.selectedPreviewIndices.size > 0) {
+            set.add('tab-grouper');
+        }
+        return set;
+    }, [selectedCards, tabGrouper.selectedPreviewIndices]);
+
+    // Derived States uses effective set
+    const isProcessing =
+        tabGrouper.status === 'processing' ||
+        tabGrouper.status === 'initializing'
+    duplicateCleaner.status === 'cleaning' ||
+        downloadCleaner.cleaning;
+
+    const hasWork =
+        (effectiveSelectedCards.has('tab-grouper') && (tabGrouper.ungroupedCount ?? 0) > 0) ||
+        (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) ||
+        (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0) ||
+        (effectiveSelectedCards.has('download-cleaner') && (downloadCleaner.missingItems.length > 0 || downloadCleaner.interruptedItems.length > 0));
+
+    // Handle Organize Action
+    const handleOrganize = async () => {
+        if (isProcessing) return;
+
+        // 1. Duplicate Cleaner
+        if (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0) {
+            duplicateCleaner.closeDuplicates();
+        }
+
+        // 2. Download Cleaner
+        if (effectiveSelectedCards.has('download-cleaner')) {
+            downloadCleaner.handleClean();
+        }
+
+        // 3. Tab Grouper
+        if (effectiveSelectedCards.has('tab-grouper')) {
+            if (tabGrouper.previewGroups) {
+                // If already previewing, applying
+                tabGrouper.applyGroups();
+            } else if ((tabGrouper.ungroupedCount ?? 0) > 0 || tabGrouper.availability === 'downloadable') {
+                // Generate
+                tabGrouper.generateGroups();
+            }
+        }
+    };
+
+    // Model Check Effect
+    useEffect(() => {
         const checkModel = async () => {
             try {
                 if (!window.LanguageModel) {
                     setModelInfo("AI API not supported");
                     return;
                 }
-                // Fallback to availability check
                 const text = await window.LanguageModel.availability();
                 setModelInfo(`Local AI Model (${text})`);
             } catch (e) {
@@ -26,9 +127,21 @@ const App = () => {
         checkModel();
     }, []);
 
+    // Determine Button Label
+    const getButtonLabel = () => {
+        if (isProcessing) return "Processing...";
+
+        if (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) {
+            return "Apply Changes";
+        }
+
+        if (!hasWork) return "No Actions Needed";
+
+        return "Organize";
+    };
+
     return (
         <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
-            {/* Header */}
             {/* Header */}
             <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-2">
@@ -50,19 +163,30 @@ const App = () => {
             </div>
 
             {/* Dashboard Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
                 {/* Section: Organization */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                     <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Organization</h2>
-                    <TabGrouper />
-                    <DuplicateTabCleaner />
+                    <TabGrouperCard
+                        isSelected={effectiveSelectedCards.has('tab-grouper')}
+                        onToggle={() => toggleCard('tab-grouper')}
+                        data={tabGrouper}
+                    />
+                    <DuplicateCleanerCard
+                        isSelected={effectiveSelectedCards.has('duplicate-cleaner')}
+                        onToggle={() => toggleCard('duplicate-cleaner')}
+                        data={duplicateCleaner}
+                    />
                 </div>
 
                 {/* Section: Optimization */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                     <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Optimization</h2>
-                    <DownloadCleaner />
+                    <DownloadCleanerCard
+                        isSelected={effectiveSelectedCards.has('download-cleaner')}
+                        onToggle={() => toggleCard('download-cleaner')}
+                        data={downloadCleaner}
+                    />
                 </div>
 
                 <div className="text-center py-6 opacity-40">
@@ -71,12 +195,31 @@ const App = () => {
                     </p>
                 </div>
             </div>
+
+            {/* Main Action Button - Floating Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
+                <button
+                    onClick={handleOrganize}
+                    disabled={isProcessing || !hasWork}
+                    className={`
+                        w-full py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
+                        flex items-center justify-center gap-2 transition-all active:scale-[0.98]
+                        ${isProcessing || !hasWork
+                            ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
+                        }
+                    `}
+                >
+                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {getButtonLabel()}
+                </button>
+            </div>
         </div>
     );
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
+    <StrictMode>
         <App />
-    </React.StrictMode>
+    </StrictMode>
 );
