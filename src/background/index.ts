@@ -1,7 +1,8 @@
+import { StateService } from './state';
 import { generateTabGroupSuggestions } from '../utils/ai';
 import { updateWindowBadge } from '../utils/badge';
 
-import { TabGroupResponse, TabSuggestionCache } from '../types/tabGrouper';
+import { TabGroupResponse } from '../types/tabGrouper';
 
 console.log("[Background] Service Worker Initialized");
 
@@ -10,54 +11,13 @@ const ALARM_NAME = 'process_tabs_alarm';
 const PROCESS_DELAY_MS = 1000; // Wait 1s after last event before processing
 
 // ===== STATE =====
-// In-memory state, hydrated from storage
-let suggestionCache = new Map<number, TabSuggestionCache>();
-// let rejectedTabs = new Set<number>(); // REMOVED
-let isStateHydrated = false;
-
 // Processing queue (in-memory only, rebuilt on scan)
 const processingQueue = new Set<number>();
 const currentlyProcessing = new Set<number>();
 const connectedPorts = new Set<chrome.runtime.Port>();
 
-// ===== STORAGE & STATE MANAGEMENT =====
-const hydrateState = async () => {
-    if (isStateHydrated) return;
-
-    try {
-        // 1. Hydrate Session Data (Suggestions)
-        // Check for storage.session support (some contexts might not have it, but Manifest V3 usually does)
-        const sessionData = await chrome.storage.session.get('suggestionCache');
-        if (sessionData && Array.isArray(sessionData.suggestionCache)) {
-            suggestionCache = new Map(sessionData.suggestionCache.map((s: TabSuggestionCache) => [s.tabId, s]));
-        } else {
-            suggestionCache = new Map();
-        }
-
-        isStateHydrated = true;
-    } catch (e) {
-        console.error("[Background] Failed to hydrate state:", e);
-    }
-};
-
-const persistState = async () => {
-    try {
-        // 1. Persist Session Data
-        await chrome.storage.session.set({
-            suggestionCache: Array.from(suggestionCache.values())
-        });
-    } catch (e) {
-        console.error("[Background] Failed to persist state:", e);
-    }
-};
-
 // ===== BROADCASTS =====
-// Broadcsts are now just "pings" to tell UI to check storage, OR providing transient status.
-// UI listens to storage.onChanged for data, so we don't strictly need to send data here,
-// but sending it is a nice optimization if port is alive.
 const broadcastCacheUpdate = async () => {
-    // Ensure storage is updated first
-    await persistState();
     // Update badge on data change
     await performBadgeUpdate();
 };
@@ -83,8 +43,9 @@ const performBadgeUpdate = async () => {
 
     // 2. Count unique groups per window from cache
     const windowGroupCounts = new Map<number, Set<string>>();
+    const cache = await StateService.getSuggestionCache();
 
-    for (const cached of suggestionCache.values()) {
+    for (const cached of cache.values()) {
         const winId = tabWindowMap.get(cached.tabId);
         if (winId && cached.groupName && cached.existingGroupId === null) {
             if (!windowGroupCounts.has(winId)) {
@@ -126,14 +87,7 @@ const broadcastProcessingStatus = async () => {
 const invalidateCache = async () => {
     console.log("[Background] Invalidating cache due to group change");
 
-    await hydrateState();
-    suggestionCache.clear();
-    // rejectedTabs.clear(); // Keep rejected tabs persistent even if groups change? 
-    // Actually, if groups change, maybe a rejected tab is now valid for a new group?
-    // Let's keep rejectedTabs for now to prevent annoyance. 
-
-    await persistState();
-    // broadcastCacheUpdate handles the storage set, so we can just call it or persist then broadcast
+    await StateService.clearCache();
     await broadcastCacheUpdate();
 
     // Re-queue
@@ -141,12 +95,11 @@ const invalidateCache = async () => {
 };
 
 const queueUngroupedTabs = async (windowId?: number) => {
-    await hydrateState();
-
     const queryInfo: chrome.tabs.QueryInfo = { windowType: chrome.tabs.WindowType.NORMAL };
     if (windowId) queryInfo.windowId = windowId;
 
     const allTabs = await chrome.tabs.query(queryInfo);
+    const cache = await StateService.getSuggestionCache();
 
     // Filter out tabs that are already grouped, cached, or processing
     const tabsToProcess = allTabs.filter(t =>
@@ -155,7 +108,7 @@ const queueUngroupedTabs = async (windowId?: number) => {
         t.url &&
         t.title &&
         t.status === 'complete' && // Only process loaded tabs
-        !suggestionCache.has(t.id) &&
+        !cache.has(t.id) &&
         !currentlyProcessing.has(t.id)
     );
 
@@ -181,8 +134,6 @@ const scheduleProcessing = () => {
 };
 
 const processQueue = async () => {
-    await hydrateState();
-
     if (processingQueue.size === 0) return;
 
     // AI Check
@@ -214,13 +165,14 @@ const processQueue = async () => {
         }
 
         const now = Date.now();
+        const cache = await StateService.getSuggestionCache();
 
         // Process per window
         for (const [windowId, tabs] of tabsByWindow) {
             // Verify window type is normal
             try {
                 const window = await chrome.windows.get(windowId);
-                if (window.type !== chrome.tabs.WindowType.NORMAL) continue;
+                if (window.type !== chrome.windows.WindowType.NORMAL) continue;
             } catch (e) {
                 // Window might have closed
                 continue;
@@ -229,24 +181,10 @@ const processQueue = async () => {
             const existingGroups = await chrome.tabGroups.query({ windowId });
             const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
 
-            // Virtual groups from cache (global or per window? Cache is global map, but we should reuse names if they make sense)
-            // Ideally we check if virtual group name exists in cache and map to it? 
-            // For now, let's just stick to the logic of finding existing virtual groups.
-            // But wait, if we have a virtual group "News" in Window A, and we get "News" in Window B, should they share ID? 
-            // No, tab groups are per window.
-            // But the cache structure doesn't store windowId for the *Group*.
-            // Simple approach: Treat virtual groups as just names. 
-
             const virtualGroups = new Map<string, { id: number; title: string }>();
             let nextVirtualId = -1;
 
-            // We only care about virtual groups that *could* be relevant? 
-            // Actually, if we reuse the same cache map, we might mix windows. 
-            // But the existingGroupId logic handles real groups.
-            // For virtual groups, we effectively just need to avoid collisions in the prompt context.
-            // Let's just pass what we have.
-
-            for (const cached of suggestionCache.values()) {
+            for (const cached of cache.values()) {
                 if (cached.existingGroupId === null && cached.groupName) {
                     if (!virtualGroups.has(cached.groupName)) {
                         virtualGroups.set(cached.groupName, { id: nextVirtualId--, title: cached.groupName });
@@ -270,7 +208,7 @@ const processQueue = async () => {
             for (const group of groups) {
                 for (const tabId of group.tabIds) {
                     groupedTabIds.add(tabId);
-                    suggestionCache.set(tabId, {
+                    await StateService.updateSuggestion({
                         tabId,
                         groupName: group.groupName,
                         existingGroupId: group.existingGroupId || null,
@@ -283,7 +221,7 @@ const processQueue = async () => {
             // and clear from currentlyProcessing
             for (const tab of tabsData) {
                 if (!groupedTabIds.has(tab.id)) {
-                    suggestionCache.set(tab.id, {
+                    await StateService.updateSuggestion({
                         tabId: tab.id,
                         groupName: null,
                         existingGroupId: null,
@@ -294,7 +232,6 @@ const processQueue = async () => {
             }
         }
 
-        await persistState();
         broadcastCacheUpdate();
         broadcastProcessingStatus();
 
@@ -329,10 +266,9 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
         // Tab finished loading or changed URL -> candidate for grouping
         if (changeInfo.url) {
             // URL changed: invalidate old cache for this tab
-            await hydrateState();
-            if (suggestionCache.delete(tabId)) {
-                await persistState();
-                broadcastCacheUpdate();
+            const removed = await StateService.removeSuggestion(tabId);
+            if (removed) {
+                await broadcastCacheUpdate();
             }
         }
         await queueUngroupedTabs();
@@ -340,15 +276,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-    await hydrateState();
     let changed = false;
-    if (suggestionCache.delete(tabId)) changed = true;
+    if (await StateService.removeSuggestion(tabId)) changed = true;
     if (processingQueue.delete(tabId)) changed = true;
     if (currentlyProcessing.delete(tabId)) changed = true;
 
     if (changed) {
-        await persistState();
-        broadcastCacheUpdate();
+        await broadcastCacheUpdate();
     }
 });
 
@@ -371,7 +305,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
     port.onMessage.addListener(async (msg) => {
         if (msg.type === 'GET_CACHED_SUGGESTIONS') {
-            await hydrateState();
+            await StateService.hydrate();
             // Send processing status
 
 
@@ -406,8 +340,6 @@ chrome.runtime.onConnect.addListener((port) => {
                     return;
                 }
 
-                await hydrateState();
-
                 if (!msg.windowId) {
                     port.postMessage({ type: 'ERROR', error: "Window ID not specified." } as TabGroupResponse);
                     return;
@@ -416,7 +348,7 @@ chrome.runtime.onConnect.addListener((port) => {
 
                 // Verify window type
                 const window = await chrome.windows.get(windowId);
-                if (window.type !== chrome.tabs.WindowType.NORMAL) {
+                if (window.type !== chrome.windows.WindowType.NORMAL) {
                     port.postMessage({ type: 'ERROR', error: "Grouping not supported in this window type." } as TabGroupResponse);
                     return;
                 }
@@ -431,7 +363,7 @@ chrome.runtime.onConnect.addListener((port) => {
                     return;
                 }
 
-                suggestionCache.clear();
+                await StateService.clearCache();
 
                 const tabsData = ungroupedTabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
 
@@ -446,7 +378,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 for (const group of groups) {
                     for (const tabId of group.tabIds) {
                         groupedTabIds.add(tabId);
-                        suggestionCache.set(tabId, {
+                        await StateService.updateSuggestion({
                             tabId,
                             groupName: group.groupName,
                             existingGroupId: group.existingGroupId || null,
@@ -458,7 +390,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 // Cache negative results for manual run too
                 for (const tab of tabsData) {
                     if (!groupedTabIds.has(tab.id)) {
-                        suggestionCache.set(tab.id, {
+                        await StateService.updateSuggestion({
                             tabId: tab.id,
                             groupName: null,
                             existingGroupId: null,
@@ -466,8 +398,6 @@ chrome.runtime.onConnect.addListener((port) => {
                         });
                     }
                 }
-
-                await persistState();
 
                 port.postMessage({ type: 'COMPLETE', groups } as TabGroupResponse);
                 broadcastCacheUpdate();
@@ -480,30 +410,8 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 });
 
-// Track side panel open state per window
-const sidePanelOpenState = new Map<number, boolean>();
-
-// Toggle side panel on action click
-chrome.action.onClicked.addListener(async (tab) => {
-    if (!tab.windowId) return;
-
-    const isOpen = sidePanelOpenState.get(tab.windowId) ?? false;
-    try {
-        if (isOpen) {
-            // Close by disabling for this tab
-            await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: false });
-            // Re-enable for future use
-            await chrome.sidePanel.setOptions({ tabId: tab.id, enabled: true });
-            sidePanelOpenState.set(tab.windowId, false);
-        } else {
-            await chrome.sidePanel.open({ windowId: tab.windowId });
-            sidePanelOpenState.set(tab.windowId, true);
-        }
-    } catch (error) {
-        console.error("[SidePanel] Failed to toggle side panel:", error);
-    }
-});
-
 // Startup check
-hydrateState().then(() => queueUngroupedTabs());
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+queueUngroupedTabs();
+
 
