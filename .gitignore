@@ -26,6 +26,7 @@ dist-ssr
 *storybook.log
 storybook-static
 releases/
+*.pem
 
 # TypeScript build cache
 tsconfig.tsbuildinfo

@@ -94,7 +94,7 @@ const App = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-main tracking-tight">Lattice</h1>
-                        <p className="text-sm text-muted font-medium">One-click optimization</p>
+                        <p className="text-sm text-muted font-medium">AI Browser Organizer</p>
                     </div>
                 </div>
 

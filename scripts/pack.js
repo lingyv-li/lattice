@@ -44,3 +44,28 @@ archive.on('error', function (err) {
 archive.pipe(output);
 archive.directory(distDir, false);
 archive.finalize();
+
+// Create CRX if key exists
+import ChromeExtension from 'crx';
+
+const keyPath = path.join(__dirname, '../key.pem');
+
+if (fs.existsSync(keyPath)) {
+    const crx = new ChromeExtension({
+        privateKey: fs.readFileSync(keyPath)
+    });
+
+    crx.load(distDir)
+        .then(crx => crx.pack())
+        .then(crxBuffer => {
+            const crxPath = path.join(releasesDir, `${name}-v${version}.crx`);
+            fs.writeFileSync(crxPath, crxBuffer);
+            const size = fs.statSync(crxPath).size;
+            console.log(`✓ Packed extension: ${crxPath} (${size} bytes)`);
+        })
+        .catch(err => {
+            console.error('! Failed to pack .crx extension:', err);
+        });
+} else {
+    console.log('ℹ No key.pem found, skipping .crx generation.');
+}
