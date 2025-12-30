@@ -154,7 +154,7 @@ const App = () => {
             <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
-                        <img src="/icon.svg" className="w-5 h-5" alt="Logo" />
+                        <img src="/icon-backgroundless.svg" className="w-5 h-5" alt="Logo" />
                     </div>
                     <div>
                         <h1 className="font-bold text-sm leading-tight text-main">Lattice</h1>

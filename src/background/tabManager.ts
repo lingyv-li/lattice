@@ -1,6 +1,8 @@
 
 import { StateService } from './state';
 import { ProcessingState } from './processing';
+import { getSettings } from '../utils/storage';
+import { findDuplicates, getTabsToRemove } from '../utils/duplicates';
 
 const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
 const PROCESS_DELAY_MS = 1000;
@@ -51,6 +53,40 @@ export class TabManager {
     }
 
     async handleTabUpdated(tabId: number, changeInfo: any) {
+        if (changeInfo.url || changeInfo.status === 'complete') {
+            // Check for Autopilot duplicate cleaning
+            const settings = await getSettings();
+            if (settings.autopilot) {
+                // Scope to the window of the updated tab? 
+                // We need the tab object to know the windowId, but handleTabUpdated only gives ID.
+                // We'll query for the tab first.
+                try {
+                    const tab = await chrome.tabs.get(tabId);
+                    if (tab.windowId) {
+                        const windowTabs = await chrome.tabs.query({ windowId: tab.windowId });
+                        const urlMap = findDuplicates(windowTabs);
+                        const tabsToRemove = getTabsToRemove(urlMap);
+
+                        // Prevent removing the recently updated tab if it's the one we want to keep?
+                        // getTabsToRemove heuristics already handle keeping active/oldest.
+                        // But if we JUST navigated, this tab might be "active".
+
+                        if (tabsToRemove.length > 0) {
+                            console.log(`[Autopilot] Closing ${tabsToRemove.length} duplicate tabs.`);
+                            await chrome.tabs.remove(tabsToRemove);
+                            // If we removed the current tab (unlikely due to heuristic), we stop processing?
+                            if (tabsToRemove.includes(tabId)) {
+                                return; // Tab is gone, no need to process
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // Tab might be gone or error
+                    console.error("[TabManager] Error checking duplicates:", e);
+                }
+            }
+        }
+
         if (changeInfo.url) {
             // URL changed: invalidate old cache for this tab
             await StateService.removeSuggestion(tabId);

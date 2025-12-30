@@ -1,7 +1,5 @@
-
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueueProcessor } from '../queueProcessor';
-import { ProcessingState } from '../processing';
 import { StateService } from '../state';
 import { generateTabGroupSuggestions } from '../../utils/ai';
 import { getSettings } from '../../utils/storage';

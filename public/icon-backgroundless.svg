@@ -1,0 +1,10 @@
+<svg width="72" height="72" viewBox="14 14 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+<!-- Balanced spacing: roughly thirds -->
+<!-- Vertical Lines at 42 and 86 -->
+<path d="M42 28V100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<path d="M86 28V100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<!-- Horizontal Lines at 42 and 86 -->
+<path d="M28 42H100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+<path d="M28 86H100" stroke="white" stroke-width="12" stroke-linecap="round"/>
+</svg>

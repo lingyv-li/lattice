@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { findDuplicates, countDuplicates, getTabsToRemove } from '../utils/duplicates';
 
 export type DuplicateCleanerStatus = 'idle' | 'scanning' | 'cleaning' | 'success' | 'error';
 
@@ -12,22 +13,8 @@ export const useDuplicateCleaner = () => {
         // just silently update the count.
         try {
             const tabs = await chrome.tabs.query({ currentWindow: true });
-            const urlMap = new Map<string, chrome.tabs.Tab[]>();
-
-            tabs.forEach(tab => {
-                if (!tab.url) return;
-                const normalizedUrl = tab.url.replace(/\/$/, '');
-                const group = urlMap.get(normalizedUrl) || [];
-                group.push(tab);
-                urlMap.set(normalizedUrl, group);
-            });
-
-            let count = 0;
-            urlMap.forEach((group) => {
-                if (group.length > 1) {
-                    count += group.length - 1;
-                }
-            });
+            const urlMap = findDuplicates(tabs);
+            const count = countDuplicates(urlMap);
 
             setDuplicateCount(count);
         } catch (err) {
@@ -61,35 +48,11 @@ export const useDuplicateCleaner = () => {
 
         try {
             const tabs = await chrome.tabs.query({ currentWindow: true });
-            const urlMap = new Map<string, chrome.tabs.Tab[]>();
+            const urlMap = findDuplicates(tabs);
+            const tabsToRemove = getTabsToRemove(urlMap);
 
-            tabs.forEach(tab => {
-                if (!tab.url) return;
-                const normalizedUrl = tab.url.replace(/\/$/, '');
-                const group = urlMap.get(normalizedUrl) || [];
-                group.push(tab);
-                urlMap.set(normalizedUrl, group);
-            });
-
-            const tabsToRemove: number[] = [];
-            let count = 0;
-
-            urlMap.forEach((group) => {
-                if (group.length > 1) {
-                    // Priority: Pinned > Active > Oldest
-                    group.sort((a, b) => {
-                        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-                        if (a.active !== b.active) return a.active ? -1 : 1;
-                        return (a.id || 0) - (b.id || 0);
-                    });
-
-                    const duplicates = group.slice(1);
-                    duplicates.forEach(d => {
-                        if (d.id) tabsToRemove.push(d.id);
-                    });
-                    count += duplicates.length;
-                }
-            });
+            // Calculate count of removed duplicates
+            const count = tabsToRemove.length;
 
             if (tabsToRemove.length > 0) {
                 await chrome.tabs.remove(tabsToRemove);

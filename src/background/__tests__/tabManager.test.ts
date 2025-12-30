@@ -3,13 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TabManager } from '../tabManager';
 import { StateService } from '../state';
 
+import { getSettings } from '../../utils/storage';
+
 // Mock dependencies
 vi.mock('../state');
 vi.mock('../processing');
+vi.mock('../../utils/storage'); // Mock storage for getSettings
 
 // Mock chrome API
 const mockTabs = {
     query: vi.fn(),
+    get: vi.fn(),
+    remove: vi.fn(),
     TAB_ID_NONE: -1,
     WindowType: { NORMAL: 'normal' }
 };
@@ -38,6 +43,7 @@ describe('TabManager', () => {
         // Default mocks
         mockTabs.query.mockResolvedValue([]);
         (StateService.getSuggestionCache as any).mockResolvedValue(new Map());
+        (getSettings as any).mockResolvedValue({ autopilot: false }); // Default
     });
 
     describe('handleTabUpdated', () => {
@@ -79,6 +85,58 @@ describe('TabManager', () => {
             await tabManager.handleTabUpdated(105, { status: 'complete' });
 
             expect(spyQueue).toHaveBeenCalled();
+        });
+
+        describe('Autopilot Duplicate Cleaning', () => {
+            beforeEach(() => {
+                // Default Autopilot OFF
+                (getSettings as any).mockResolvedValue({ autopilot: false });
+            });
+
+            it('should NOT check duplicates if autopilot is OFF', async () => {
+                await tabManager.handleTabUpdated(101, { status: 'complete' });
+                expect(mockTabs.get).not.toHaveBeenCalled();
+            });
+
+            it('should check and remove duplicates if autopilot is ON', async () => {
+                (getSettings as any).mockResolvedValue({ autopilot: true });
+
+                // Mock tab setup
+                const updatedTabId = 101;
+                const duplicateTabId = 102;
+                mockTabs.get.mockResolvedValue({ id: updatedTabId, windowId: 1 });
+
+                // Mock window tabs with 2 duplicates
+                const tabs = [
+                    { id: updatedTabId, url: 'http://a.com', windowId: 1, active: true }, // Keep active
+                    { id: duplicateTabId, url: 'http://a.com', windowId: 1, active: false } // Remove
+                ];
+                mockTabs.query.mockResolvedValue(tabs);
+
+                await tabManager.handleTabUpdated(updatedTabId, { status: 'complete' });
+
+                expect(mockTabs.get).toHaveBeenCalledWith(updatedTabId);
+                // query for window tabs
+                expect(mockTabs.query).toHaveBeenCalledWith({ windowId: 1 });
+                // Expect removal of duplicate
+                expect(mockTabs.remove).toHaveBeenCalledWith([duplicateTabId]);
+            });
+
+            it('should NOT remove updated tab if it is the one to keep', async () => {
+                (getSettings as any).mockResolvedValue({ autopilot: true });
+                const updatedTabId = 101;
+                mockTabs.get.mockResolvedValue({ id: updatedTabId, windowId: 1 });
+
+                // Only one tab, no duplicates
+                const tabs = [
+                    { id: updatedTabId, url: 'http://a.com', windowId: 1, active: true }
+                ];
+                mockTabs.query.mockResolvedValue(tabs);
+
+                await tabManager.handleTabUpdated(updatedTabId, { status: 'complete' });
+
+                expect(mockTabs.remove).not.toHaveBeenCalled();
+            });
         });
     });
 
