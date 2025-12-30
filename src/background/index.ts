@@ -89,11 +89,6 @@ const broadcastProcessingStatus = async (isProcessing: boolean) => {
 
 // ===== LOGIC =====
 
-// Removed local functions favoring TabManager
-// const invalidateCache = ...
-// const queueUngroupedTabs = ...
-// const scheduleProcessing = ...
-
 const queueProcessor = new QueueProcessor(processingState);
 const tabManager = new TabManager(processingState);
 
@@ -153,9 +148,6 @@ chrome.runtime.onConnect.addListener((port) => {
             // Trigger proactive check for new tabs
             await tabManager.queueUngroupedTabs();
         }
-
-
-
     });
 });
 

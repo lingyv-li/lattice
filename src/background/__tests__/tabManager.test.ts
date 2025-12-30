@@ -36,6 +36,7 @@ describe('TabManager', () => {
         mockProcessingState = {
             add: vi.fn(),
             has: vi.fn(),
+            clear: vi.fn(),
             size: 0
         };
         tabManager = new TabManager(mockProcessingState);
@@ -140,6 +141,35 @@ describe('TabManager', () => {
         });
     });
 
+    describe('invalidateCache', () => {
+        it('should NOT clear cache before re-processing', async () => {
+            const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
+            spyQueue.mockResolvedValue();
+
+            await tabManager.invalidateCache();
+
+            expect(StateService.clearCache).not.toHaveBeenCalled();
+        });
+
+        it('should call queueUngroupedTabs with forceReprocess: true', async () => {
+            const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
+            spyQueue.mockResolvedValue();
+
+            await tabManager.invalidateCache();
+
+            expect(spyQueue).toHaveBeenCalledWith(undefined, { forceReprocess: true });
+        });
+
+        it('should NOT clear processing state (staleness handled per-tab)', async () => {
+            const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
+            spyQueue.mockResolvedValue();
+
+            await tabManager.invalidateCache();
+
+            expect(mockProcessingState.clear).not.toHaveBeenCalled();
+        });
+    });
+
     describe('queueUngroupedTabs', () => {
         it('should add straight to processing state and schedule alarm', async () => {
             // Setup
@@ -196,6 +226,29 @@ describe('TabManager', () => {
 
             expect(mockProcessingState.add).toHaveBeenCalledWith(400);
             expect(mockProcessingState.add).not.toHaveBeenCalledWith(401);
+        });
+
+        it('should re-queue cached tabs when forceReprocess is true', async () => {
+            const mockTab = { id: 500, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' };
+            mockTabs.query.mockResolvedValue([mockTab]);
+            // Tab is already in cache
+            (StateService.getSuggestionCache as any).mockResolvedValue(new Map([[500, { tabId: 500 }]]));
+            mockProcessingState.add.mockReturnValue(true);
+
+            await tabManager.queueUngroupedTabs(undefined, { forceReprocess: true });
+
+            expect(mockProcessingState.add).toHaveBeenCalledWith(500);
+        });
+
+        it('should NOT re-queue cached tabs when forceReprocess is false', async () => {
+            const mockTab = { id: 501, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' };
+            mockTabs.query.mockResolvedValue([mockTab]);
+            // Tab is already in cache
+            (StateService.getSuggestionCache as any).mockResolvedValue(new Map([[501, { tabId: 501 }]]));
+
+            await tabManager.queueUngroupedTabs();
+
+            expect(mockProcessingState.add).not.toHaveBeenCalled();
         });
     });
 });

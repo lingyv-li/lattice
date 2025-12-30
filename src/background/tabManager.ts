@@ -12,12 +12,11 @@ export class TabManager {
 
     async invalidateCache() {
         console.log("[TabManager] Invalidating cache due to group change");
-        await StateService.clearCache();
-        // Re-queue
-        await this.queueUngroupedTabs();
+        // Staleness is handled per-tab via hash - just re-queue for processing
+        await this.queueUngroupedTabs(undefined, { forceReprocess: true });
     }
 
-    async queueUngroupedTabs(windowId?: number) {
+    async queueUngroupedTabs(windowId?: number, options?: { forceReprocess?: boolean }) {
         const queryInfo: chrome.tabs.QueryInfo = { windowType: chrome.tabs.WindowType.NORMAL };
         if (windowId) queryInfo.windowId = windowId;
 
@@ -39,7 +38,7 @@ export class TabManager {
             t.title &&
             t.status === 'complete' && // Only process loaded tabs
             !isEmptyNewTab(t.url) && // Skip empty new tabs
-            !cache.has(t.id) &&
+            (options?.forceReprocess || !cache.has(t.id)) &&
             !this.processingState.has(t.id)
         );
 

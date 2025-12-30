@@ -5,6 +5,7 @@ import { AIService } from '../services/ai/AIService';
 import { mapExistingGroups } from '../services/ai/shared';
 import { getSettings } from '../utils/storage';
 import { applyTabGroup } from '../utils/tabs';
+import { computeInputHash } from '../utils/hash';
 
 export class QueueProcessor {
     constructor(private state: ProcessingState) { }
@@ -58,6 +59,15 @@ export class QueueProcessor {
                 const allGroups = [...existingGroupsData, ...virtualGroups.values()];
                 const tabsData = tabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
 
+                // Capture input hashes for staleness detection
+                const inputHashes = new Map<number, string>();
+                for (const tab of tabs) {
+                    inputHashes.set(tab.id!, computeInputHash(
+                        { url: tab.url!, title: tab.title! },
+                        existingGroupsData
+                    ));
+                }
+
                 const settings = await getSettings();
                 const provider = await AIService.getProvider(settings);
                 const groupNameMap = mapExistingGroups(allGroups);
@@ -80,18 +90,53 @@ export class QueueProcessor {
                         // Autopilot: Apply immediately and DO NOT cache
                         const validTabIds = group.tabIds.filter(id => tabsData.find(t => t.id === id));
                         if (validTabIds.length > 0) {
-                            await applyTabGroup(
-                                validTabIds,
-                                group.groupName,
-                                group.existingGroupId
-                            );
-                            // Mark as processed so we don't treat as negative result?
-                            // Actually, if we applied it, we should track it as "handled".
-                            for (const tid of validTabIds) groupedTabIds.add(tid);
+                            // Check staleness before applying
+                            const currentGroups = await chrome.tabGroups.query({ windowId });
+                            const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
+
+                            const freshTabIds: number[] = [];
+                            for (const tid of validTabIds) {
+                                const currentTab = await chrome.tabs.get(tid).catch(() => null);
+                                if (!currentTab || !currentTab.url || !currentTab.title) continue;
+
+                                const currentHash = computeInputHash(
+                                    { url: currentTab.url, title: currentTab.title },
+                                    currentGroupsData
+                                );
+                                if (currentHash === inputHashes.get(tid)) {
+                                    freshTabIds.push(tid);
+                                } else {
+                                    console.log(`[QueueProcessor] Tab ${tid} stale, skipping autopilot`);
+                                }
+                            }
+
+                            if (freshTabIds.length > 0) {
+                                await applyTabGroup(
+                                    freshTabIds,
+                                    group.groupName,
+                                    group.existingGroupId
+                                );
+                                for (const tid of freshTabIds) groupedTabIds.add(tid);
+                            }
                         }
                     } else {
-                        // Standard: Cache suggestion
+                        // Standard: Cache suggestion (with staleness check)
                         for (const tabId of group.tabIds) {
+                            const currentTab = await chrome.tabs.get(tabId).catch(() => null);
+                            if (!currentTab || !currentTab.url || !currentTab.title) continue;
+
+                            const currentGroups = await chrome.tabGroups.query({ windowId });
+                            const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
+                            const currentHash = computeInputHash(
+                                { url: currentTab.url, title: currentTab.title },
+                                currentGroupsData
+                            );
+
+                            if (currentHash !== inputHashes.get(tabId)) {
+                                console.log(`[QueueProcessor] Tab ${tabId} stale, discarding result`);
+                                continue;
+                            }
+
                             groupedTabIds.add(tabId);
                             await StateService.updateSuggestion({
                                 tabId,
@@ -103,9 +148,28 @@ export class QueueProcessor {
                     }
                 }
 
-                // Also cache negative results (tabs analyzed but not grouped)
+                // Also cache negative results (tabs analyzed but not grouped) - with staleness check
                 for (const tab of tabsData) {
                     if (!groupedTabIds.has(tab.id)) {
+                        const currentTab = await chrome.tabs.get(tab.id).catch(() => null);
+                        if (!currentTab || !currentTab.url || !currentTab.title) {
+                            this.state.finish(tab.id);
+                            continue;
+                        }
+
+                        const currentGroups = await chrome.tabGroups.query({ windowId });
+                        const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
+                        const currentHash = computeInputHash(
+                            { url: currentTab.url, title: currentTab.title },
+                            currentGroupsData
+                        );
+
+                        if (currentHash !== inputHashes.get(tab.id)) {
+                            console.log(`[QueueProcessor] Tab ${tab.id} stale, discarding negative result`);
+                            this.state.finish(tab.id);
+                            continue;
+                        }
+
                         await StateService.updateSuggestion({
                             tabId: tab.id,
                             groupName: null,

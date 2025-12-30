@@ -52,14 +52,9 @@ export const constructSystemPrompt = (customRules: string = "", isBatch: boolean
     1. STRICTLY PREFER "Existing Groups". If the tab fits an existing group, you MUST use that EXACT name.
     2. Only create a NEW group name if the tab clearly does NOT fit any existing group.
     3. Use short, concise names for new groups (max 3 words).
-    ${isBatch ? `4. Return a JSON object containing a list called "assignments".
-    5. Each assignment must have:
-       - "tabId" (number): The ID provided in the input.
-       - "groupName" (string): The assigned group name.` : `
-    Return a JSON object with:
-    - 'groupName' (string): The name of the group.
-    
-    Do not include any markdown formatting or explanation.`}
+    4. Do not include any markdown formatting or explanation.
+    5. Output ONLY a valid JSON object with the following structure:
+    ${isBatch ? '{"assignments": [{"tabId": number, "groupName": string}]}' : '{"groupName": string}'}
     ${customRules.trim().length > 0 ? `\n\nAdditional Rules:\n${customRules}` : ''}`;
 };
 
