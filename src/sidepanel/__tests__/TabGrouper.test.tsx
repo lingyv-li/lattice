@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, fireEvent, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { TabGrouper } from '../TabGrouper';
 import * as useTabGrouperHook from '../../hooks/useTabGrouper';
 
@@ -14,13 +14,10 @@ describe('TabGrouper', () => {
         previewGroups: null,
         selectedPreviewIndices: new Set(),
         tabDataMap: new Map(),
-        availability: 'available',
         ungroupedCount: 5,
         isBackgroundProcessing: false,
-        generateGroups: vi.fn(),
         applyGroups: vi.fn(),
         cancelGroups: vi.fn(),
-        rejectGroup: vi.fn(),
         toggleGroupSelection: vi.fn(),
         setAllGroupsSelected: vi.fn(),
     };
@@ -53,21 +50,6 @@ describe('TabGrouper', () => {
         expect(screen.queryByText(/Group 5 Tabs/i)).not.toBeInTheDocument();
         // Should verify no button with "Group" text exists generally
         expect(screen.queryByRole('button', { name: /Group/i })).not.toBeInTheDocument();
-    });
-
-    it('should render "Regenerate" button and trigger generation', () => {
-        vi.spyOn(useTabGrouperHook, 'useTabGrouper').mockReturnValue({
-            ...defaultMock,
-            ungroupedCount: 5
-        } as any);
-
-        render(<TabGrouper />);
-        // Regenerate button has title "Regenerate suggestions"
-        const regenBtn = screen.getByTitle("Regenerate suggestions");
-        expect(regenBtn).toBeInTheDocument();
-
-        fireEvent.click(regenBtn);
-        expect(defaultMock.generateGroups).toHaveBeenCalled();
     });
 
     it('should show error message', () => {

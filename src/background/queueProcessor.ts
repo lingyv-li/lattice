@@ -11,17 +11,6 @@ export class QueueProcessor {
     async process(): Promise<void> {
         if (this.state.size === 0) return;
 
-        // AI Check
-        // @ts-ignore - separate declaration for Service Worker globals usually needed
-        if (!self.LanguageModel) return;
-        try {
-            // @ts-ignore
-            const availability = await self.LanguageModel.availability();
-            if (availability === 'unavailable') return;
-        } catch (e) {
-            return;
-        }
-
         const tabIds = this.state.startProcessing();
 
         try {

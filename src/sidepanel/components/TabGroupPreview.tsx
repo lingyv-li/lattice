@@ -1,4 +1,4 @@
-import { X, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { TabGroupSuggestion } from '../../hooks/useTabGrouper';
 
 interface TabGroupPreviewProps {
@@ -6,7 +6,6 @@ interface TabGroupPreviewProps {
     selectedPreviewIndices: Set<number>;
     tabDataMap: Map<number, { title: string, url: string }>;
     onToggleSelection: (idx: number) => void;
-    onReject: () => void;
     onApply?: () => void;
     onCancel?: () => void;
 }
@@ -15,8 +14,7 @@ export const TabGroupPreview = ({
     previewGroups,
     selectedPreviewIndices,
     tabDataMap,
-    onToggleSelection,
-    onReject
+    onToggleSelection
 }: TabGroupPreviewProps) => {
     return (
         <div className="mb-4 space-y-3">
@@ -58,16 +56,6 @@ export const TabGroupPreview = ({
                                 })}
                             </div>
                         </div>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onReject();
-                            }}
-                            className="p-1 text-muted hover:text-btn-negative-fg hover:bg-btn-negative-hover rounded transition-colors"
-                            title="Reject this suggestion"
-                        >
-                            <X className="size-[var(--size-icon-sm)]" />
-                        </button>
                     </div>
                 </div>
             ))}

@@ -7,11 +7,10 @@ export type { TabGroupSuggestion };
 export const useTabGrouper = () => {
     const [status, setStatus] = useState<TabGrouperStatus>('idle');
     const [error, setError] = useState<string | null>(null);
-    const [progress, setProgress] = useState<number | null>(null);
+    const [progress, _] = useState<number | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
-    const [availability, setAvailability] = useState<'available' | 'downloadable' | 'downloading' | 'unavailable' | null>(null);
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
     const [isBackgroundProcessing, setBackgroundProcessing] = useState(false);
 
@@ -75,16 +74,6 @@ export const useTabGrouper = () => {
     }, []);
 
     useEffect(() => {
-        const checkAvailability = async () => {
-            if (window.LanguageModel) {
-                const avail = await window.LanguageModel.availability();
-                setAvailability(avail);
-            } else {
-                setAvailability('unavailable');
-            }
-        };
-        checkAvailability();
-
         // Initial scan
         scanUngrouped();
 
@@ -232,60 +221,6 @@ export const useTabGrouper = () => {
         };
     }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]); // Added selectedPreviewIndices dependency for smart preservation
 
-    const generateGroups = async () => {
-        setStatus('processing');
-        setError(null);
-        setProgress(null);
-        setPreviewGroups(null);
-
-        try {
-            // Re-populate tab map for previews
-            await scanUngrouped();
-
-            // Connect to background
-            const port = chrome.runtime.connect({ name: 'tab-grouper' });
-            portRef.current = port;
-
-            port.onMessage.addListener((msg: TabGroupResponse) => {
-                if (msg.type === 'INITIALIZING') {
-                    setStatus('initializing');
-                } else if (msg.type === 'PROGRESS') {
-                    setProgress(msg.value || 0);
-                    setStatus('processing');
-                } else if (msg.type === 'SESSION_CREATED') {
-                    setStatus('processing');
-                } else if (msg.type === 'COMPLETE') {
-                    if (msg.groups) {
-                        setPreviewGroups(msg.groups);
-                        setSelectedPreviewIndices(new Set(msg.groups.map((_, i) => i)));
-                        setStatus('reviewing');
-                    } else {
-                        setStatus('idle');
-                    }
-                    port.disconnect();
-                    portRef.current = null;
-                } else if (msg.type === 'ERROR') {
-                    setError(msg.error || "Unknown error");
-                    setStatus('error');
-                    port.disconnect();
-                    portRef.current = null;
-                }
-            });
-
-            const window = await chrome.windows.getCurrent();
-            if (window.id) {
-                port.postMessage({ type: 'START_GROUPING', windowId: window.id });
-            } else {
-                throw new Error("Could not determine current window ID");
-            }
-
-        } catch (err: any) {
-            console.error(err);
-            setError(err.message || "An error occurred while starting grouping.");
-            setStatus('error');
-        }
-    };
-
     const applyGroups = async () => {
         if (!previewGroups) return;
         setStatus('processing');
@@ -326,17 +261,6 @@ export const useTabGrouper = () => {
         setStatus('idle');
     };
 
-    const rejectGroup = () => {
-        // User requested: "Change the logic about rejection, don't reject, change to re-generate."
-        // This implies 'X' on a group means "I don't like this, try again".
-        // Use generateGroups() to trigger a fresh analysis.
-
-        // Optimistic UI update: Remove the group from view immediately while we re-generate?
-        // Actually, generateGroups() clears previewGroups immediately anyway.
-        // So we just call generateGroups().
-        generateGroups();
-    };
-
     const toggleGroupSelection = (idx: number) => {
         const newSet = new Set(selectedPreviewIndices);
         if (newSet.has(idx)) {
@@ -364,13 +288,10 @@ export const useTabGrouper = () => {
         setPreviewGroups,
         selectedPreviewIndices,
         tabDataMap,
-        availability,
         ungroupedCount,
         isBackgroundProcessing,
-        generateGroups,
         applyGroups,
         cancelGroups,
-        rejectGroup,
         toggleGroupSelection,
         setAllGroupsSelected
     };

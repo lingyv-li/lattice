@@ -1,4 +1,4 @@
-import { Sparkles, AlertCircle, Loader2, Download, RefreshCw } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { TabGroupPreview } from './components/TabGroupPreview';
 import { CleanState } from './components/CleanState';
@@ -11,13 +11,10 @@ export const TabGrouper = () => {
         previewGroups,
         selectedPreviewIndices,
         tabDataMap,
-        availability,
         ungroupedCount,
         isBackgroundProcessing,
-        generateGroups,
         applyGroups,
         cancelGroups,
-        rejectGroup,
         toggleGroupSelection
     } = useTabGrouper();
 
@@ -27,7 +24,6 @@ export const TabGrouper = () => {
     }
 
     const isProcessing = status === 'processing' || status === 'initializing' || isBackgroundProcessing;
-    const showDownloadButton = availability === 'downloadable';
 
     return (
         <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4">
@@ -36,20 +32,10 @@ export const TabGrouper = () => {
                     <Sparkles className="w-5 h-5 text-purple-500" />
                     <h3 className="font-bold text-sm text-main">AI Tab Grouper</h3>
                 </div>
-
-                {/* Regenerate Button */}
-                <button
-                    onClick={generateGroups}
-                    disabled={isProcessing || availability === 'unavailable'}
-                    className="p-1.5 text-muted hover:text-main hover:bg-surface-hover rounded-lg transition-colors disabled:opacity-50"
-                    title="Regenerate suggestions"
-                >
-                    <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
-                </button>
             </div>
 
             <p className="text-xs text-muted mb-4">
-                Automatically organize your open tabs into groups using on-device AI.
+                Automatically organize your open tabs into groups using AI.
             </p>
 
             {error && (
@@ -65,21 +51,9 @@ export const TabGrouper = () => {
                     selectedPreviewIndices={selectedPreviewIndices}
                     tabDataMap={tabDataMap}
                     onToggleSelection={toggleGroupSelection}
-                    onReject={rejectGroup}
                     onApply={applyGroups}
                     onCancel={cancelGroups}
                 />
-            )}
-
-            {!previewGroups && showDownloadButton && (
-                <button
-                    onClick={generateGroups}
-                    disabled={isProcessing}
-                    className="w-full py-2 px-4 bg-btn-primary-bg hover:bg-btn-primary-hover active:scale-95 text-btn-primary-fg rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale relative overflow-hidden"
-                >
-                    <Download className="w-4 h-4 relative z-10" />
-                    <span className="relative z-10">Download AI Model</span>
-                </button>
             )}
 
             {isProcessing && !previewGroups && (

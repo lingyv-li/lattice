@@ -1,4 +1,4 @@
-import { Sparkles, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { TabGroupPreview } from './TabGroupPreview';
 import { SelectionCard } from './SelectionCard';
@@ -18,12 +18,10 @@ export const TabGrouperCard = ({ isSelected, onToggle, data }: TabGrouperCardPro
         previewGroups,
         selectedPreviewIndices,
         tabDataMap,
-        availability,
         ungroupedCount,
         isBackgroundProcessing,
         // Actions
         toggleGroupSelection,
-        rejectGroup,
     } = data;
 
     const badge = status === 'success' ? (
@@ -54,7 +52,6 @@ export const TabGrouperCard = ({ isSelected, onToggle, data }: TabGrouperCardPro
             icon={Sparkles}
             description="Automatically organize open tabs into groups."
             badge={badge}
-            disabled={isLoading || availability === 'unavailable'}
         >
             {/* Error State */}
             {error && (
@@ -80,21 +77,12 @@ export const TabGrouperCard = ({ isSelected, onToggle, data }: TabGrouperCardPro
                         selectedPreviewIndices={selectedPreviewIndices}
                         tabDataMap={tabDataMap}
                         onToggleSelection={toggleGroupSelection}
-                        onReject={() => rejectGroup()}
                     />
                 </div>
             )}
 
-            {/* Needs Download State */}
-            {availability === 'downloadable' && !isLoading && (
-                <div className="mt-2 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded flex gap-2">
-                    <Download className="w-4 h-4" />
-                    AI Model download required (~loading...)
-                </div>
-            )}
-
             {/* Content when ready/idle */}
-            {!previewGroups && !isLoading && (ungroupedCount ?? 0) > 0 && availability !== 'downloadable' && (
+            {!previewGroups && !isLoading && (ungroupedCount ?? 0) > 0 && (
                 <div className="mt-2 text-xs text-muted">
                     Ready to organize {ungroupedCount} tabs.
                 </div>

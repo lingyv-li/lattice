@@ -13,7 +13,7 @@ import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
 import { getSettings, saveSettings } from '../utils/storage';
 
 const App = () => {
-    const [modelInfo, setModelInfo] = useState<string>("Checking model...");
+    const [modelInfo, _] = useState<string>("");
     const [autopilot, setAutopilot] = useState(false);
 
     // Hooks
@@ -117,23 +117,6 @@ const App = () => {
             }
         }
     };
-
-    // Model Check Effect
-    useEffect(() => {
-        const checkModel = async () => {
-            try {
-                if (!window.LanguageModel) {
-                    setModelInfo("AI API not supported");
-                    return;
-                }
-                const text = await window.LanguageModel.availability();
-                setModelInfo(`Local AI Model (${text})`);
-            } catch (e) {
-                setModelInfo("Model check failed");
-            }
-        };
-        checkModel();
-    }, []);
 
     // Determine Button Label
     const getButtonLabel = () => {

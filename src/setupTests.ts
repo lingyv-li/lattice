@@ -95,7 +95,6 @@ global.chrome = chromeMock;
 global.window = global.window || {};
 // @ts-ignore
 global.window.LanguageModel = {
-    availability: vi.fn().mockResolvedValue('available'),
     create: vi.fn().mockResolvedValue({
         prompt: vi.fn(),
         destroy: vi.fn()

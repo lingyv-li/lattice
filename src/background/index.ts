@@ -169,16 +169,6 @@ chrome.runtime.onConnect.addListener((port) => {
             // The original implementation re-ran logic explicitly.
             // Let's copy that block but add persistence.
             try {
-                if (!self.LanguageModel) {
-                    port.postMessage({ type: 'ERROR', error: "AI API not supported." } as TabGroupResponse);
-                    return;
-                }
-                const availability = await self.LanguageModel.availability();
-                if (availability === 'unavailable') {
-                    port.postMessage({ type: 'ERROR', error: "AI model unavailable." } as TabGroupResponse);
-                    return;
-                }
-
                 if (!msg.windowId) {
                     port.postMessage({ type: 'ERROR', error: "Window ID not specified." } as TabGroupResponse);
                     return;

@@ -160,33 +160,6 @@ describe('useTabGrouper', () => {
         vi.useRealTimers();
     });
 
-    it('should send START_GROUPING message on generateGroups', async () => {
-        const { result } = renderHook(() => useTabGrouper());
-
-        // We need to capture the transient port created in generateGroups (it creates a NEW one for the session)
-        // Wait, looking at implementation: generateGroups creates *another* port for the "Active Session"? 
-        // Yes, line 149 in implementation.
-
-        await act(async () => {
-            // We need to ensure tabs are loaded first so we have tabs to group? 
-            // Mock implies we have tabs.
-            await result.current.generateGroups();
-        });
-
-        // Current implementation creates a new port, posts START_GROUPING
-        const calls = (global.chrome.runtime.connect as any).mock.calls;
-        // 1st call: useEffect listener
-        // 2nd call: generateGroups transient port
-        expect(calls.length).toBeGreaterThanOrEqual(2);
-
-        const transientPort = (global.chrome.runtime.connect as any).mock.results[calls.length - 1].value;
-        expect(transientPort.postMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'START_GROUPING', windowId: 1 })
-        );
-
-        expect(result.current.status).toBe('processing');
-    });
-
     it('should maintain user selection when identical storage updates occur', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
@@ -239,21 +212,12 @@ describe('useTabGrouper', () => {
 
         // 6. Simulate PARTIAL update (Adding a new group, keeping old ones)
         // 'Search' (Index 0) is still there. 'Dev' (Index 1) is still there. 'New' (Index 2) added.
-        // Expect: 'Search' remains SELECTED. 'Dev' remains UNSELECTED. 'New' defaults to SELECTED? 
-        // Logic says: if new selection set is empty (fail to preserve), select all.
-        // If we preserve, we keep 0, skip 1. New one (2) might be skipped unless we default-select new ones.
-        // Let's check logic: "If it matches a selected group, select it." 
-        // So 0 matches selected -> 0 selected.
+        // Logic: If it matches a previously selected group, select it.
+        // 0 matches selected -> 0 selected.
         // 1 matches unselected -> 1 NOT selected.
-        // 2 is new -> checks "selectedSignatures". No match. 
+        // 2 is new -> No match in selectedSignatures.
         // Result: 0 selected, 1 unselected, 2 unselected.
-        // This effectively "selects all that were selected before".
-        // Is this desired? "Smart Selection Preservation" usually implies partial updates shouldn't disturb existing choices.
-        // New items being unchecked by default might be safer than checking them? 
-        // Or should we default new items to checked? 
-        // Current logic: only adds to `newSelection` if it MATCHES a `selectedSignature`.
-        // So completely new items will be UNCHECKED. 
-        // Let's verify this behavior.
+        // This ensures partial updates don't disturb existing user choices.
 
         const newSuggestions = [
             ...suggestions,

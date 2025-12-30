@@ -13,14 +13,6 @@ vi.mock('../../utils/storage');
 vi.mock('../../utils/tabs');
 
 // Mock global objects
-const mockLanguageModel = {
-    availability: vi.fn(),
-    create: vi.fn(),
-};
-global.self = {
-    LanguageModel: mockLanguageModel
-} as any;
-
 const mockTabs = {
     get: vi.fn(),
     group: vi.fn(),
@@ -55,7 +47,6 @@ describe('QueueProcessor', () => {
         processor = new QueueProcessor(mockState);
 
         // Default happy path mocks
-        mockLanguageModel.availability.mockResolvedValue('readily');
         mockSettings({ autopilot: false });
         mockState.startProcessing.mockReturnValue([101, 102]);
         mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
@@ -123,11 +114,5 @@ describe('QueueProcessor', () => {
         mockWindows.get.mockResolvedValue({ id: 1, type: 'popup' });
         await processor.process();
         expect(generateTabGroupSuggestions).not.toHaveBeenCalled();
-    });
-
-    it('should not process if AI is unavailable', async () => {
-        mockLanguageModel.availability.mockResolvedValue('unavailable');
-        await processor.process();
-        expect(mockState.startProcessing).not.toHaveBeenCalled();
     });
 });
