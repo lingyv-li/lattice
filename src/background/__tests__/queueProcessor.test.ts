@@ -60,9 +60,12 @@ describe('QueueProcessor', () => {
         // Mock AI Service with Provider
         const mockProvider = {
             id: 'mock',
-            generateSuggestions: vi.fn().mockResolvedValue([
-                { groupName: 'AI Group', tabIds: [101, 102], existingGroupId: null }
-            ])
+            generateSuggestions: vi.fn().mockResolvedValue({
+                suggestions: [
+                    { groupName: 'AI Group', tabIds: [101, 102], existingGroupId: null }
+                ],
+                errors: []
+            })
         };
         (AIService.getProvider as any).mockResolvedValue(mockProvider);
     });

@@ -12,6 +12,11 @@ export interface GroupingRequest {
     customRules?: string;
 }
 
+export interface SuggestionResult {
+    suggestions: TabGroupSuggestion[];
+    errors: Error[];
+}
+
 export interface AIProvider {
     /**
      * Unique identifier for the provider (e.g., 'gemini', 'local')
@@ -20,12 +25,12 @@ export interface AIProvider {
 
     /**
      * Process a list of tabs and return group assignments.
-     * Providers can implement their own batching or sequential logic here.
+     * Returns both suggestions and any errors that occurred during processing.
      */
     generateSuggestions(
         request: GroupingRequest,
         onProgress: (progress: number) => void
-    ): Promise<TabGroupSuggestion[]>;
+    ): Promise<SuggestionResult>;
 }
 
 export type UpdateNextIdFn = (id: number) => void;

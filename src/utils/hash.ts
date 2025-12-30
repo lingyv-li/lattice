@@ -21,11 +21,16 @@ export function computeGroupsHash(groups: { id: number; title: string }[]): stri
 }
 
 /**
- * Compute combined hash for a tab in a specific groups context.
+ * Compute hash for an entire batch of tabs + groups.
+ * Used for batch staleness detection - if ANY input changed, whole batch is stale.
  */
-export function computeInputHash(
-    tab: { url: string; title: string },
+export function computeBatchHash(
+    tabs: { url: string; title: string }[],
     groups: { id: number; title: string }[]
 ): string {
-    return `${computeTabHash(tab)}+${computeGroupsHash(groups)}`;
+    const tabsHash = tabs
+        .map(t => computeTabHash(t))
+        .sort()
+        .join('|');
+    return `${tabsHash}+${computeGroupsHash(groups)}`;
 }

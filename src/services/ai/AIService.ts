@@ -10,7 +10,7 @@ export class AIService {
         if (settings.aiProvider === 'gemini') {
             return new GeminiProvider(settings.geminiApiKey, settings.aiModel);
         } else {
-            return new LocalProvider(settings.customGroupingRules);
+            return new LocalProvider();
         }
     }
 

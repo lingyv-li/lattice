@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTabHash, computeGroupsHash, computeInputHash } from '../hash';
+import { computeTabHash, computeGroupsHash } from '../hash';
 
 describe('hash utilities', () => {
     describe('computeTabHash', () => {
@@ -31,15 +31,6 @@ describe('hash utilities', () => {
 
         it('should handle empty groups', () => {
             expect(computeGroupsHash([])).toBe('');
-        });
-    });
-
-    describe('computeInputHash', () => {
-        it('should detect groups changes', () => {
-            const tab = { url: 'https://example.com', title: 'Example' };
-            const hash1 = computeInputHash(tab, [{ id: 1, title: 'Work' }]);
-            const hash2 = computeInputHash(tab, [{ id: 1, title: 'Work' }, { id: 2, title: 'Personal' }]);
-            expect(hash1).not.toBe(hash2);
         });
     });
 });

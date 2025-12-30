@@ -25,13 +25,18 @@ describe('GeminiProvider', () => {
         provider = new GeminiProvider('fake-api-key', 'gemini-pro');
     });
 
-    it('should throw error if API key is missing', async () => {
+    it('should collect error if API key is missing', async () => {
         const noKeyProvider = new GeminiProvider('', 'gemini-pro');
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: []
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
         };
-        await expect(noKeyProvider.generateSuggestions(request, () => { })).rejects.toThrow("API Key is missing");
+
+        const result = await noKeyProvider.generateSuggestions(request, () => { });
+
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].message).toContain('API Key is missing');
     });
 
     it('should process tabs in batches', async () => {
@@ -78,12 +83,13 @@ describe('GeminiProvider', () => {
             })
         });
 
-        const suggestions = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request, () => { });
 
-        expect(suggestions).toHaveLength(1);
-        expect(suggestions[0].groupName).toBe('Shopping');
-        expect(suggestions[0].tabIds).toEqual([1, 2]);
-        expect(suggestions[0].existingGroupId).toBeNull();
+        expect(result.suggestions).toHaveLength(1);
+        expect(result.suggestions[0].groupName).toBe('Shopping');
+        expect(result.suggestions[0].tabIds).toEqual([1, 2]);
+        expect(result.suggestions[0].existingGroupId).toBeNull();
+        expect(result.errors).toHaveLength(0);
     });
 
     it('should use existing group ID if AI returns existing name', async () => {
@@ -102,9 +108,9 @@ describe('GeminiProvider', () => {
             })
         });
 
-        const suggestions = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request, () => { });
 
-        expect(suggestions[0].existingGroupId).toBe(100);
+        expect(result.suggestions[0].existingGroupId).toBe(100);
     });
 
     it('should handle malformed JSON response gracefully', async () => {
@@ -117,11 +123,14 @@ describe('GeminiProvider', () => {
             text: "This is not JSON"
         });
 
-        const suggestions = await provider.generateSuggestions(request, () => { });
-        expect(suggestions).toEqual([]);
+        const result = await provider.generateSuggestions(request, () => { });
+
+        expect(result.suggestions).toEqual([]);
+        // Malformed JSON doesn't throw, it's handled gracefully
+        expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle empty response text gracefully', async () => {
+    it('should collect error on empty response text', async () => {
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
@@ -129,7 +138,10 @@ describe('GeminiProvider', () => {
 
         mockGenerateContent.mockResolvedValue({}); // No text
 
-        const suggestions = await provider.generateSuggestions(request, () => { });
-        expect(suggestions).toEqual([]);
+        const result = await provider.generateSuggestions(request, () => { });
+
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].message).toContain('No response text');
     });
 });

@@ -1,5 +1,5 @@
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalProvider } from '../LocalProvider';
 import { GroupingRequest } from '../types';
 
@@ -23,17 +23,12 @@ describe('LocalProvider', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         LocalProvider.reset();
-        provider = new LocalProvider('No gaming sites');
+        provider = new LocalProvider();
 
         mockCreate.mockResolvedValue({
             prompt: mockPrompt,
             destroy: mockDestroy
         });
-    });
-
-    afterEach(() => {
-        // We need to clear the static cache method in LocalProvider if we want fresh state,
-        // but it's private. We can rely on ensuring cachedRules matches or is different to trigger reset.
     });
 
     it('should initialize session on first call', async () => {
@@ -42,74 +37,83 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }]
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify({ groupName: 'Group 1' }));
+        mockPrompt.mockResolvedValue(JSON.stringify({
+            assignments: [{ tabId: 1, groupName: 'Group 1' }]
+        }));
 
         await provider.generateSuggestions(request, () => { });
 
         expect(mockCreate).toHaveBeenCalledTimes(1);
     });
 
-    it('should re-initialize session if rules change', async () => {
-        // First provider with Rule A
-        const providerA = new LocalProvider('Rule A');
-        const request: GroupingRequest = {
+    it('should re-initialize session if customRules change', async () => {
+        const requestA: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Tab', url: '...' }]
+            ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }],
+            customRules: 'Rule A'
         };
-        mockPrompt.mockResolvedValue(JSON.stringify({ groupName: 'G' }));
+        const requestB: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 2, title: 'Tab', url: 'http://example.com' }],
+            customRules: 'Rule B'
+        };
+        mockPrompt.mockResolvedValue(JSON.stringify({
+            assignments: [{ tabId: 1, groupName: 'G' }]
+        }));
 
-        await providerA.generateSuggestions(request, () => { });
-
-        // Second provider with Rule B
-        const providerB = new LocalProvider('Rule B');
-        await providerB.generateSuggestions(request, () => { });
+        await provider.generateSuggestions(requestA, () => { });
+        await provider.generateSuggestions(requestB, () => { });
 
         expect(mockDestroy).toHaveBeenCalledTimes(1); // Old session destroyed
         expect(mockCreate).toHaveBeenCalledTimes(2); // New session created
     });
 
-    it('should process tabs sequentially (one by one)', async () => {
+    it('should process all tabs in a single batch prompt', async () => {
         const tabs = [
-            { id: 1, title: 'Tab 1', url: '...' },
-            { id: 2, title: 'Tab 2', url: '...' }
+            { id: 1, title: 'Tab 1', url: 'http://tab1.com' },
+            { id: 2, title: 'Tab 2', url: 'http://tab2.com' }
         ];
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: tabs
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify({ groupName: 'Group' }));
+        mockPrompt.mockResolvedValue(JSON.stringify({
+            assignments: [
+                { tabId: 1, groupName: 'Group A' },
+                { tabId: 2, groupName: 'Group A' }
+            ]
+        }));
 
-        await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request, () => { });
 
-        expect(mockPrompt).toHaveBeenCalledTimes(2);
+        // Should call prompt only once (batch mode, both tabs fit in one batch)
+        expect(mockPrompt).toHaveBeenCalledTimes(1);
+        // Both tabs should be grouped
+        expect(result.suggestions).toHaveLength(1);
+        expect(result.suggestions[0].tabIds).toContain(1);
+        expect(result.suggestions[0].tabIds).toContain(2);
+        expect(result.errors).toHaveLength(0);
     });
 
-    it('should throw error if AI API is not supported', async () => {
+    it('should collect error if AI API is not supported', async () => {
         // @ts-ignore
         global.LanguageModel = undefined;
         // @ts-ignore
-        global.window = {}; // Ensure window.ai is also missing
+        global.self.ai = undefined;
 
+        LocalProvider.reset();
 
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'T', url: 'U' }]
         };
 
-        // We need to force a reset of the static cache or use a fresh environment. 
-        // Since we can't easily access the private static cache, this test relies on
-        // the fact that previous tests might have set it. 
-        // This makes testing the static singleton tricky in shared capability mode.
-        // For now, let's assume we can trigger a re-init by changing rules, which calls ensureLocalSession
+        const result = await provider.generateSuggestions(request, () => { });
 
-        // However, if the API is missing, ensuring session will fail.
-
-        // Let's try to verify failure by creating a new provider with new rules
-        const providerNew = new LocalProvider("New Rules Force Init");
-
-        await expect(providerNew.generateSuggestions(request, () => { }))
-            .rejects.toThrow("AI API not supported");
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].message).toContain('AI API not supported');
 
         // Restore global
         // @ts-ignore
