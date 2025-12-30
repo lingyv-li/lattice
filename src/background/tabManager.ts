@@ -10,8 +10,8 @@ const PROCESS_DELAY_MS = 1000;
 export class TabManager {
     constructor(private processingState: ProcessingState) { }
 
-    async invalidateCache() {
-        console.log("[TabManager] Invalidating cache due to group change");
+    async onGroupsChanged() {
+        console.log("[TabManager] Groups changed, triggering reanalysis");
         // Staleness is handled per-tab via hash - just re-queue for processing
         await this.queueUngroupedTabs(undefined, { forceReprocess: true });
     }

@@ -83,17 +83,15 @@ export class QueueProcessor {
 
                 const groupedTabIds = new Set<number>();
 
-                // const settings = await getSettings(); // Already fetched above
+                // Fetch current groups once for staleness check
+                const currentGroups = await chrome.tabGroups.query({ windowId });
+                const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
 
                 for (const group of groups) {
                     if (settings.autopilot) {
                         // Autopilot: Apply immediately and DO NOT cache
                         const validTabIds = group.tabIds.filter(id => tabsData.find(t => t.id === id));
                         if (validTabIds.length > 0) {
-                            // Check staleness before applying
-                            const currentGroups = await chrome.tabGroups.query({ windowId });
-                            const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
-
                             const freshTabIds: number[] = [];
                             for (const tid of validTabIds) {
                                 const currentTab = await chrome.tabs.get(tid).catch(() => null);
@@ -123,10 +121,11 @@ export class QueueProcessor {
                         // Standard: Cache suggestion (with staleness check)
                         for (const tabId of group.tabIds) {
                             const currentTab = await chrome.tabs.get(tabId).catch(() => null);
-                            if (!currentTab || !currentTab.url || !currentTab.title) continue;
+                            if (!currentTab || !currentTab.url || !currentTab.title) {
+                                this.state.finish(tabId);
+                                continue;
+                            }
 
-                            const currentGroups = await chrome.tabGroups.query({ windowId });
-                            const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
                             const currentHash = computeInputHash(
                                 { url: currentTab.url, title: currentTab.title },
                                 currentGroupsData
@@ -134,6 +133,7 @@ export class QueueProcessor {
 
                             if (currentHash !== inputHashes.get(tabId)) {
                                 console.log(`[QueueProcessor] Tab ${tabId} stale, discarding result`);
+                                this.state.finish(tabId);
                                 continue;
                             }
 
@@ -157,8 +157,6 @@ export class QueueProcessor {
                             continue;
                         }
 
-                        const currentGroups = await chrome.tabGroups.query({ windowId });
-                        const currentGroupsData = currentGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
                         const currentHash = computeInputHash(
                             { url: currentTab.url, title: currentTab.title },
                             currentGroupsData

@@ -141,12 +141,12 @@ describe('TabManager', () => {
         });
     });
 
-    describe('invalidateCache', () => {
+    describe('onGroupsChanged', () => {
         it('should NOT clear cache before re-processing', async () => {
             const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
             spyQueue.mockResolvedValue();
 
-            await tabManager.invalidateCache();
+            await tabManager.onGroupsChanged();
 
             expect(StateService.clearCache).not.toHaveBeenCalled();
         });
@@ -155,7 +155,7 @@ describe('TabManager', () => {
             const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
             spyQueue.mockResolvedValue();
 
-            await tabManager.invalidateCache();
+            await tabManager.onGroupsChanged();
 
             expect(spyQueue).toHaveBeenCalledWith(undefined, { forceReprocess: true });
         });
@@ -164,7 +164,7 @@ describe('TabManager', () => {
             const spyQueue = vi.spyOn(tabManager, 'queueUngroupedTabs');
             spyQueue.mockResolvedValue();
 
-            await tabManager.invalidateCache();
+            await tabManager.onGroupsChanged();
 
             expect(mockProcessingState.clear).not.toHaveBeenCalled();
         });

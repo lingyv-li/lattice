@@ -125,4 +125,44 @@ describe('QueueProcessor', () => {
         const provider = await AIService.getProvider({} as any);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
     });
+
+    describe('staleness detection', () => {
+        it('should call finish() for tabs that become stale during processing', async () => {
+            mockSettings({ autopilot: false });
+
+            // Tab changes URL during processing
+            let callCount = 0;
+            mockTabs.get.mockImplementation((id) => {
+                callCount++;
+                if (id === 102 && callCount > 2) {
+                    // On validation, tab 102 has changed URL
+                    return Promise.resolve({ id, windowId: 1, url: 'http://changed.com', title: 'Changed' });
+                }
+                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
+            });
+
+            await processor.process();
+
+            // finish() should be called for stale tab
+            expect(mockState.finish).toHaveBeenCalledWith(102);
+        });
+
+        it('should call finish() for tabs that no longer exist', async () => {
+            mockSettings({ autopilot: false });
+
+            // Tab 102 disappears during processing
+            let callCount = 0;
+            mockTabs.get.mockImplementation((id) => {
+                callCount++;
+                if (id === 102 && callCount > 2) {
+                    return Promise.reject(new Error('Tab not found'));
+                }
+                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
+            });
+
+            await processor.process();
+
+            expect(mockState.finish).toHaveBeenCalledWith(102);
+        });
+    });
 });

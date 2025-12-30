@@ -121,9 +121,9 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 
 // 3. Group Events
-chrome.tabGroups.onCreated.addListener(() => tabManager.invalidateCache());
-chrome.tabGroups.onRemoved.addListener(() => tabManager.invalidateCache());
-chrome.tabGroups.onUpdated.addListener(() => tabManager.invalidateCache());
+chrome.tabGroups.onCreated.addListener(() => tabManager.onGroupsChanged());
+chrome.tabGroups.onRemoved.addListener(() => tabManager.onGroupsChanged());
+chrome.tabGroups.onUpdated.addListener(() => tabManager.onGroupsChanged());
 
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async (_activeInfo) => {
