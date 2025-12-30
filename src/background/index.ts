@@ -2,7 +2,7 @@ import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { TabManager } from './tabManager';
-import { generateTabGroupSuggestions } from '../utils/ai';
+
 import { updateWindowBadge } from '../utils/badge';
 
 import { TabGroupResponse } from '../types/tabGrouper';
@@ -143,99 +143,19 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onDisconnect.addListener(() => connectedPorts.delete(port));
 
     port.onMessage.addListener(async (msg) => {
-        if (msg.type === 'GET_CACHED_SUGGESTIONS') {
-            await StateService.hydrate();
-            // Send processing status
-
-
+        if (msg.type === 'SYNC_STATE') {
+            // Send current processing status to UI
             port.postMessage({
                 type: 'PROCESSING_STATUS',
                 isProcessing: processingState.isProcessing
             } as TabGroupResponse);
 
-            // Also trigger a check
+            // Trigger proactive check for new tabs
             await tabManager.queueUngroupedTabs();
         }
 
 
 
-        // START_GROUPING logic can remain similar or reuse queue?
-        // The original code had specific START_GROUPING for manual trigger.
-        // We can keep logic but ensure it respects/updates storage.
-        if (msg.type === 'START_GROUPING') {
-            // ... (keep original manual grouping logic if needed, or redirect to queue?)
-            // For now, let's just trigger queue processing heavily.
-            // But wait, manual grouping usually implies "Group Now" and might force even rejected tabs?
-            // The original implementation re-ran logic explicitly.
-            // Let's copy that block but add persistence.
-            try {
-                if (!msg.windowId) {
-                    port.postMessage({ type: 'ERROR', error: "Window ID not specified." } as TabGroupResponse);
-                    return;
-                }
-                const windowId = msg.windowId;
-
-                // Verify window type
-                const window = await chrome.windows.get(windowId);
-                if (window.type !== chrome.windows.WindowType.NORMAL) {
-                    port.postMessage({ type: 'ERROR', error: "Grouping not supported in this window type." } as TabGroupResponse);
-                    return;
-                }
-
-                const allTabs = await chrome.tabs.query({ windowId });
-                const existingGroups = await chrome.tabGroups.query({ windowId });
-                const existingGroupsData = existingGroups.map(g => ({ id: g.id, title: g.title || `Group ${g.id}` }));
-                const ungroupedTabs = allTabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE && t.id && t.url && t.title);
-
-                if (ungroupedTabs.length === 0) {
-                    port.postMessage({ type: 'ERROR', error: "No ungrouped tabs." } as TabGroupResponse);
-                    return;
-                }
-
-                await StateService.clearCache();
-
-                const tabsData = ungroupedTabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
-
-                const groups = await generateTabGroupSuggestions(
-                    { existingGroups: existingGroupsData, ungroupedTabs: tabsData },
-                    (p) => port.postMessage({ type: 'PROGRESS', value: p } as TabGroupResponse),
-                    () => port.postMessage({ type: 'SESSION_CREATED' } as TabGroupResponse)
-                );
-
-                const now = Date.now();
-                const groupedTabIds = new Set<number>();
-                for (const group of groups) {
-                    for (const tabId of group.tabIds) {
-                        groupedTabIds.add(tabId);
-                        await StateService.updateSuggestion({
-                            tabId,
-                            groupName: group.groupName,
-                            existingGroupId: group.existingGroupId || null,
-                            timestamp: now
-                        });
-                    }
-                }
-
-                // Cache negative results for manual run too
-                for (const tab of tabsData) {
-                    if (!groupedTabIds.has(tab.id)) {
-                        await StateService.updateSuggestion({
-                            tabId: tab.id,
-                            groupName: null,
-                            existingGroupId: null,
-                            timestamp: now
-                        });
-                    }
-                }
-
-                port.postMessage({ type: 'COMPLETE', groups } as TabGroupResponse);
-                // Cache update happens via StateService listener
-
-            } catch (err: any) {
-                console.error(err);
-                port.postMessage({ type: 'ERROR', error: err.message } as TabGroupResponse);
-            }
-        }
     });
 });
 

@@ -99,18 +99,18 @@ export const useTabGrouper = () => {
                 });
 
                 port.onMessage.addListener((msg: TabGroupResponse) => {
-                    // We can still use CACHED_SUGGESTIONS from port as a "fast path" or ping,
-                    // but we primarily rely on storage. 
+                    // We use SYNC_STATE to get the current processing status and trigger a background check.
+                    // Suggestions are read from storage, but we need to know if we are currently processing. 
                     // However, we MUST handle PROCESSING_STATUS here.
                     if (msg.type === 'PROCESSING_STATUS') {
                         setBackgroundProcessing(msg.isProcessing ?? false);
                     }
                 });
 
-                // Request status immediately
+                // Request current status and trigger sync
                 chrome.windows.getCurrent().then(win => {
                     if (win.id && portRef.current) {
-                        port.postMessage({ type: 'GET_CACHED_SUGGESTIONS', windowId: win.id });
+                        port.postMessage({ type: 'SYNC_STATE', windowId: win.id });
                     }
                 });
 
