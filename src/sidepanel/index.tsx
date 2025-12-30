@@ -5,7 +5,7 @@ import './index.css';
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
 import { DownloadCleanerCard } from './components/DownloadCleanerCard';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
@@ -14,6 +14,7 @@ import { getSettings, saveSettings } from '../utils/storage';
 
 const App = () => {
     const [modelInfo, setModelInfo] = useState<string>("Checking model...");
+    const [autopilot, setAutopilot] = useState(false);
 
     // Hooks
     const tabGrouper = useTabGrouper();
@@ -29,13 +30,20 @@ const App = () => {
             if (settings.selectedCards) {
                 setSelectedCards(new Set(settings.selectedCards));
             }
+            if (settings.autopilot !== undefined) {
+                setAutopilot(settings.autopilot);
+            }
         });
     }, []);
 
     // Persist selection changes
     useEffect(() => {
-        saveSettings({ selectedCards: Array.from(selectedCards) });
-    }, [selectedCards]);
+        saveSettings({ selectedCards: Array.from(selectedCards), autopilot });
+    }, [selectedCards, autopilot]);
+
+    const toggleAutopilot = (checked: boolean) => {
+        setAutopilot(checked);
+    };
 
     const toggleCard = (id: string) => {
         const newSet = new Set(selectedCards);
@@ -198,21 +206,36 @@ const App = () => {
 
             {/* Main Action Button - Floating Bottom */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
-                <button
-                    onClick={handleOrganize}
-                    disabled={isProcessing || !hasWork}
-                    className={`
-                        w-full py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
-                        flex items-center justify-center gap-2 transition-all active:scale-[0.98]
-                        ${isProcessing || !hasWork
-                            ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
-                        }
-                    `}
-                >
-                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {getButtonLabel()}
-                </button>
+                <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer bg-surface p-2 rounded-lg border border-border-subtle group hover:border-border-strong transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={autopilot}
+                            onChange={(e) => toggleAutopilot(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1.5 text-xs text-muted font-medium w-full">
+                            <Zap className={`w-3.5 h-3.5 ${autopilot ? 'text-yellow-500 fill-yellow-500' : 'text-muted'}`} />
+                            Autopilot
+                        </span>
+                    </label>
+
+                    <button
+                        onClick={handleOrganize}
+                        disabled={isProcessing || !hasWork}
+                        className={`
+                            flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
+                            flex items-center justify-center gap-2 transition-all active:scale-[0.98]
+                            ${isProcessing || !hasWork
+                                ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
+                                : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
+                            }
+                        `}
+                    >
+                        {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {getButtonLabel()}
+                    </button>
+                </div>
             </div>
         </div>
     );

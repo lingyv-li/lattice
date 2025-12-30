@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus, TabSuggestionCache } from '../types/tabGrouper';
+import { applyTabGroup } from '../utils/tabs';
 
 export type { TabGroupSuggestion };
 
@@ -298,28 +299,11 @@ export const useTabGrouper = () => {
                     const validTabIds = group.tabIds.filter(id => tabDataMap.has(id));
 
                     if (validTabIds.length > 0) {
-                        if (group.existingGroupId && group.existingGroupId > 0) {
-                            try {
-                                // Add to existing group
-                                await chrome.tabs.group({
-                                    tabIds: validTabIds as [number, ...number[]],
-                                    groupId: group.existingGroupId
-                                });
-                            } catch (e: any) {
-                                // Check for specific error message regarding missing group
-                                if (e.message && e.message.includes("No group with id")) {
-                                    // Fallback: Create new group instead
-                                    const groupId = await chrome.tabs.group({ tabIds: validTabIds as [number, ...number[]] });
-                                    await chrome.tabGroups.update(groupId, { title: group.groupName });
-                                } else {
-                                    throw e;
-                                }
-                            }
-                        } else {
-                            // Create new group
-                            const groupId = await chrome.tabs.group({ tabIds: validTabIds as [number, ...number[]] });
-                            await chrome.tabGroups.update(groupId, { title: group.groupName });
-                        }
+                        await applyTabGroup(
+                            validTabIds,
+                            group.groupName,
+                            group.existingGroupId
+                        );
                     }
                 }
             }

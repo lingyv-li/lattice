@@ -2,6 +2,8 @@
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { generateTabGroupSuggestions } from '../utils/ai';
+import { getSettings } from '../utils/storage';
+import { applyTabGroup } from '../utils/tabs';
 
 export class QueueProcessor {
     constructor(private state: ProcessingState) { }
@@ -76,15 +78,33 @@ export class QueueProcessor {
                 );
 
                 const groupedTabIds = new Set<number>();
+                const settings = await getSettings();
+
                 for (const group of groups) {
-                    for (const tabId of group.tabIds) {
-                        groupedTabIds.add(tabId);
-                        await StateService.updateSuggestion({
-                            tabId,
-                            groupName: group.groupName,
-                            existingGroupId: group.existingGroupId || null,
-                            timestamp: now
-                        });
+                    if (settings.autopilot) {
+                        // Autopilot: Apply immediately and DO NOT cache
+                        const validTabIds = group.tabIds.filter(id => tabsData.find(t => t.id === id));
+                        if (validTabIds.length > 0) {
+                            await applyTabGroup(
+                                validTabIds,
+                                group.groupName,
+                                group.existingGroupId
+                            );
+                            // Mark as processed so we don't treat as negative result?
+                            // Actually, if we applied it, we should track it as "handled".
+                            for (const tid of validTabIds) groupedTabIds.add(tid);
+                        }
+                    } else {
+                        // Standard: Cache suggestion
+                        for (const tabId of group.tabIds) {
+                            groupedTabIds.add(tabId);
+                            await StateService.updateSuggestion({
+                                tabId,
+                                groupName: group.groupName,
+                                existingGroupId: group.existingGroupId || null,
+                                timestamp: now
+                            });
+                        }
                     }
                 }
 
