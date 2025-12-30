@@ -1,6 +1,7 @@
 import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
+import { TabManager } from './tabManager';
 import { generateTabGroupSuggestions } from '../utils/ai';
 import { updateWindowBadge } from '../utils/badge';
 
@@ -10,7 +11,6 @@ console.log("[Background] Service Worker Initialized");
 
 // ===== CONSTANTS =====
 const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
-const PROCESS_DELAY_MS = 1000; // Wait 1s after last event before processing
 
 // ===== STATE =====
 // ===== STATE =====
@@ -89,54 +89,13 @@ const broadcastProcessingStatus = async (isProcessing: boolean) => {
 
 // ===== LOGIC =====
 
-const invalidateCache = async () => {
-    console.log("[Background] Invalidating cache due to group change");
-
-    await StateService.clearCache();
-    await StateService.clearCache();
-
-    // Re-queue
-    await queueUngroupedTabs();
-};
-
-const queueUngroupedTabs = async (windowId?: number) => {
-    const queryInfo: chrome.tabs.QueryInfo = { windowType: chrome.tabs.WindowType.NORMAL };
-    if (windowId) queryInfo.windowId = windowId;
-
-    const allTabs = await chrome.tabs.query(queryInfo);
-    const cache = await StateService.getSuggestionCache();
-
-    // Filter out tabs that are already grouped, cached, or processing
-    const tabsToProcess = allTabs.filter(t =>
-        t.groupId === chrome.tabs.TAB_ID_NONE &&
-        t.id &&
-        t.url &&
-        t.title &&
-        t.status === 'complete' && // Only process loaded tabs
-        !cache.has(t.id) &&
-        !processingState.has(t.id)
-    );
-
-    let added = false;
-    for (const tab of tabsToProcess) {
-        if (tab.id && processingState.add(tab.id)) {
-            added = true;
-        }
-    }
-
-    if (added || processingState.size > 0) {
-        scheduleProcessing();
-    }
-};
-
-const scheduleProcessing = () => {
-    // Use alarms to wake up the SW
-    // We update the alarm to delay it (debounce)
-    console.log("[Background] Scheduling processing alarm");
-    chrome.alarms.create(PROCESS_TABS_ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
-};
+// Removed local functions favoring TabManager
+// const invalidateCache = ...
+// const queueUngroupedTabs = ...
+// const scheduleProcessing = ...
 
 const queueProcessor = new QueueProcessor(processingState);
+const tabManager = new TabManager(processingState);
 
 // ===== LISTENERS =====
 
@@ -153,19 +112,12 @@ chrome.tabs.onCreated.addListener(async (tab) => {
     // If tab is not complete, queueUngroupedTabs will ignore it but scheduling happens.
     // Check just in case.
     if (tab.status !== 'loading') {
-        await queueUngroupedTabs();
+        await tabManager.queueUngroupedTabs();
     }
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-    if (changeInfo.url) {
-        // URL changed: invalidate old cache for this tab
-        await StateService.removeSuggestion(tabId);
-    }
-    if (changeInfo.status === 'complete') {
-        // Tab finished loading -> candidate for grouping
-        await queueUngroupedTabs();
-    }
+    await tabManager.handleTabUpdated(tabId, changeInfo);
 });
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
@@ -174,9 +126,9 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 
 // 3. Group Events
-chrome.tabGroups.onCreated.addListener(invalidateCache);
-chrome.tabGroups.onRemoved.addListener(invalidateCache);
-chrome.tabGroups.onUpdated.addListener(invalidateCache);
+chrome.tabGroups.onCreated.addListener(() => tabManager.invalidateCache());
+chrome.tabGroups.onRemoved.addListener(() => tabManager.invalidateCache());
+chrome.tabGroups.onUpdated.addListener(() => tabManager.invalidateCache());
 
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async (_activeInfo) => {
@@ -202,7 +154,7 @@ chrome.runtime.onConnect.addListener((port) => {
             } as TabGroupResponse);
 
             // Also trigger a check
-            await queueUngroupedTabs();
+            await tabManager.queueUngroupedTabs();
         }
 
 
@@ -299,6 +251,6 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Startup check
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
-queueUngroupedTabs();
+tabManager.queueUngroupedTabs();
 
 
