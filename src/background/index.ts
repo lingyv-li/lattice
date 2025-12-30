@@ -104,10 +104,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // 2. Tab Events
 chrome.tabs.onCreated.addListener(async (tab) => {
-    // If tab is not complete, queueUngroupedTabs will ignore it but scheduling happens.
-    // Check just in case.
+    // If tab is not complete, triggerRecalculation will handle it via debounce.
     if (tab.status !== 'loading') {
-        await tabManager.queueUngroupedTabs();
+        tabManager.triggerRecalculation();
     }
 });
 
@@ -121,9 +120,9 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 
 // 3. Group Events
-chrome.tabGroups.onCreated.addListener(() => tabManager.onGroupsChanged());
-chrome.tabGroups.onRemoved.addListener(() => tabManager.onGroupsChanged());
-chrome.tabGroups.onUpdated.addListener(() => tabManager.onGroupsChanged());
+chrome.tabGroups.onCreated.addListener(() => tabManager.triggerRecalculation());
+chrome.tabGroups.onRemoved.addListener(() => tabManager.triggerRecalculation());
+chrome.tabGroups.onUpdated.addListener(() => tabManager.triggerRecalculation());
 
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async (_activeInfo) => {
@@ -146,13 +145,13 @@ chrome.runtime.onConnect.addListener((port) => {
             } as TabGroupResponse);
 
             // Trigger proactive check for new tabs
-            await tabManager.queueUngroupedTabs();
+            tabManager.triggerRecalculation();
         }
     });
 });
 
 // Startup check
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
-tabManager.queueUngroupedTabs();
+tabManager.triggerRecalculation();
 
 

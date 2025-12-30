@@ -3,24 +3,31 @@ import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { getSettings } from '../utils/storage';
 import { findDuplicates, getTabsToRemove } from '../utils/duplicates';
+import { debounce } from '../utils/debounce';
 
 const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
 const PROCESS_DELAY_MS = 1000;
+const RECALCULATION_DEBOUNCE_MS = 300;
 
 export class TabManager {
-    constructor(private processingState: ProcessingState) { }
+    private debouncedRecalculate: () => void;
 
-    async onGroupsChanged() {
-        console.log("[TabManager] Groups changed, triggering reanalysis");
-        // Staleness is handled per-tab via hash - just re-queue for processing
-        await this.queueUngroupedTabs(undefined, { forceReprocess: true });
+    constructor(private processingState: ProcessingState) {
+        this.debouncedRecalculate = debounce(() => {
+            this.queueUngroupedTabs();
+        }, RECALCULATION_DEBOUNCE_MS);
     }
 
-    async queueUngroupedTabs(windowId?: number, options?: { forceReprocess?: boolean }) {
-        const queryInfo: chrome.tabs.QueryInfo = { windowType: chrome.tabs.WindowType.NORMAL };
-        if (windowId) queryInfo.windowId = windowId;
+    /**
+     * Single entry point for triggering tab recalculation.
+     * Debounces multiple rapid calls (e.g., from group events firing per-tab).
+     */
+    triggerRecalculation() {
+        this.debouncedRecalculate();
+    }
 
-        const allTabs = await chrome.tabs.query(queryInfo);
+    private async queueUngroupedTabs() {
+        const allTabs = await chrome.tabs.query({ windowType: chrome.tabs.WindowType.NORMAL });
         const cache = await StateService.getSuggestionCache();
 
         // Skip empty new tab pages - they have no meaningful content to group
@@ -36,9 +43,9 @@ export class TabManager {
             t.id &&
             t.url &&
             t.title &&
-            t.status === 'complete' && // Only process loaded tabs
-            !isEmptyNewTab(t.url) && // Skip empty new tabs
-            (options?.forceReprocess || !cache.has(t.id)) &&
+            t.status === 'complete' &&
+            !isEmptyNewTab(t.url) &&
+            !cache.has(t.id) &&
             !this.processingState.has(t.id)
         );
 
@@ -54,12 +61,13 @@ export class TabManager {
         }
     }
 
-    scheduleProcessing() {
+    private scheduleProcessing() {
         console.log("[TabManager] Scheduling processing alarm");
         chrome.alarms.create(PROCESS_TABS_ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
     }
 
-    async handleTabUpdated(tabId: number, changeInfo: any) {
+    async handleTabUpdated(tabId: number, changeInfo: { url?: string; status?: string; groupId?: number }) {
+        // Autopilot: close duplicates when a tab navigates or finishes loading
         if (changeInfo.url || changeInfo.status === 'complete') {
             // Check for Autopilot duplicate cleaning
             const settings = await getSettings();
@@ -100,19 +108,17 @@ export class TabManager {
         }
 
         if (changeInfo.groupId !== undefined) {
-            // Group changed: User manual action or auto-grouping applied
-            // Invalidate suggestion for this tab as state changed
+            // Group changed: invalidate suggestion as state changed
             await StateService.removeSuggestion(tabId);
-
             if (changeInfo.groupId === chrome.tabs.TAB_ID_NONE) {
                 // Tab was ungrouped -> candidate for re-grouping
-                await this.queueUngroupedTabs();
+                this.triggerRecalculation();
             }
         }
 
         if (changeInfo.status === 'complete') {
             // Tab finished loading -> candidate for grouping
-            await this.queueUngroupedTabs();
+            this.triggerRecalculation();
         }
     }
 }
