@@ -1,6 +1,4 @@
 export interface AppSettings {
-    scanMissing: boolean;
-    scanInterrupted: boolean;
     customGroupingRules: string;
     aiProvider: 'local' | 'gemini';
     aiModel: string;
@@ -9,10 +7,11 @@ export interface AppSettings {
     selectedCards?: string[];
 }
 
+export const DEFAULT_GROUPING_RULES = `- Never use generic group names like development, finance, coding.
+- Never create groups simply by domain. Base on their contents instead, like search text, video names.`;
+
 export const DEFAULT_SETTINGS: AppSettings = {
-    scanMissing: true,
-    scanInterrupted: true,
-    customGroupingRules: "",
+    customGroupingRules: DEFAULT_GROUPING_RULES,
     aiProvider: 'local',
     aiModel: '',
     geminiApiKey: "",

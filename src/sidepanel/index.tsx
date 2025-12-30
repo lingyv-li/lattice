@@ -190,7 +190,7 @@ const App = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
                 {/* Section: Organization */}
                 <div className="space-y-3">
-                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Organization</h2>
+                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Tab Organization</h2>
                     <TabGrouperCard
                         isSelected={effectiveSelectedCards.has('tab-grouper')}
                         onToggle={() => toggleCard('tab-grouper')}
@@ -209,7 +209,7 @@ const App = () => {
 
                 {/* Section: Optimization */}
                 <div className="space-y-3">
-                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Optimization</h2>
+                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Maintenance</h2>
                     <DownloadCleanerCard
                         isSelected={effectiveSelectedCards.has('download-cleaner')}
                         onToggle={() => toggleCard('download-cleaner')}

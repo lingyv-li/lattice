@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { scanDownloads, cleanDownloads } from '../utils/cleaner';
-import { getSettings } from '../utils/storage';
 
 export interface CleanableItem {
     id: number;
@@ -22,14 +21,13 @@ export const useDownloadCleaner = () => {
     }, []);
 
     const init = async () => {
-        const settings = await getSettings();
         const result = await scanDownloads();
 
         setMissingItems(result.missingFiles as CleanableItem[]);
         setInterruptedItems(result.interruptedFiles as CleanableItem[]);
 
-        setCleanMissing(settings.scanMissing && result.missingFiles.length > 0);
-        setCleanInterrupted(settings.scanInterrupted && result.interruptedFiles.length > 0);
+        setCleanMissing(result.missingFiles.length > 0);
+        setCleanInterrupted(result.interruptedFiles.length > 0);
 
         setLoading(false);
     };
@@ -42,7 +40,10 @@ export const useDownloadCleaner = () => {
         if (cleanMissing) ids = [...ids, ...missingItems.map(i => i.id)];
         if (cleanInterrupted) ids = [...ids, ...interruptedItems.map(i => i.id)];
 
-        await cleanDownloads(ids);
+        if (ids.length > 0) {
+            await cleanDownloads(ids);
+        }
+
         setCleaning(false);
         setDone(true);
 

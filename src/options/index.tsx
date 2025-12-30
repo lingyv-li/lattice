@@ -79,9 +79,7 @@ const App = () => {
         setTimeout(() => setSaved(false), 2000);
     };
 
-    const toggle = (key: keyof AppSettings) => {
-        setSettings((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
+
 
     if (loading) return <div className="p-8 text-muted">Loading...</div>;
 
@@ -180,41 +178,7 @@ const App = () => {
                         )}
                     </div>
 
-                    <div className="space-y-4">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Automation</h2>
 
-                        <label className="flex items-center justify-between p-4 bg-surface-dim rounded-2xl border border-border-subtle cursor-pointer group hover:border-teal-500/30 transition-colors">
-                            <span className="font-medium text-main">Scan for missing files</span>
-                            <div
-                                className={cn(
-                                    "w-12 h-7 rounded-full transition-colors relative",
-                                    settings.scanMissing ? "bg-teal-500" : "bg-border-subtle"
-                                )}
-                                onClick={() => toggle('scanMissing')}
-                            >
-                                <div className={cn(
-                                    "absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm",
-                                    settings.scanMissing ? "translate-x-5" : "translate-x-0"
-                                )} />
-                            </div>
-                        </label>
-
-                        <label className="flex items-center justify-between p-4 bg-surface-dim rounded-2xl border border-border-subtle cursor-pointer group hover:border-teal-500/30 transition-colors">
-                            <span className="font-medium text-main">Scan for interrupted downloads</span>
-                            <div
-                                className={cn(
-                                    "w-12 h-7 rounded-full transition-colors relative",
-                                    settings.scanInterrupted ? "bg-teal-500" : "bg-border-subtle"
-                                )}
-                                onClick={() => toggle('scanInterrupted')}
-                            >
-                                <div className={cn(
-                                    "absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform shadow-sm",
-                                    settings.scanInterrupted ? "translate-x-5" : "translate-x-0"
-                                )} />
-                            </div>
-                        </label>
-                    </div>
 
                     <div className="space-y-4">
                         <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Grouping Rules</h2>
