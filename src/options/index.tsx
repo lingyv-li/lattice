@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings } from '../utils/storage';
+import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings, AIProviderType } from '../utils/storage';
 import { AIService } from '../services/ai/AIService';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
@@ -50,11 +50,16 @@ const App = () => {
     const [loadingModels, setLoadingModels] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
 
+    // Download Progress State
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState<{ loaded: number, total: number } | null>(null);
+    const [downloadError, setDownloadError] = useState<string | null>(null);
+
     useEffect(() => {
         getSettings().then((s) => {
             setSettings(s);
             setLoading(false);
-            if (s.aiProvider === 'gemini' && s.geminiApiKey) {
+            if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
                 fetchModels(s.geminiApiKey);
             }
         });
@@ -79,7 +84,29 @@ const App = () => {
         setTimeout(() => setSaved(false), 2000);
     };
 
+    const handleProviderChange = async (provider: AIProviderType) => {
+        if (provider === AIProviderType.Local) {
+            setIsDownloading(true);
+            setDownloadError(null);
+            setDownloadProgress(null);
 
+            try {
+                await AIService.initializeLocalModel((loaded, total) => {
+                    setDownloadProgress({ loaded, total });
+                });
+                setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
+            } catch (e: any) {
+                console.error("Failed to initialize local model", e);
+                setDownloadError(e.message || "Failed to load local AI model");
+                // Don't switch provider if failed
+            } finally {
+                setIsDownloading(false);
+                setDownloadProgress(null);
+            }
+        } else {
+            setSettings(s => ({ ...s, aiProvider: provider }));
+        }
+    };
 
     if (loading) return <div className="p-8 text-muted">Loading...</div>;
 
@@ -102,32 +129,86 @@ const App = () => {
                     <div className="space-y-4">
                         <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">AI Provider</h2>
 
-                        <div className="grid grid-cols-2 gap-2 p-1 bg-surface-dim rounded-2xl border border-border-subtle">
+                        <div className="grid grid-cols-3 gap-2 p-1 bg-surface-dim rounded-2xl border border-border-subtle">
                             <button
-                                onClick={() => setSettings(s => ({ ...s, aiProvider: 'local' }))}
+                                onClick={() => handleProviderChange(AIProviderType.Local)}
+                                disabled={isDownloading}
                                 className={cn(
                                     "py-2 rounded-xl text-sm font-medium transition-all",
-                                    settings.aiProvider === 'local'
+                                    settings.aiProvider === AIProviderType.Local
                                         ? "bg-white shadow-sm text-black"
                                         : "text-muted hover:text-main"
                                 )}
                             >
-                                Local (Chrome)
+                                Local
                             </button>
                             <button
-                                onClick={() => setSettings(s => ({ ...s, aiProvider: 'gemini' }))}
+                                onClick={() => handleProviderChange(AIProviderType.Gemini)}
+                                disabled={isDownloading}
                                 className={cn(
                                     "py-2 rounded-xl text-sm font-medium transition-all",
-                                    settings.aiProvider === 'gemini'
+                                    settings.aiProvider === AIProviderType.Gemini
                                         ? "bg-white shadow-sm text-black"
                                         : "text-muted hover:text-main"
                                 )}
                             >
-                                Cloud (Gemini)
+                                Cloud
+                            </button>
+                            <button
+                                onClick={() => handleProviderChange(AIProviderType.None)}
+                                disabled={isDownloading}
+                                className={cn(
+                                    "py-2 rounded-xl text-sm font-medium transition-all",
+                                    settings.aiProvider === AIProviderType.None
+                                        ? "bg-white shadow-sm text-black"
+                                        : "text-muted hover:text-main"
+                                )}
+                            >
+                                None
                             </button>
                         </div>
 
-                        {settings.aiProvider === 'gemini' && (
+                        {/* Download Progress Modal/Overlay */}
+                        {isDownloading && (
+                            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                                <div className="bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full">
+                                    <div className="flex flex-col items-center gap-4 text-center">
+                                        <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center">
+                                            <Sparkles className="w-6 h-6 text-blue-500 animate-pulse" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-bold text-lg text-main">Downloading AI Model</h3>
+                                            <p className="text-sm text-muted mt-1">This happens only once. Please do not close this window.</p>
+                                        </div>
+
+                                        {downloadProgress && (
+                                            <div className="w-full space-y-2">
+                                                <div className="h-2 bg-surface-dim rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-blue-500 transition-all duration-300"
+                                                        style={{ width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-muted font-mono">
+                                                    {(downloadProgress.loaded / 1024 / 1024).toFixed(1)}MB / {(downloadProgress.total / 1024 / 1024).toFixed(1)}MB
+                                                </p>
+                                            </div>
+                                        )}
+
+                                        {!downloadProgress && <Loader2 className="w-6 h-6 animate-spin text-muted" />}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {downloadError && (
+                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                <span>{downloadError}</span>
+                            </div>
+                        )}
+
+                        {settings.aiProvider === AIProviderType.Gemini && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
                                 <div>
                                     <label className="block text-xs font-medium text-muted mb-1 ml-1">API Key</label>
@@ -223,4 +304,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <App />
     </React.StrictMode>
 );
-

@@ -30,4 +30,12 @@ export interface GroupingContext {
     ungroupedTabs: { id: number; title: string; url: string }[];
 }
 
-export type TabGrouperStatus = 'idle' | 'initializing' | 'processing' | 'reviewing' | 'success' | 'error';
+
+export enum TabGrouperStatus {
+    Idle = 'idle',
+    Initializing = 'initializing',
+    Processing = 'processing',
+    Reviewing = 'reviewing',
+    Success = 'success',
+    Error = 'error'
+}

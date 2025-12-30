@@ -2,10 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { findDuplicates, countDuplicates } from '../utils/duplicates';
 import { DuplicateCloser } from '../services/DuplicateCloser';
 
-export type DuplicateCleanerStatus = 'idle' | 'scanning' | 'cleaning' | 'success' | 'error';
+
+export enum DuplicateCleanerStatus {
+    Idle = 'idle',
+    Scanning = 'scanning',
+    Cleaning = 'cleaning',
+    Success = 'success',
+    Error = 'error'
+}
 
 export const useDuplicateCleaner = () => {
-    const [status, setStatus] = useState<DuplicateCleanerStatus>('idle');
+    const [status, setStatus] = useState<DuplicateCleanerStatus>(DuplicateCleanerStatus.Idle);
     const [closedCount, setClosedCount] = useState<number>(0);
     const [duplicateCount, setDuplicateCount] = useState<number>(0);
 
@@ -45,30 +52,30 @@ export const useDuplicateCleaner = () => {
     }, [scanDuplicates]);
 
     const closeDuplicates = async () => {
-        setStatus('cleaning');
+        setStatus(DuplicateCleanerStatus.Cleaning);
 
         try {
             const result = await DuplicateCloser.closeDuplicates();
 
             if (result.closedCount > 0) {
                 setClosedCount(result.closedCount);
-                setStatus('success');
+                setStatus(DuplicateCleanerStatus.Success);
             } else {
-                setStatus('idle');
+                setStatus(DuplicateCleanerStatus.Idle);
             }
 
             // Re-scan immediately to update UI
             await scanDuplicates();
 
             setTimeout(() => {
-                setStatus('idle');
+                setStatus(DuplicateCleanerStatus.Idle);
                 setClosedCount(0);
             }, 3000);
 
         } catch (err) {
             console.error('Failed to clean duplicates:', err);
-            setStatus('error');
-            setTimeout(() => setStatus('idle'), 3000);
+            setStatus(DuplicateCleanerStatus.Error);
+            setTimeout(() => setStatus(DuplicateCleanerStatus.Idle), 3000);
         }
     };
 

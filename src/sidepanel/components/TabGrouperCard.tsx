@@ -1,5 +1,6 @@
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
+import { TabGrouperStatus } from '../../types/tabGrouper';
 import { TabGroupPreview } from './TabGroupPreview';
 import { SelectionCard } from './SelectionCard';
 
@@ -22,11 +23,39 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         tabDataMap,
         ungroupedCount,
         isBackgroundProcessing,
-        // Actions
         toggleGroupSelection,
+        aiEnabled
     } = data;
 
-    const badge = status === 'success' ? (
+    // AI Disabled State
+    if (!aiEnabled) {
+        return (
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="AI Tab Grouper"
+                icon={Sparkles}
+                description="AI grouping is currently disabled."
+                disabled={true}
+                badge={<span className="text-xs font-medium text-muted bg-surface-highlight px-2 py-0.5 rounded-full">Disabled</span>}
+            >
+                <div className="mt-2 text-xs text-muted flex flex-col gap-2">
+                    <p>Select an AI provider in Settings to enable this feature.</p>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            chrome.runtime.openOptionsPage();
+                        }}
+                        className="text-blue-500 hover:text-blue-600 underline font-medium self-start"
+                    >
+                        Open Settings
+                    </button>
+                </div>
+            </SelectionCard>
+        );
+    }
+
+    const badge = status === TabGrouperStatus.Success ? (
         <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
             Done
         </span>
@@ -44,7 +73,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         </span>
     );
 
-    const isLoading = status === 'processing' || status === 'initializing';
+    const isLoading = status === TabGrouperStatus.Processing || status === TabGrouperStatus.Initializing;
 
     return (
         <SelectionCard
@@ -95,7 +124,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
             )}
 
             {/* Progress Bar (if processing) */}
-            {status === 'processing' && progress !== null && (
+            {status === TabGrouperStatus.Processing && progress !== null && (
                 <div className="mt-2 w-full bg-border-subtle rounded-full h-1.5 overflow-hidden">
                     <div
                         className="bg-blue-500 h-full transition-all duration-300"

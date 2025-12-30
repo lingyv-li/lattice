@@ -45,7 +45,7 @@ export class LocalProvider extends BaseProvider {
         return LocalProvider.cachedSession.prompt(userPrompt);
     }
 
-    private async ensureLocalSession(customRules: string, systemPrompt: string) {
+    private async ensureLocalSession(customRules: string, systemPrompt: string, onProgress?: (loaded: number, total: number) => void) {
         // Reset if rules changed
         if (LocalProvider.cachedSession && LocalProvider.cachedRules !== customRules) {
             LocalProvider.cachedSession.destroy();
@@ -53,18 +53,32 @@ export class LocalProvider extends BaseProvider {
         }
 
         if (!LocalProvider.cachedSession) {
-            const factory = self.ai?.languageModel || self.LanguageModel;
-            if (!factory) {
+            if (typeof LanguageModel === 'undefined') {
                 throw new Error("AI API not supported in this browser.");
             }
 
-            LocalProvider.cachedSession = await factory.create({
+            LocalProvider.cachedSession = await LanguageModel.create({
+                expectedInputs: [{ type: 'text', languages: ['en'] }],
                 initialPrompts: [{
                     role: "system",
                     content: systemPrompt
-                }]
+                }],
+                monitor(m: any) {
+                    m.addEventListener('downloadprogress', (e: any) => {
+                        if (onProgress) {
+                            onProgress(e.loaded, e.total);
+                        }
+                    });
+                }
             });
             LocalProvider.cachedRules = customRules;
         }
+    }
+
+    public static async initialize(onProgress?: (loaded: number, total: number) => void) {
+        const instance = new LocalProvider();
+        // Just ensure session with empty prompts to trigger download if needed
+        // We use a dummy system prompt just to check/init
+        await instance.ensureLocalSession('', 'Initialization check', onProgress);
     }
 }

@@ -1,6 +1,12 @@
+export enum AIProviderType {
+    Local = 'local',
+    Gemini = 'gemini',
+    None = 'none'
+}
+
 export interface AppSettings {
     customGroupingRules: string;
-    aiProvider: 'local' | 'gemini';
+    aiProvider: AIProviderType;
     aiModel: string;
     geminiApiKey: string;
     autopilot: Record<string, boolean>;
@@ -12,7 +18,7 @@ export const DEFAULT_GROUPING_RULES = `- Never use generic group names like deve
 
 export const DEFAULT_SETTINGS: AppSettings = {
     customGroupingRules: DEFAULT_GROUPING_RULES,
-    aiProvider: 'local',
+    aiProvider: AIProviderType.None,
     aiModel: '',
     geminiApiKey: "",
     autopilot: {},

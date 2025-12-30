@@ -4,6 +4,7 @@ import { QueueProcessor } from './queueProcessor';
 import { TabManager } from './tabManager';
 
 import { updateWindowBadge } from '../utils/badge';
+import { getSettings, saveSettings, AIProviderType } from '../utils/storage';
 
 import { TabGroupResponse } from '../types/tabGrouper';
 
@@ -140,6 +141,17 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Startup check
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
-tabManager.triggerRecalculation();
 
+// Check and set default AI provider if not set
+getSettings().then(async (settings) => {
+    // Only run this auto-configure logic if the provider is still 'none'
+    if (settings.aiProvider === AIProviderType.None) {
+        const availability = await LanguageModel.availability({ expectedInputs: [{ type: 'text', languages: ['en'] }] });
+        if (availability === "available") {
+            // It is available, set default to local.
+            await saveSettings({ aiProvider: AIProviderType.Local });
+        }
+    }
 
+    tabManager.triggerRecalculation();
+});

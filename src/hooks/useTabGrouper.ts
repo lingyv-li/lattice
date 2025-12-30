@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus, TabSuggestionCache } from '../types/tabGrouper';
 import { applyTabGroup } from '../utils/tabs';
+import { getSettings, AIProviderType } from '../utils/storage';
 
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
-    const [status, setStatus] = useState<TabGrouperStatus>('idle');
+    const [status, setStatus] = useState<TabGrouperStatus>(TabGrouperStatus.Idle);
     const [error, setError] = useState<string | null>(null);
     const [progress, _] = useState<number | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
@@ -13,6 +14,7 @@ export const useTabGrouper = () => {
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
     const [isBackgroundProcessing, setBackgroundProcessing] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(true);
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
@@ -20,6 +22,21 @@ export const useTabGrouper = () => {
     const previewGroupsRef = useRef<typeof previewGroups>(null);
     // Store status in ref to access inside listeners without re-subscribing
     const statusRef = useRef<TabGrouperStatus>(status);
+
+    // Check settings for enabled state
+    useEffect(() => {
+        getSettings().then(s => {
+            setAiEnabled(s.aiProvider !== AIProviderType.None);
+        });
+
+        const changeListener = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
+            if (area === 'sync' && changes.aiProvider) {
+                setAiEnabled(changes.aiProvider.newValue !== AIProviderType.None);
+            }
+        };
+        chrome.storage.onChanged.addListener(changeListener);
+        return () => chrome.storage.onChanged.removeListener(changeListener);
+    }, []);
 
     // Update refs when state changes
     useEffect(() => {
@@ -158,7 +175,7 @@ export const useTabGrouper = () => {
                 }
 
                 const currentStatus = statusRef.current;
-                if (groups.length > 0 && currentStatus !== 'processing' && currentStatus !== 'initializing') {
+                if (groups.length > 0 && currentStatus !== TabGrouperStatus.Processing && currentStatus !== TabGrouperStatus.Initializing) {
                     // Smart Selection Preservation:
                     // If we have previous groups, try to preserve the selection state for identical groups
                     let newSelection = new Set<number>();
@@ -196,10 +213,10 @@ export const useTabGrouper = () => {
 
                     setPreviewGroups(groups);
                     setSelectedPreviewIndices(newSelection);
-                    setStatus('reviewing');
+                    setStatus(TabGrouperStatus.Reviewing);
                 } else if (groups.length === 0) {
                     setPreviewGroups(null);
-                    if (currentStatus === 'reviewing') setStatus('idle');
+                    if (currentStatus === TabGrouperStatus.Reviewing) setStatus(TabGrouperStatus.Idle);
                 }
             }
         };
@@ -223,7 +240,7 @@ export const useTabGrouper = () => {
 
     const applyGroups = async () => {
         if (!previewGroups) return;
-        setStatus('processing');
+        setStatus(TabGrouperStatus.Processing);
 
         try {
             for (let i = 0; i < previewGroups.length; i++) {
@@ -242,15 +259,15 @@ export const useTabGrouper = () => {
                     }
                 }
             }
-            setStatus('success');
+            setStatus(TabGrouperStatus.Success);
             setPreviewGroups(null);
-            setTimeout(() => setStatus('idle'), 3000);
+            setTimeout(() => setStatus(TabGrouperStatus.Idle), 3000);
 
             // We do NOT reject unselected groups anymore, per "just unselect" instruction.
             // They remain available for future grouping.
         } catch (err: any) {
             setError(err.message || "Failed to apply groups.");
-            setStatus('error');
+            setStatus(TabGrouperStatus.Error);
         }
     };
 
@@ -285,6 +302,7 @@ export const useTabGrouper = () => {
         isBackgroundProcessing,
         applyGroups,
         toggleGroupSelection,
-        setAllGroupsSelected
+        setAllGroupsSelected,
+        aiEnabled
     };
 };

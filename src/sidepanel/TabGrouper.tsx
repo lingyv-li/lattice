@@ -1,5 +1,6 @@
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../hooks/useTabGrouper';
+import { TabGrouperStatus } from '../types/tabGrouper';
 import { TabGroupPreview } from './components/TabGroupPreview';
 import { CleanState } from './components/CleanState';
 
@@ -17,11 +18,11 @@ export const TabGrouper = () => {
     } = useTabGrouper();
 
     // Show "clean" state when no ungrouped tabs
-    if (ungroupedCount === 0 && status !== 'processing' && status !== 'initializing') {
+    if (ungroupedCount === 0 && status !== TabGrouperStatus.Processing && status !== TabGrouperStatus.Initializing) {
         return <CleanState icon={Sparkles} title="AI Tab Grouper" message="All tabs organized!" />;
     }
 
-    const isProcessing = status === 'processing' || status === 'initializing' || isBackgroundProcessing;
+    const isProcessing = status === TabGrouperStatus.Processing || status === TabGrouperStatus.Initializing || isBackgroundProcessing;
 
     return (
         <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4">
@@ -56,8 +57,8 @@ export const TabGrouper = () => {
                 <div className="py-4 flex flex-col items-center justify-center text-muted gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
                     <span className="text-xs">
-                        {status === 'initializing' ? 'Initializing AI...' :
-                            status === 'processing' ? `Analyzing tabs... ${progress ? `(${progress}%)` : ''}` :
+                        {status === TabGrouperStatus.Initializing ? 'Initializing AI...' :
+                            status === TabGrouperStatus.Processing ? `Analyzing tabs... ${progress ? `(${progress}%)` : ''}` :
                                 'Analyzing tabs in background...'}
                     </span>
                     {progress !== null && (

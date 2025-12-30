@@ -1,9 +1,8 @@
-
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
 import { mapExistingGroups } from '../services/ai/shared';
-import { getSettings } from '../utils/storage';
+import { getSettings, AIProviderType } from '../utils/storage';
 import { applyTabGroup } from '../utils/tabs';
 import { computeBatchHash } from '../utils/hash';
 
@@ -66,6 +65,15 @@ export class QueueProcessor {
                 );
 
                 const settings = await getSettings();
+
+                if (settings.aiProvider === AIProviderType.None) {
+                    // AI is disabled, just clear the queue for these tabs so we don't retry forever
+                    for (const tab of tabsData) {
+                        this.state.finish(tab.id);
+                    }
+                    continue;
+                }
+
                 const provider = await AIService.getProvider(settings);
                 const groupNameMap = mapExistingGroups(allGroups);
 
