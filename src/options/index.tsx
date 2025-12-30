@@ -4,7 +4,8 @@ import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings } from '../utils/storage';
-import { listAvailableModels, ModelInfo } from '../utils/gemini';
+import { AIService } from '../services/ai/AIService';
+import { ModelInfo } from '../services/ai/types';
 import './index.css';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => {
@@ -63,7 +64,7 @@ const App = () => {
         if (!key) return;
         setLoadingModels(true);
         try {
-            const models = await listAvailableModels(key);
+            const models = await AIService.listGeminiModels(key);
             setAvailableModels(sortModels(models));
         } catch (e) {
             console.error("Failed to fetch models", e);

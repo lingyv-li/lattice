@@ -29,3 +29,8 @@ export interface AIProvider {
 }
 
 export type UpdateNextIdFn = (id: number) => void;
+
+export interface ModelInfo {
+    id: string;
+    displayName: string;
+}

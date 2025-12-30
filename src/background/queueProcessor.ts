@@ -1,7 +1,8 @@
 
 import { ProcessingState } from './processing';
 import { StateService } from './state';
-import { generateTabGroupSuggestions } from '../utils/ai';
+import { AIService } from '../services/ai/AIService';
+import { mapExistingGroups } from '../services/ai/shared';
 import { getSettings } from '../utils/storage';
 import { applyTabGroup } from '../utils/tabs';
 
@@ -57,17 +58,22 @@ export class QueueProcessor {
                 const allGroups = [...existingGroupsData, ...virtualGroups.values()];
                 const tabsData = tabs.map(t => ({ id: t.id!, title: t.title!, url: t.url! }));
 
-                const groups = await generateTabGroupSuggestions(
+                const settings = await getSettings();
+                const provider = await AIService.getProvider(settings);
+                const groupNameMap = mapExistingGroups(allGroups);
+
+                const groups = await provider.generateSuggestions(
                     {
-                        existingGroups: allGroups,
-                        ungroupedTabs: tabsData
+                        existingGroups: groupNameMap,
+                        ungroupedTabs: tabsData,
+                        customRules: settings.customGroupingRules
                     },
-                    () => { },
                     () => { }
                 );
 
                 const groupedTabIds = new Set<number>();
-                const settings = await getSettings();
+
+                // const settings = await getSettings(); // Already fetched above
 
                 for (const group of groups) {
                     if (settings.autopilot) {

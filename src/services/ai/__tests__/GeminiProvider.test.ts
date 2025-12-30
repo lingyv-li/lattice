@@ -1,11 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiProvider } from '../GeminiProvider';
 import { GroupingRequest } from '../types';
-import * as geminiUtils from '../../../utils/gemini';
+
+// Mock @google/genai
+const mockGenerateContent = vi.fn();
+const mockList = vi.fn();
+
+vi.mock('@google/genai', () => {
+    return {
+        GoogleGenAI: class {
+            models = {
+                generateContent: mockGenerateContent,
+                list: mockList
+            };
+        }
+    };
+});
 
 describe('GeminiProvider', () => {
     let provider: GeminiProvider;
-    const mockGenerateContent = vi.spyOn(geminiUtils, 'generateContentGemini');
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -35,9 +48,11 @@ describe('GeminiProvider', () => {
         };
 
         // Mock response
-        mockGenerateContent.mockResolvedValue(JSON.stringify({
-            assignments: tabs.map(t => ({ tabId: t.id, groupName: 'Group A' }))
-        }));
+        mockGenerateContent.mockResolvedValue({
+            text: JSON.stringify({
+                assignments: tabs.map(t => ({ tabId: t.id, groupName: 'Group A' }))
+            })
+        });
 
         await provider.generateSuggestions(request, () => { });
 
@@ -54,12 +69,14 @@ describe('GeminiProvider', () => {
             ungroupedTabs: tabs
         };
 
-        mockGenerateContent.mockResolvedValue(JSON.stringify({
-            assignments: [
-                { tabId: 1, groupName: 'Shopping' },
-                { tabId: 2, groupName: 'Shopping' }
-            ]
-        }));
+        mockGenerateContent.mockResolvedValue({
+            text: JSON.stringify({
+                assignments: [
+                    { tabId: 1, groupName: 'Shopping' },
+                    { tabId: 2, groupName: 'Shopping' }
+                ]
+            })
+        });
 
         const suggestions = await provider.generateSuggestions(request, () => { });
 
@@ -79,12 +96,40 @@ describe('GeminiProvider', () => {
             ungroupedTabs: tabs
         };
 
-        mockGenerateContent.mockResolvedValue(JSON.stringify({
-            assignments: [{ tabId: 1, groupName: 'Work' }]
-        }));
+        mockGenerateContent.mockResolvedValue({
+            text: JSON.stringify({
+                assignments: [{ tabId: 1, groupName: 'Work' }]
+            })
+        });
 
         const suggestions = await provider.generateSuggestions(request, () => { });
 
         expect(suggestions[0].existingGroupId).toBe(100);
+    });
+
+    it('should handle malformed JSON response gracefully', async () => {
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+        };
+
+        mockGenerateContent.mockResolvedValue({
+            text: "This is not JSON"
+        });
+
+        const suggestions = await provider.generateSuggestions(request, () => { });
+        expect(suggestions).toEqual([]);
+    });
+
+    it('should handle empty response text gracefully', async () => {
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+        };
+
+        mockGenerateContent.mockResolvedValue({}); // No text
+
+        const suggestions = await provider.generateSuggestions(request, () => { });
+        expect(suggestions).toEqual([]);
     });
 });

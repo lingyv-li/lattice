@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueueProcessor } from '../queueProcessor';
 import { StateService } from '../state';
-import { generateTabGroupSuggestions } from '../../utils/ai';
+import { AIService } from '../../services/ai/AIService';
 import { getSettings } from '../../utils/storage';
 import { applyTabGroup } from '../../utils/tabs';
 
 // Mock dependencies
 vi.mock('../processing');
 vi.mock('../state');
-vi.mock('../../utils/ai');
+vi.mock('../../services/ai/AIService');
+vi.mock('../../services/ai/shared', () => ({
+    mapExistingGroups: vi.fn(),
+}));
 vi.mock('../../utils/storage');
 vi.mock('../../utils/tabs');
 
@@ -54,10 +57,14 @@ describe('QueueProcessor', () => {
         mockTabGroups.query.mockResolvedValue([]);
         mockStateServiceCache(new Map());
 
-        // Mock AI to return a group
-        (generateTabGroupSuggestions as any).mockResolvedValue([
-            { groupName: 'AI Group', tabIds: [101, 102], existingGroupId: null }
-        ]);
+        // Mock AI Service with Provider
+        const mockProvider = {
+            id: 'mock',
+            generateSuggestions: vi.fn().mockResolvedValue([
+                { groupName: 'AI Group', tabIds: [101, 102], existingGroupId: null }
+            ])
+        };
+        (AIService.getProvider as any).mockResolvedValue(mockProvider);
     });
 
     const mockSettings = (settings: any) => {
@@ -74,7 +81,8 @@ describe('QueueProcessor', () => {
         await processor.process();
 
         // AI called
-        expect(generateTabGroupSuggestions).toHaveBeenCalled();
+        const provider = await AIService.getProvider({} as any);
+        expect(provider.generateSuggestions).toHaveBeenCalled();
 
         // Should NOT apply group
         expect(applyTabGroup).not.toHaveBeenCalled();
@@ -93,7 +101,8 @@ describe('QueueProcessor', () => {
         await processor.process();
 
         // AI called
-        expect(generateTabGroupSuggestions).toHaveBeenCalled();
+        const provider = await AIService.getProvider({} as any);
+        expect(provider.generateSuggestions).toHaveBeenCalled();
 
         // Should apply group
         expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null);
@@ -107,12 +116,13 @@ describe('QueueProcessor', () => {
     it('should handle window closed error gracefully', async () => {
         mockWindows.get.mockRejectedValue(new Error("Window closed"));
         await processor.process();
-        expect(generateTabGroupSuggestions).not.toHaveBeenCalled();
+        expect(AIService.getProvider).not.toHaveBeenCalled();
     });
 
     it('should skip non-normal windows', async () => {
         mockWindows.get.mockResolvedValue({ id: 1, type: 'popup' });
         await processor.process();
-        expect(generateTabGroupSuggestions).not.toHaveBeenCalled();
+        const provider = await AIService.getProvider({} as any);
+        expect(provider.generateSuggestions).not.toHaveBeenCalled();
     });
 });

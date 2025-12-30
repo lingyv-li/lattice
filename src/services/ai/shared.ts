@@ -62,3 +62,15 @@ export const constructSystemPrompt = (customRules: string = "", isBatch: boolean
     Do not include any markdown formatting or explanation.`}
     ${customRules.trim().length > 0 ? `\n\nAdditional Rules:\n${customRules}` : ''}`;
 };
+
+export const mapExistingGroups = (groups: { id: number, title?: string }[]): Map<string, number> => {
+    const map = new Map<string, number>();
+    for (const group of groups) {
+        if (group.title && group.title.trim().length > 0) {
+            if (!map.has(group.title)) {
+                map.set(group.title, group.id);
+            }
+        }
+    }
+    return map;
+};

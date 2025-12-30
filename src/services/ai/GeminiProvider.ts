@@ -1,6 +1,6 @@
 import { AIProvider, GroupingRequest } from './types';
 import { TabGroupSuggestion } from '../../types/tabGrouper';
-import { generateContentGemini } from '../../utils/gemini';
+import { GoogleGenAI } from '@google/genai';
 import { handleAssignment, cleanAndParseJson, constructSystemPrompt } from './shared';
 
 export class GeminiProvider implements AIProvider {
@@ -48,7 +48,7 @@ export class GeminiProvider implements AIProvider {
             `.trim();
 
             try {
-                const responseText = await generateContentGemini(this.apiKey, this.model, systemPrompt, userPrompt);
+                const responseText = await this.generateContent(this.apiKey, this.model, systemPrompt, userPrompt);
                 const parsed = cleanAndParseJson(responseText);
 
                 if (parsed.assignments && Array.isArray(parsed.assignments)) {
@@ -74,5 +74,46 @@ export class GeminiProvider implements AIProvider {
         }
 
         return Array.from(suggestions.values());
+    }
+
+    private async generateContent(
+        apiKey: string,
+        modelName: string,
+        systemInstruction: string,
+        prompt: string
+    ): Promise<string> {
+        const client = new GoogleGenAI({ apiKey: apiKey });
+
+        // Config object for generateContent
+        const config = {
+            responseMimeType: 'application/json',
+            systemInstruction: systemInstruction,
+        };
+
+        const response = await client.models.generateContent({
+            model: modelName,
+            config: config,
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: prompt
+                        }
+                    ]
+                }
+            ]
+        });
+
+        if (response.text) {
+            return response.text;
+        }
+
+        const candidate = response.candidates?.[0];
+        if (candidate?.content?.parts?.[0]?.text) {
+            return candidate.content.parts[0].text;
+        }
+
+        throw new Error("No response text from Gemini");
     }
 }
