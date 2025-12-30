@@ -91,7 +91,7 @@ describe('TabManager', () => {
 
         describe('Autopilot Duplicate Cleaning', () => {
             beforeEach(() => {
-                (getSettings as any).mockResolvedValue({ autopilot: false });
+                (getSettings as any).mockResolvedValue({ autopilot: {} });
             });
 
             it('should NOT check duplicates if autopilot is OFF', async () => {
@@ -100,7 +100,7 @@ describe('TabManager', () => {
             });
 
             it('should check and remove duplicates if autopilot is ON', async () => {
-                (getSettings as any).mockResolvedValue({ autopilot: true });
+                (getSettings as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
 
                 const updatedTabId = 101;
                 const duplicateTabId = 102;
@@ -120,7 +120,7 @@ describe('TabManager', () => {
             });
 
             it('should NOT remove updated tab if it is the one to keep', async () => {
-                (getSettings as any).mockResolvedValue({ autopilot: true });
+                (getSettings as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
                 const updatedTabId = 101;
                 mockTabs.get.mockResolvedValue({ id: updatedTabId, windowId: 1 });
 

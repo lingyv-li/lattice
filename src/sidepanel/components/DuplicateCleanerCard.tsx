@@ -9,9 +9,11 @@ interface DuplicateCleanerCardProps {
     // or we can just use the hook here and expose the status to the parent?
     // Better to let the parent manage the hook so it can trigger the action.
     data: ReturnType<typeof useDuplicateCleaner>;
+    autopilotEnabled: boolean;
+    onAutopilotToggle: (enabled: boolean) => void;
 }
 
-export const DuplicateCleanerCard = ({ isSelected, onToggle, data }: DuplicateCleanerCardProps) => {
+export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnabled, onAutopilotToggle }: DuplicateCleanerCardProps) => {
     const { status, closedCount, duplicateCount } = data;
 
     const badge = status === 'success' ? (
@@ -37,6 +39,10 @@ export const DuplicateCleanerCard = ({ isSelected, onToggle, data }: DuplicateCl
             description="Close tabs that are exact duplicates of others."
             badge={badge}
             disabled={status === 'cleaning'}
+            autopilot={{
+                enabled: autopilotEnabled,
+                onToggle: onAutopilotToggle
+            }}
         >
             {/* Content Area - minimal or just details */}
             {status === 'cleaning' ? (

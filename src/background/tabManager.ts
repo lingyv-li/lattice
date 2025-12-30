@@ -71,7 +71,7 @@ export class TabManager {
         if (changeInfo.url || changeInfo.status === 'complete') {
             // Check for Autopilot duplicate cleaning
             const settings = await getSettings();
-            if (settings.autopilot) {
+            if (settings.autopilot?.['duplicate-cleaner']) {
                 // Scope to the window of the updated tab? 
                 // We need the tab object to know the windowId, but handleTabUpdated only gives ID.
                 // We'll query for the tab first.

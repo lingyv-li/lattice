@@ -8,9 +8,11 @@ interface TabGrouperCardProps {
     onToggle: () => void;
     // We pass the hooks/data down
     data: ReturnType<typeof useTabGrouper>;
+    autopilotEnabled: boolean;
+    onAutopilotToggle: (enabled: boolean) => void;
 }
 
-export const TabGrouperCard = ({ isSelected, onToggle, data }: TabGrouperCardProps) => {
+export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, onAutopilotToggle }: TabGrouperCardProps) => {
     const {
         status,
         error,
@@ -52,6 +54,10 @@ export const TabGrouperCard = ({ isSelected, onToggle, data }: TabGrouperCardPro
             icon={Sparkles}
             description="Automatically organize open tabs into groups."
             badge={badge}
+            autopilot={{
+                enabled: autopilotEnabled,
+                onToggle: onAutopilotToggle
+            }}
         >
             {/* Error State */}
             {error && (

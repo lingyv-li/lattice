@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Zap } from 'lucide-react';
 
 interface SelectionCardProps {
     isSelected: boolean;
@@ -9,6 +9,10 @@ interface SelectionCardProps {
     children: React.ReactNode;
     disabled?: boolean;
     badge?: React.ReactNode;
+    autopilot?: {
+        enabled: boolean;
+        onToggle: (enabled: boolean) => void;
+    };
 }
 
 export const SelectionCard: React.FC<SelectionCardProps> = ({
@@ -19,7 +23,8 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     description,
     children,
     disabled = false,
-    badge
+    badge,
+    autopilot
 }) => {
     return (
         <div
@@ -64,6 +69,29 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
                         </p>
                     )}
                 </div>
+
+                {/* Autopilot Toggle */}
+                {autopilot && !disabled && isSelected && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            autopilot.onToggle(!autopilot.enabled);
+                        }}
+                        className={`
+                            shrink-0 px-2 py-1.5 rounded-lg transition-all border flex items-center gap-1.5
+                            ${autopilot.enabled
+                                ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                                : 'bg-surface hover:bg-surface-highlight text-muted border-transparent hover:border-border-subtle'
+                            }
+                        `}
+                        title={autopilot.enabled ? "Autopilot On" : "Enable Autopilot"}
+                    >
+                        <Zap className={`w-3.5 h-3.5 ${autopilot.enabled ? 'fill-amber-500 text-amber-500' : ''}`} />
+                        <span className="text-[10px] font-semibold uppercase tracking-wide">
+                            Autopilot
+                        </span>
+                    </button>
+                )}
             </div>
 
             {/* Expandable/Interactive Content Area */}

@@ -107,7 +107,7 @@ export class QueueProcessor {
                 const groupedTabIds = new Set<number>();
 
                 for (const group of groups) {
-                    if (settings.autopilot) {
+                    if (settings.autopilot?.['tab-grouper']) {
                         // Autopilot: Apply immediately
                         const validTabIds = group.tabIds.filter(id => tabsData.find(t => t.id === id));
                         if (validTabIds.length > 0) {

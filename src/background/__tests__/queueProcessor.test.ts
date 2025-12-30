@@ -50,7 +50,7 @@ describe('QueueProcessor', () => {
         processor = new QueueProcessor(mockState);
 
         // Default happy path mocks
-        mockSettings({ autopilot: false });
+        mockSettings({ autopilot: {} });
         mockState.startProcessing.mockReturnValue([101, 102]);
         mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
         mockWindows.get.mockResolvedValue({ id: 1, type: 'normal' });
@@ -79,7 +79,7 @@ describe('QueueProcessor', () => {
     };
 
     it('should cache suggestions when autopilot is OFF', async () => {
-        mockSettings({ autopilot: false });
+        mockSettings({ autopilot: { 'tab-grouper': false } });
 
         await processor.process();
 
@@ -99,7 +99,7 @@ describe('QueueProcessor', () => {
     });
 
     it('should apply groups immediately when autopilot is ON', async () => {
-        mockSettings({ autopilot: true });
+        mockSettings({ autopilot: { 'tab-grouper': true } });
 
         await processor.process();
 

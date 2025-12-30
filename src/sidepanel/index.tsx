@@ -5,7 +5,8 @@ import './index.css';
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
 import { DownloadCleanerCard } from './components/DownloadCleanerCard';
-import { Loader2, Zap } from 'lucide-react';
+import { ConfirmationModal } from './components/ConfirmationModal';
+import { Loader2 } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
@@ -14,7 +15,20 @@ import { getSettings, saveSettings } from '../utils/storage';
 
 const App = () => {
     const [modelInfo, _] = useState<string>("");
-    const [autopilot, setAutopilot] = useState(false);
+    const [autopilot, setAutopilot] = useState<Record<string, boolean>>({});
+
+    // Modal State
+    const [modalConfig, setModalConfig] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        title: "",
+        description: "",
+        onConfirm: () => { }
+    });
 
     // Hooks
     const tabGrouper = useTabGrouper();
@@ -31,7 +45,7 @@ const App = () => {
                 setSelectedCards(new Set(settings.selectedCards));
             }
             if (settings.autopilot !== undefined) {
-                setAutopilot(settings.autopilot);
+                setAutopilot(settings.autopilot || {});
             }
         });
     }, []);
@@ -41,8 +55,27 @@ const App = () => {
         saveSettings({ selectedCards: Array.from(selectedCards), autopilot });
     }, [selectedCards, autopilot]);
 
-    const toggleAutopilot = (checked: boolean) => {
-        setAutopilot(checked);
+    const toggleAutopilot = (cardId: string, checked: boolean) => {
+        if (checked) {
+            // User is turning ON autopilot -> Warn them
+            const isClosing = cardId === 'duplicate-cleaner';
+            const title = isClosing ? "Enable Auto-Removal?" : "Enable Auto-Grouping?";
+            const description = isClosing
+                ? "This will automatically close duplicate tabs in the background. Closed tabs cannot be restored."
+                : "This will automatically group new tabs as they open.";
+
+            setModalConfig({
+                isOpen: true,
+                title,
+                description,
+                onConfirm: () => {
+                    setAutopilot(prev => ({ ...prev, [cardId]: true }));
+                }
+            });
+        } else {
+            // Turning OFF -> No warning needed
+            setAutopilot(prev => ({ ...prev, [cardId]: false }));
+        }
     };
 
     const toggleCard = (id: string) => {
@@ -162,11 +195,15 @@ const App = () => {
                         isSelected={effectiveSelectedCards.has('tab-grouper')}
                         onToggle={() => toggleCard('tab-grouper')}
                         data={tabGrouper}
+                        autopilotEnabled={!!autopilot['tab-grouper']}
+                        onAutopilotToggle={(enabled) => toggleAutopilot('tab-grouper', enabled)}
                     />
                     <DuplicateCleanerCard
                         isSelected={effectiveSelectedCards.has('duplicate-cleaner')}
                         onToggle={() => toggleCard('duplicate-cleaner')}
                         data={duplicateCleaner}
+                        autopilotEnabled={!!autopilot['duplicate-cleaner']}
+                        onAutopilotToggle={(enabled) => toggleAutopilot('duplicate-cleaner', enabled)}
                     />
                 </div>
 
@@ -190,18 +227,7 @@ const App = () => {
             {/* Main Action Button - Floating Bottom */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
                 <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 cursor-pointer bg-surface p-2 rounded-lg border border-border-subtle group hover:border-border-strong transition-colors">
-                        <input
-                            type="checkbox"
-                            checked={autopilot}
-                            onChange={(e) => toggleAutopilot(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <span className="flex items-center gap-1.5 text-xs text-muted font-medium w-full">
-                            <Zap className={`w-3.5 h-3.5 ${autopilot ? 'text-yellow-500 fill-yellow-500' : 'text-muted'}`} />
-                            Autopilot
-                        </span>
-                    </label>
+
 
                     <button
                         onClick={handleOrganize}
@@ -220,6 +246,14 @@ const App = () => {
                     </button>
                 </div>
             </div>
+            <ConfirmationModal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={modalConfig.onConfirm}
+                title={modalConfig.title}
+                description={modalConfig.description}
+                confirmLabel="Enable"
+            />
         </div>
     );
 };

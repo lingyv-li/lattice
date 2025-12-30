@@ -5,7 +5,7 @@ export interface AppSettings {
     aiProvider: 'local' | 'gemini';
     aiModel: string;
     geminiApiKey: string;
-    autopilot: boolean;
+    autopilot: Record<string, boolean>;
     selectedCards?: string[];
 }
 
@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     aiProvider: 'local',
     aiModel: '',
     geminiApiKey: "",
-    autopilot: false,
+    autopilot: {},
 };
 
 export const getSettings = async (): Promise<AppSettings> => {
