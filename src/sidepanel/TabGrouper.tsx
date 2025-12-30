@@ -13,8 +13,6 @@ export const TabGrouper = () => {
         tabDataMap,
         ungroupedCount,
         isBackgroundProcessing,
-        applyGroups,
-        cancelGroups,
         toggleGroupSelection
     } = useTabGrouper();
 
@@ -51,8 +49,6 @@ export const TabGrouper = () => {
                     selectedPreviewIndices={selectedPreviewIndices}
                     tabDataMap={tabDataMap}
                     onToggleSelection={toggleGroupSelection}
-                    onApply={applyGroups}
-                    onCancel={cancelGroups}
                 />
             )}
 

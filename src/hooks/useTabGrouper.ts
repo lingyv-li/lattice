@@ -254,13 +254,6 @@ export const useTabGrouper = () => {
         }
     };
 
-    const cancelGroups = () => {
-        // Just clear the preview, do NOT reject suggestions (allow them to specific later)
-        // User requested: "in unselect, just unselect, don't regenerate"
-        setPreviewGroups(null);
-        setStatus('idle');
-    };
-
     const toggleGroupSelection = (idx: number) => {
         const newSet = new Set(selectedPreviewIndices);
         if (newSet.has(idx)) {
@@ -291,9 +284,7 @@ export const useTabGrouper = () => {
         ungroupedCount,
         isBackgroundProcessing,
         applyGroups,
-        cancelGroups,
         toggleGroupSelection,
         setAllGroupsSelected
     };
 };
-

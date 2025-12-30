@@ -6,8 +6,6 @@ interface TabGroupPreviewProps {
     selectedPreviewIndices: Set<number>;
     tabDataMap: Map<number, { title: string, url: string }>;
     onToggleSelection: (idx: number) => void;
-    onApply?: () => void;
-    onCancel?: () => void;
 }
 
 export const TabGroupPreview = ({
