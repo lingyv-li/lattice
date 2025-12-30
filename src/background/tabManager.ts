@@ -24,13 +24,21 @@ export class TabManager {
         const allTabs = await chrome.tabs.query(queryInfo);
         const cache = await StateService.getSuggestionCache();
 
-        // Filter out tabs that are already grouped, cached, or processing
+        // Skip empty new tab pages - they have no meaningful content to group
+        const isEmptyNewTab = (url: string) =>
+            url === 'chrome://newtab/' ||
+            url === 'chrome://new-tab-page/' ||
+            url === 'about:blank' ||
+            url === 'edge://newtab/';
+
+        // Filter out tabs that are already grouped, cached, processing, or empty new tabs
         const tabsToProcess = allTabs.filter(t =>
             t.groupId === chrome.tabs.TAB_ID_NONE &&
             t.id &&
             t.url &&
             t.title &&
             t.status === 'complete' && // Only process loaded tabs
+            !isEmptyNewTab(t.url) && // Skip empty new tabs
             !cache.has(t.id) &&
             !this.processingState.has(t.id)
         );

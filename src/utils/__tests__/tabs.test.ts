@@ -5,9 +5,11 @@ import { applyTabGroup } from '../tabs';
 // Mock chrome API
 const mockTabs = {
     group: vi.fn(),
+    get: vi.fn(),
 };
 const mockTabGroups = {
     update: vi.fn(),
+    TAB_GROUP_ID_NONE: -1,
 };
 
 global.chrome = {
@@ -18,6 +20,10 @@ global.chrome = {
 describe('applyTabGroup', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Default mock: tabs exist and are not in a group
+        mockTabs.get.mockImplementation((tabId: number) =>
+            Promise.resolve({ id: tabId, groupId: -1 })
+        );
     });
 
     it('should return undefined if no tabIds provided', async () => {
@@ -70,5 +76,46 @@ describe('applyTabGroup', () => {
 
         expect(mockTabs.group).toHaveBeenCalledTimes(1);
         expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [5], groupId: 888 });
+    });
+
+    it('should skip tabs that no longer exist', async () => {
+        // Tab 1 exists, tab 2 does not
+        mockTabs.get.mockImplementation((tabId: number) => {
+            if (tabId === 1) return Promise.resolve({ id: 1, groupId: -1 });
+            return Promise.reject(new Error('Tab not found'));
+        });
+        mockTabs.group.mockResolvedValue(123);
+
+        const result = await applyTabGroup([1, 2], 'New Group');
+
+        expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [1] });
+        expect(result).toBe(123);
+    });
+
+    it('should skip tabs that are already in a group', async () => {
+        // Tab 1 is not in a group, tab 2 is already in group 999
+        mockTabs.get.mockImplementation((tabId: number) => {
+            if (tabId === 1) return Promise.resolve({ id: 1, groupId: -1 });
+            return Promise.resolve({ id: 2, groupId: 999 });
+        });
+        mockTabs.group.mockResolvedValue(123);
+
+        const result = await applyTabGroup([1, 2], 'New Group');
+
+        expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [1] });
+        expect(result).toBe(123);
+    });
+
+    it('should return undefined if all tabs are already grouped or missing', async () => {
+        // Tab 1 is already grouped, tab 2 does not exist
+        mockTabs.get.mockImplementation((tabId: number) => {
+            if (tabId === 1) return Promise.resolve({ id: 1, groupId: 999 });
+            return Promise.reject(new Error('Tab not found'));
+        });
+
+        const result = await applyTabGroup([1, 2], 'New Group');
+
+        expect(result).toBeUndefined();
+        expect(mockTabs.group).not.toHaveBeenCalled();
     });
 });

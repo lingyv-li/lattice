@@ -8,7 +8,7 @@ This directory is versions controlled using `jj` (Jujutsu).
 ## Development Workflow
 - **Dev Server**: `npm run dev` (Runs Vite)
 - **Build**: `npm run build` (Type-check & Build for production - always run this so user can test the changes)
-- **Test**: `npx vitest run` (Run unit/component tests)
+- **Test**: `npm run test` (Run unit/component tests)
 - **Lint**: `npm run lint`
 
 ## Project Architecture

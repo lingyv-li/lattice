@@ -13,14 +13,30 @@ export const applyTabGroup = async (
 ): Promise<number | undefined> => {
     if (!tabIds || tabIds.length === 0) return undefined;
 
-    // Helper to ensure at least one tabId
-    const validTabIds = tabIds as [number, ...number[]];
+    // Filter out tabs that no longer exist or already have a group
+    const validTabIds: number[] = [];
+    for (const tabId of tabIds) {
+        try {
+            const tab = await chrome.tabs.get(tabId);
+            // groupId of -1 means not in a group, skip tabs already in a group
+            if (tab.groupId === -1 || tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE) {
+                validTabIds.push(tabId);
+            }
+        } catch {
+            // Tab no longer exists, skip it
+        }
+    }
+
+    if (validTabIds.length === 0) return undefined;
+
+    // After the length check, we know validTabIds is non-empty
+    const tabIdsToGroup = validTabIds as [number, ...number[]];
 
     if (existingGroupId && existingGroupId > 0) {
         try {
             // Try to add to existing group
             await chrome.tabs.group({
-                tabIds: validTabIds,
+                tabIds: tabIdsToGroup,
                 groupId: existingGroupId
             });
             return existingGroupId;
@@ -28,7 +44,7 @@ export const applyTabGroup = async (
             // Check for specific error message regarding missing group
             if (e.message && e.message.includes("No group with id")) {
                 // Fallback: Create new group instead
-                const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+                const groupId = await chrome.tabs.group({ tabIds: tabIdsToGroup });
                 await chrome.tabGroups.update(groupId, { title: groupName });
                 return groupId;
             } else {
@@ -37,7 +53,7 @@ export const applyTabGroup = async (
         }
     } else {
         // Create new group
-        const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+        const groupId = await chrome.tabs.group({ tabIds: tabIdsToGroup });
         await chrome.tabGroups.update(groupId, { title: groupName });
         return groupId;
     }
