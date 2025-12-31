@@ -11,15 +11,21 @@ vi.mock('../processing');
 vi.mock('../state');
 vi.mock('../../services/ai/AIService');
 vi.mock('../../services/ai/shared', () => ({
-    mapExistingGroups: vi.fn(),
+    mapExistingGroups: vi.fn().mockReturnValue(new Map()),
 }));
 vi.mock('../../utils/storage');
 vi.mock('../../utils/tabs');
 
 // Mock global objects
 const mockTabs = {
+    query: vi.fn(),
     get: vi.fn(),
+    remove: vi.fn(),
     group: vi.fn(),
+    move: vi.fn(),
+    ungroup: vi.fn(),
+    TAB_ID_NONE: -1,
+    TabStatus: { LOADING: 'loading', COMPLETE: 'complete' }
 };
 const mockWindows = {
     get: vi.fn(),
@@ -45,7 +51,12 @@ describe('QueueProcessor', () => {
 
         mockState = {
             hasItems: true,
-            isStale: false,
+            isWindowStale: vi.fn().mockReturnValue(false),
+            updateSnapshot: vi.fn(),
+            verifySnapshot: vi.fn().mockReturnValue(true),
+            getSnapshotTabs: vi.fn().mockReturnValue([]),
+            getSnapshotGroups: vi.fn().mockReturnValue([]),
+            completeWindow: vi.fn(),
             acquireQueue: vi.fn(),
             release: vi.fn(),
         };
@@ -66,7 +77,18 @@ describe('QueueProcessor', () => {
                 [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
             }
         });
-        mockState.acquireQueue.mockReturnValue([101, 102]);
+        mockState.acquireQueue.mockReturnValue([1]);
+        const testTabs = [
+            { id: 101, windowId: 1, url: 'http://example.com', title: 'Example' },
+            { id: 102, windowId: 1, url: 'http://example.com', title: 'Example' }
+        ];
+        (chrome.tabs.query as any) = vi.fn().mockResolvedValue(testTabs);
+        (chrome.tabGroups.query as any) = vi.fn().mockResolvedValue([]);
+
+        // Feed AI from snapshot
+        mockState.getSnapshotTabs.mockReturnValue(testTabs);
+        mockState.getSnapshotGroups.mockReturnValue([]);
+
         mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
         mockWindows.get.mockResolvedValue({ id: 1, type: 'normal' });
         mockTabGroups.query.mockResolvedValue([]);
@@ -174,82 +196,49 @@ describe('QueueProcessor', () => {
     });
 
     describe('staleness detection', () => {
-        it('should release lock if tabs become stale', async () => {
+        it('should abort if window is marked stale at batch start', async () => {
             mockSettings({
                 features: {
                     [FeatureId.TabGrouper]: { enabled: true, autopilot: false }
                 }
             });
 
-            // Tab changes URL during processing
-            let callCount = 0;
-            mockTabs.get.mockImplementation((id) => {
-                callCount++;
-                if (id === 102 && callCount > 2) {
-                    // Simulating what happens in reality: TabManager detects change and marks state as stale
-                    mockState.isStale = true;
-                    return Promise.resolve({ id, windowId: 1, url: 'http://changed.com', title: 'Changed' });
-                }
-                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
-            });
+            // Set window stale before processing batch
+            mockState.isWindowStale.mockImplementation((id: number) => id === 1);
 
-            await processor.process();
-
-            // finish() is removed, but we should verify it completes without applying/caching
-            expect(mockState.release).toHaveBeenCalled();
-            // Staleness means NO updates applied
-            expect(StateService.updateSuggestions).not.toHaveBeenCalled();
-        });
-
-        it('should skip tabs that moved to a different window during processing', async () => {
-            mockSettings({
-                features: {
-                    [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
-                }
-            });
-
-            // Tab 102 moves to window 2 (e.g. popup) during processing
-            let callCount = 0;
-            mockTabs.get.mockImplementation((id) => {
-                callCount++;
-                if (id === 102 && callCount > 2) {
-                    // Moves to window 2
-                    return Promise.resolve({ id, windowId: 2, url: 'http://example.com', title: 'Example' });
-                }
-                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
-            });
-
-            await processor.process();
-
-            // Should NOT apply group for tab 102 because it moved
-            // Tab 101 is still valid
-            expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null, 1);
-            expect(applyTabGroup).not.toHaveBeenCalledWith(expect.arrayContaining([102]), expect.any(String), expect.any(Object));
-            expect(mockState.release).toHaveBeenCalled();
-        });
-
-        it('should abort entire process if state is marked stale at batch start', async () => {
-            mockState.isStale = true;
             await processor.process();
 
             const provider = await AIService.getProvider({} as any);
             expect(provider.generateSuggestions).not.toHaveBeenCalled();
             expect(mockState.release).toHaveBeenCalled();
-        });
-
-        it('should discard batch results if state becomes stale during AI call', async () => {
-            // Mock state becoming stale during AI call
-            const mockProvider = await AIService.getProvider({} as any) as any;
-            mockProvider.generateSuggestions.mockImplementation(async () => {
-                mockState.isStale = true;
-                return { suggestions: [], errors: [] };
-            });
-
-            await processor.process();
-
-            expect(StateService.updateSuggestions).not.toHaveBeenCalled();
-            expect(mockState.release).toHaveBeenCalled();
+            expect(mockState.completeWindow).not.toHaveBeenCalled(); // Should NOT complete if aborted early
         });
     });
-});
 
+    it('should abort if snapshot verification fails', async () => {
+        // Mock snapshot mismatch
+        mockState.verifySnapshot.mockReturnValue(false);
+
+        await processor.process();
+
+        const provider = await AIService.getProvider({} as any);
+        expect(provider.generateSuggestions).not.toHaveBeenCalled();
+        expect(mockState.release).toHaveBeenCalled();
+        expect(mockState.completeWindow).not.toHaveBeenCalled();
+    });
+
+    it('should discard batch results if window becomes stale during AI call', async () => {
+        // Mock window becoming stale during AI call
+        const mockProvider = await AIService.getProvider({} as any) as any;
+        mockProvider.generateSuggestions.mockImplementation(async () => {
+            mockState.isWindowStale.mockReturnValue(true);
+            return { suggestions: [], errors: [] };
+        });
+
+        await processor.process();
+
+        expect(StateService.updateSuggestions).not.toHaveBeenCalled();
+        expect(mockState.release).toHaveBeenCalled();
+        expect(mockState.completeWindow).not.toHaveBeenCalled(); // Should NOT complete if aborted by stale
+    });
+});

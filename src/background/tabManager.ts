@@ -48,35 +48,23 @@ export class TabManager {
             return;
         }
 
-        const allTabs = await chrome.tabs.query({ windowType: chrome.tabs.WindowType.NORMAL });
+        const ungroupedTabs = await chrome.tabs.query({
+            windowType: chrome.tabs.WindowType.NORMAL,
+            groupId: chrome.tabs.TAB_ID_NONE
+        });
 
-        // Skip empty new tab pages - they have no meaningful content to group
-        const isEmptyNewTab = (url: string) =>
-            url === 'chrome://newtab/' ||
-            url === 'chrome://new-tab-page/' ||
-            url === 'about:blank' ||
-            url === 'edge://newtab/';
-
-        // Filter out tabs that are already grouped, cached, processing, or empty new tabs
-        const tabsToProcess = allTabs.filter(t =>
-            t.groupId === chrome.tabs.TAB_ID_NONE &&
-            t.id &&
-            t.url &&
-            t.title &&
-            t.status !== chrome.tabs.TabStatus.LOADING &&
-            !isEmptyNewTab(t.url) &&
-            !this.processingState.has(t.id)
-        );
-
-        for (const tab of tabsToProcess) {
-            if (tab.id) {
-                this.processingState.add(tab.id);
-            }
+        const windowIdsToProcess = new Set<number>();
+        for (const tab of ungroupedTabs) {
+            windowIdsToProcess.add(tab.windowId);
         }
 
-        // Process immediately if we have tabs queued
-        if (tabsToProcess.length > 0) {
-            console.log("[TabManager] Processing queued tabs");
+        for (const windowId of windowIdsToProcess) {
+            this.processingState.add(windowId);
+        }
+
+        // Process immediately if we have windows queued
+        if (windowIdsToProcess.size > 0) {
+            console.log("[TabManager] Processing queued windows");
             await this.queueProcessor.process();
         }
     }

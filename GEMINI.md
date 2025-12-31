@@ -18,7 +18,12 @@ This directory is versions controlled using `jj` (Jujutsu).
 - **Declarative Code**: Prefer declarative patterns (e.g., `useEffect` for state sync) over imperative event handlers.
 - **Maintainability**: Prioritize clean, modular, and easy-to-maintain code.
 - **Readability**: Ensure code is self-documenting and easy to read.
+- **Encapsulated State**: Use specialized classes (like `WindowState`) to manage metadata for specific entities (windows, tabs) instead of global primitive flags.
 - **Improvements**: Look for areas with room for improvement, but do not implement them immediately. Suggest them to the user at the end of the task.
+
+## Architectural Patterns
+- **Atomic Window Processing**: Always isolate processing logic and staleness tracking to the window level. A change in one window should never abort processing in another.
+- **Input Snapshotting**: For long-running or batch operations (like AI grouping), capture a fingerprint of the input state at the start. Verify consistency against this snapshot between batches to prevent data races (e.g., closing a tab during an AI call).
 
 ## Browser Testing
 
