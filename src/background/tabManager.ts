@@ -42,6 +42,12 @@ export class TabManager {
     }
 
     private async queueAndProcess() {
+        const settings = await SettingsStorage.get();
+        if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
+            console.log("[TabManager] Tab Grouper is disabled, skipping processing");
+            return;
+        }
+
         const allTabs = await chrome.tabs.query({ windowType: chrome.tabs.WindowType.NORMAL });
 
         // Skip empty new tab pages - they have no meaningful content to group

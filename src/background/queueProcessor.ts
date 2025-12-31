@@ -19,6 +19,14 @@ export class QueueProcessor {
         console.log(`[QueueProcessor] process() called (Items: ${this.state.hasItems})`);
 
         while (this.state.hasItems) {
+            const settings = await SettingsStorage.get();
+            if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
+                console.log("[QueueProcessor] Tab Grouper feature is disabled, clearing queue and stopping.");
+                this.state.release(); // Important to release so it doesn't stay busy
+                // We might want to clear the queue items in state too if they were specifically for grouping
+                return;
+            }
+
             // acquireQueue() returns empty array if already busy, 
             // but we shouldn't be calling process() re-entrantly anyway ideally.
             // However, to be safe, we check result.

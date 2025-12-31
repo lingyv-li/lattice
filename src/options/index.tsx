@@ -4,6 +4,7 @@ import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle 
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType } from '../utils/storage';
+import { FeatureId } from '../types/features';
 import { AIService } from '../services/ai/AIService';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
@@ -121,7 +122,19 @@ const InnerApp = () => {
                 setDownloadProgress(null);
             }
         } else {
-            setSettings(s => ({ ...s, aiProvider: provider }));
+            setSettings(s => {
+                const next = { ...s, aiProvider: provider };
+                if (provider === AIProviderType.None) {
+                    if (next.features[FeatureId.TabGrouper]) {
+                        next.features[FeatureId.TabGrouper] = {
+                            ...next.features[FeatureId.TabGrouper],
+                            enabled: false,
+                            autopilot: false
+                        };
+                    }
+                }
+                return next;
+            });
         }
     };
 

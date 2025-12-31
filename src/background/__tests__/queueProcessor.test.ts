@@ -157,6 +157,22 @@ describe('QueueProcessor', () => {
         expect(mockState.release).toHaveBeenCalled();
     });
 
+    it('should clear queue and release if Tab Grouper is disabled', async () => {
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: false, autopilot: false }
+            }
+        });
+
+        await processor.process();
+
+        // AI should NOT be called
+        expect(AIService.getProvider).not.toHaveBeenCalled();
+
+        // Should release lock
+        expect(mockState.release).toHaveBeenCalled();
+    });
+
     describe('staleness detection', () => {
         it('should release lock if tabs become stale', async () => {
             mockSettings({
