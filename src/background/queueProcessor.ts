@@ -114,10 +114,15 @@ export class QueueProcessor {
                 // Batch is still fresh - apply results
                 const groupedTabIds = new Set<number>();
 
+                // Filter tabs that are still in the same window
+                const validCurrentTabs = currentValidTabs.filter(t => t.windowId === windowId);
+
                 for (const group of groups) {
                     if (settings.autopilot?.['tab-grouper']) {
                         // Autopilot: Apply immediately
-                        const validTabIds = group.tabIds.filter(id => tabsData.find(t => t.id === id));
+                        // Only include tabs that are still valid and in the correct window
+                        const validTabIds = group.tabIds.filter(id => validCurrentTabs.find(t => t.id === id));
+
                         if (validTabIds.length > 0) {
                             await applyTabGroup(
                                 validTabIds,
@@ -129,7 +134,8 @@ export class QueueProcessor {
                     } else {
                         // Standard: Cache suggestion
                         for (const tabId of group.tabIds) {
-                            if (!tabsData.find(t => t.id === tabId)) continue;
+                            // Verify tab is still in the correct window
+                            if (!validCurrentTabs.find(t => t.id === tabId)) continue;
 
                             groupedTabIds.add(tabId);
                             await StateService.updateSuggestion({

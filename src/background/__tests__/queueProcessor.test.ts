@@ -167,5 +167,35 @@ describe('QueueProcessor', () => {
 
             expect(mockState.finish).toHaveBeenCalledWith(102);
         });
+
+        it('should skip tabs that moved to a different window during processing', async () => {
+            mockSettings({ autopilot: { 'tab-grouper': true } });
+
+            // Tab 102 moves to window 2 (e.g. popup) during processing
+            let callCount = 0;
+            mockTabs.get.mockImplementation((id) => {
+                callCount++;
+                // First call: initial fetch (window 1)
+                // Second call: batch hash check (window 1) -> wait, batch check fetches all tabs?
+                // The queueProcessor implementation re-fetches tabs for batch hash check.
+                // We want to simulate that at the moment of 'applying' or just before, it changes.
+                // BUT current implementation re-fetches all tabs to check batch hash. 
+                // If we change it there, batch hash might change -> staleness detected -> everything discarded.
+                // That is ALSO a valid outcome that prevents the error.
+
+                if (id === 102 && callCount > 2) {
+                    // Moves to window 2
+                    return Promise.resolve({ id, windowId: 2, url: 'http://example.com', title: 'Example' });
+                }
+                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
+            });
+
+            await processor.process();
+
+            // Should NOT apply group for tab 102 because it moved
+            // Tab 101 is still valid
+            expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null);
+            expect(applyTabGroup).not.toHaveBeenCalledWith(expect.arrayContaining([102]), expect.any(String), expect.any(Object));
+        });
     });
 });

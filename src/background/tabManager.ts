@@ -10,14 +10,27 @@ const DEBOUNCE_DELAY_MS = 1500;
 
 export class TabManager {
     private debouncedProcess: () => void;
+    private currentDebounceDelay: number;
 
     constructor(
         private processingState: ProcessingState,
-        private queueProcessor: QueueProcessor
+        private queueProcessor: QueueProcessor,
+        initialDelay: number = DEBOUNCE_DELAY_MS
     ) {
+        this.currentDebounceDelay = initialDelay;
+        // Initialize immediately to satisfy TS
         this.debouncedProcess = debounce(() => {
             this.queueAndProcess();
-        }, DEBOUNCE_DELAY_MS);
+        }, this.currentDebounceDelay);
+    }
+
+    updateDebounceDelay(delay: number) {
+        this.currentDebounceDelay = delay;
+        // Create new debounce instance
+        this.debouncedProcess = debounce(() => {
+            this.queueAndProcess();
+        }, this.currentDebounceDelay);
+        console.log(`[TabManager] Updated debounce delay to ${delay}ms`);
     }
 
     /**
@@ -25,7 +38,7 @@ export class TabManager {
      * Uses setTimeout debounce - safe for sub-30-second delays while service worker is active.
      */
     triggerRecalculation() {
-        console.log("[TabManager] Triggering recalculation (debounced)");
+        console.log(`[TabManager] Triggering recalculation (debounced ${this.currentDebounceDelay}ms)`);
         this.debouncedProcess();
     }
 

@@ -102,3 +102,55 @@
         /* red-900/50 */
     }
 }
+
+/* Custom Slider Styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent; /* Otherwise white in Chrome */
+  cursor: pointer;
+  height: 24px; /* Increases hit area */
+}
+
+/* Track */
+input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--surface-highlight);
+  height: 6px;
+  border-radius: 9999px; /* full rounded */
+  border: 1px solid var(--border-subtle);
+}
+
+/* Thumb */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -7px; /* Centers thumb on track (6px track height / 2) - (20px thumb height / 2) */
+  background-color: var(--surface);
+  border: 4px solid #14b8a6; /* teal-500 */
+  border-radius: 50%;
+  height: 20px;
+  width: 20px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+/* Hover State */
+input[type="range"]:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+  border-color: #0d9488; /* teal-600 */
+}
+
+/* Active State */
+input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(0.95);
+  border-width: 6px;
+}
+
+/* Focus State */
+input[type="range"]:focus {
+  outline: none;
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.2); /* teal-500/20 */
+}

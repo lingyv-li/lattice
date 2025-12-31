@@ -143,6 +143,15 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
 
 // Check and set default AI provider if not set
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.processingDebounceDelay) {
+        const newDelay = changes.processingDebounceDelay.newValue;
+        if (typeof newDelay === 'number' && newDelay >= 500) {
+            tabManager.updateDebounceDelay(newDelay);
+        }
+    }
+});
+
 getSettings().then(async (settings) => {
     // Only run this auto-configure logic if the provider is still 'none'
     if (settings.aiProvider === AIProviderType.None) {
@@ -151,6 +160,10 @@ getSettings().then(async (settings) => {
             // It is available, set default to local.
             await saveSettings({ aiProvider: AIProviderType.Local });
         }
+    }
+
+    if (settings.processingDebounceDelay) {
+        tabManager.updateDebounceDelay(settings.processingDebounceDelay);
     }
 
     tabManager.triggerRecalculation();

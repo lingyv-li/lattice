@@ -11,6 +11,7 @@ export interface AppSettings {
     geminiApiKey: string;
     autopilot: Record<string, boolean>;
     selectedCards?: string[];
+    processingDebounceDelay?: number;
 }
 
 export const DEFAULT_GROUPING_RULES = `- Never use generic group names like development, finance, coding.
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     aiModel: '',
     geminiApiKey: "",
     autopilot: {},
+    processingDebounceDelay: 2000,
 };
 
 export const getSettings = async (): Promise<AppSettings> => {

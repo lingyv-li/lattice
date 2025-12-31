@@ -140,7 +140,7 @@ const App = () => {
                                         : "text-muted hover:text-main"
                                 )}
                             >
-                                Local
+                                Local (Chrome)
                             </button>
                             <button
                                 onClick={() => handleProviderChange(AIProviderType.Gemini)}
@@ -152,7 +152,7 @@ const App = () => {
                                         : "text-muted hover:text-main"
                                 )}
                             >
-                                Cloud
+                                Cloud (Gemini)
                             </button>
                             <button
                                 onClick={() => handleProviderChange(AIProviderType.None)}
@@ -211,7 +211,17 @@ const App = () => {
                         {settings.aiProvider === AIProviderType.Gemini && (
                             <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
                                 <div>
-                                    <label className="block text-xs font-medium text-muted mb-1 ml-1">API Key</label>
+                                    <div className="flex items-center justify-between mb-1 ml-1">
+                                        <label className="block text-xs font-medium text-muted">API Key</label>
+                                        <a
+                                            href="https://aistudio.google.com/app/apikey"
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[10px] text-teal-600 hover:text-teal-500 hover:underline flex items-center gap-1"
+                                        >
+                                            Get API Key
+                                        </a>
+                                    </div>
                                     <div className="relative">
                                         <input
                                             type={showApiKey ? "text" : "password"}
@@ -260,6 +270,41 @@ const App = () => {
                     </div>
 
 
+
+                    <div className="space-y-4">
+                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Performance</h2>
+
+                        <div className="grid grid-cols-1 gap-4">
+                            <div className="p-4 bg-surface-dim rounded-2xl border border-border-subtle group hover:border-teal-500/30 transition-colors focus-within:border-teal-500/50">
+                                <div className="flex justify-between items-center mb-2">
+                                    <label className="font-medium text-main">Processing Delay</label>
+                                    <span className="text-xs font-mono bg-surface px-2 py-1 rounded-lg text-teal-500 border border-teal-500/20">
+                                        {((settings.processingDebounceDelay || 2000) / 1000).toFixed(1)}s
+                                    </span>
+                                </div>
+                                <p className="text-sm text-muted mb-4">Wait time before analyzing tabs. Increase if hitting API rate limits.</p>
+
+                                <div className="space-y-2">
+                                    <input
+                                        type="range"
+                                        min="500"
+                                        max="10000"
+                                        step="500"
+                                        value={settings.processingDebounceDelay || 2000}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setSettings(s => ({ ...s, processingDebounceDelay: val }));
+                                        }}
+                                        className="w-full"
+                                    />
+                                    <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted font-bold">
+                                        <span>Faster (0.5s)</span>
+                                        <span>Slower (10s)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div className="space-y-4">
                         <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Grouping Rules</h2>
