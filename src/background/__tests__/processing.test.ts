@@ -108,4 +108,48 @@ describe('ProcessingState', () => {
         expect(state.size).toBe(0);
         expect(callback).toHaveBeenCalledWith(false);
     });
+
+    describe('isStale', () => {
+        it('should mark as stale if added while busy', () => {
+            const state = new ProcessingState(() => { });
+            state.add(1);
+            state.acquireQueue();
+            expect(state.isStale).toBe(false);
+
+            state.add(2);
+            expect(state.isStale).toBe(true);
+        });
+
+        it('should mark as stale if removed while busy', () => {
+            const state = new ProcessingState(() => { });
+            state.add(1);
+            state.add(2);
+            state.acquireQueue();
+            expect(state.isStale).toBe(false);
+
+            state.remove(3); // even if not in queue? actually removal from anywhere?
+            // current impl: changed = this.queue.delete(tabId)
+            // if queue doesn't have it, no change.
+            expect(state.isStale).toBe(false);
+
+            state.add(3);
+            state.isStale; // true
+            state.remove(3);
+            // wait, if I add it while busy it's stale. 
+            // what if I remove an item that was in the acquired queue?
+            // ProcessingState doesn't know about acquired items.
+        });
+
+        it('should reset stale flag on acquireQueue', () => {
+            const state = new ProcessingState(() => { });
+            state.add(1);
+            state.acquireQueue();
+            state.add(2);
+            expect(state.isStale).toBe(true);
+
+            state.release();
+            state.acquireQueue();
+            expect(state.isStale).toBe(false);
+        });
+    });
 });

@@ -41,7 +41,7 @@ describe('LocalProvider', () => {
             { tabId: 1, groupName: 'Group 1' }
         ]));
 
-        await provider.generateSuggestions(request, () => { });
+        await provider.generateSuggestions(request);
 
         expect(mockCreate).toHaveBeenCalledTimes(1);
     });
@@ -61,8 +61,8 @@ describe('LocalProvider', () => {
             { tabId: 1, groupName: 'G' }
         ]));
 
-        await provider.generateSuggestions(requestA, () => { });
-        await provider.generateSuggestions(requestB, () => { });
+        await provider.generateSuggestions(requestA);
+        await provider.generateSuggestions(requestB);
 
         expect(mockDestroy).toHaveBeenCalledTimes(1); // Old session destroyed
         expect(mockCreate).toHaveBeenCalledTimes(2); // New session created
@@ -83,7 +83,7 @@ describe('LocalProvider', () => {
             { tabId: 2, groupName: 'Group A' }
         ]));
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         // Should call prompt only once (batch mode, both tabs fit in one batch)
         expect(mockPrompt).toHaveBeenCalledTimes(1);
@@ -107,7 +107,7 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'T', url: 'U' }]
         };
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);

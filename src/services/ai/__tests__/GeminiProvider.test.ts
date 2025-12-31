@@ -32,36 +32,11 @@ describe('GeminiProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
         };
 
-        const result = await noKeyProvider.generateSuggestions(request, () => { });
+        const result = await noKeyProvider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].message).toContain('API Key is missing');
-    });
-
-    it('should process tabs in batches', async () => {
-        // Create 15 tabs to force 2 batches (batch size is 10)
-        const tabs = Array.from({ length: 15 }, (_, i) => ({
-            id: i + 1,
-            title: `Tab ${i + 1}`,
-            url: `http://site${i + 1}.com`
-        }));
-
-        const request: GroupingRequest = {
-            existingGroups: new Map(),
-            ungroupedTabs: tabs
-        };
-
-        // Mock response
-        mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify(
-                tabs.map(t => ({ tabId: t.id, groupName: 'Group A' }))
-            )
-        });
-
-        await provider.generateSuggestions(request, () => { });
-
-        expect(mockGenerateContent).toHaveBeenCalledTimes(2);
     });
 
     it('should correctly handle assignments and group mapping', async () => {
@@ -81,7 +56,7 @@ describe('GeminiProvider', () => {
             ])
         });
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toHaveLength(1);
         expect(result.suggestions[0].groupName).toBe('Shopping');
@@ -106,7 +81,7 @@ describe('GeminiProvider', () => {
             ])
         });
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions[0].existingGroupId).toBe(100);
     });
@@ -121,7 +96,7 @@ describe('GeminiProvider', () => {
             text: "This is not JSON"
         });
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         // Malformed JSON doesn't throw, it's handled gracefully
@@ -136,7 +111,7 @@ describe('GeminiProvider', () => {
 
         mockGenerateContent.mockResolvedValue({}); // No text
 
-        const result = await provider.generateSuggestions(request, () => { });
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
@@ -153,7 +128,7 @@ describe('GeminiProvider', () => {
             text: JSON.stringify([])
         });
 
-        await gemmaProvider.generateSuggestions(request, () => { });
+        await gemmaProvider.generateSuggestions(request);
 
         const callArgs = mockGenerateContent.mock.calls[0][0];
 

@@ -1,6 +1,7 @@
 export class ProcessingState {
     private queue = new Set<number>();
     private _isBusy = false;
+    private _isStale = false;
     private _lastEmittedState = false;
     private onStateChange: (isProcessing: boolean) => void;
 
@@ -9,7 +10,6 @@ export class ProcessingState {
     }
 
     private updateStatus() {
-        // Status is true if we are busy OR (busy and have items) OR (not busy and have items)
         const newState = this._isBusy || this.queue.size > 0;
 
         if (newState !== this._lastEmittedState) {
@@ -27,6 +27,10 @@ export class ProcessingState {
         return this._isBusy;
     }
 
+    get isStale(): boolean {
+        return this._isStale;
+    }
+
     get size(): number {
         return this.queue.size;
     }
@@ -38,6 +42,10 @@ export class ProcessingState {
     add(tabId: number): boolean {
         if (!this.queue.has(tabId)) {
             this.queue.add(tabId);
+            if (this._isBusy) {
+                this._isStale = true;
+                console.log(`[ProcessingState] New items added during busy state, marked as STALE`);
+            }
             this.updateStatus();
             return true;
         }
@@ -56,6 +64,7 @@ export class ProcessingState {
         }
 
         this._isBusy = true;
+        this._isStale = false; // Reset staleness for new acquisition
         const ids = Array.from(this.queue);
         this.queue.clear();
         console.log(`[ProcessingState] Acquired queue: ${ids.length} items`);
@@ -71,11 +80,15 @@ export class ProcessingState {
 
     remove(tabId: number): boolean {
         const changed = this.queue.delete(tabId);
-        if (changed) this.updateStatus();
+        if (changed) {
+            if (this._isBusy) this._isStale = true;
+            this.updateStatus();
+        }
         return changed;
     }
 
     clear() {
+        if (this._isBusy) this._isStale = true;
         this.queue.clear();
         this._isBusy = false;
         this.updateStatus();

@@ -45,6 +45,7 @@ describe('QueueProcessor', () => {
 
         mockState = {
             hasItems: true,
+            isStale: false,
             acquireQueue: vi.fn(),
             release: vi.fn(),
         };
@@ -169,7 +170,8 @@ describe('QueueProcessor', () => {
             mockTabs.get.mockImplementation((id) => {
                 callCount++;
                 if (id === 102 && callCount > 2) {
-                    // On validation, tab 102 has changed URL
+                    // Simulating what happens in reality: TabManager detects change and marks state as stale
+                    mockState.isStale = true;
                     return Promise.resolve({ id, windowId: 1, url: 'http://changed.com', title: 'Changed' });
                 }
                 return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
@@ -207,6 +209,29 @@ describe('QueueProcessor', () => {
             // Tab 101 is still valid
             expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null, 1);
             expect(applyTabGroup).not.toHaveBeenCalledWith(expect.arrayContaining([102]), expect.any(String), expect.any(Object));
+            expect(mockState.release).toHaveBeenCalled();
+        });
+
+        it('should abort entire process if state is marked stale at batch start', async () => {
+            mockState.isStale = true;
+            await processor.process();
+
+            const provider = await AIService.getProvider({} as any);
+            expect(provider.generateSuggestions).not.toHaveBeenCalled();
+            expect(mockState.release).toHaveBeenCalled();
+        });
+
+        it('should discard batch results if state becomes stale during AI call', async () => {
+            // Mock state becoming stale during AI call
+            const mockProvider = await AIService.getProvider({} as any) as any;
+            mockProvider.generateSuggestions.mockImplementation(async () => {
+                mockState.isStale = true;
+                return { suggestions: [], errors: [] };
+            });
+
+            await processor.process();
+
+            expect(StateService.updateSuggestions).not.toHaveBeenCalled();
             expect(mockState.release).toHaveBeenCalled();
         });
     });

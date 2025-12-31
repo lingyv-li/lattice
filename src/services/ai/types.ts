@@ -28,8 +28,7 @@ export interface AIProvider {
      * Returns both suggestions and any errors that occurred during processing.
      */
     generateSuggestions(
-        request: GroupingRequest,
-        onProgress: (progress: number) => void
+        request: GroupingRequest
     ): Promise<SuggestionResult>;
 }
 
