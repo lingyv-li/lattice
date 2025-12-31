@@ -4,7 +4,6 @@
     "version": "0.2.0",
     "description": "Organize tabs with privacy-first Local AI. No data leaves your device.",
     "permissions": [
-        "downloads",
         "storage",
         "tabs",
         "tabGroups",

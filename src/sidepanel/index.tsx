@@ -4,13 +4,11 @@ import { Settings } from 'lucide-react';
 import './index.css';
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
-import { DownloadCleanerCard } from './components/DownloadCleanerCard';
 import { ConfirmationModal } from './components/ConfirmationModal';
 import { Loader2 } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
-import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
 import { SettingsStorage } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { ToastProvider, useToast } from '../context/ToastContext';
@@ -55,7 +53,6 @@ const InnerApp = () => {
     // Hooks
     const tabGrouper = useTabGrouper();
     const duplicateCleaner = useDuplicateCleaner();
-    const downloadCleaner = useDownloadCleaner();
 
     // Selection State with Persistence
     const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set(['tab-grouper', 'duplicate-cleaner']));
@@ -106,6 +103,7 @@ const InnerApp = () => {
         // Toggle the persistent selection state
         if (newSet.has(id)) {
             newSet.delete(id);
+            setAutopilot(prev => ({ ...prev, [id]: false }));
         } else {
             newSet.add(id);
         }
@@ -134,13 +132,11 @@ const InnerApp = () => {
         tabGrouper.status === 'processing' ||
         tabGrouper.status === 'initializing' ||
         tabGrouper.isBackgroundProcessing ||
-        duplicateCleaner.status === 'cleaning' ||
-        downloadCleaner.cleaning;
+        duplicateCleaner.status === 'cleaning';
 
     const hasWork =
         (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) ||
-        (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0) ||
-        (effectiveSelectedCards.has('download-cleaner') && (downloadCleaner.missingItems.length > 0 || downloadCleaner.interruptedItems.length > 0));
+        (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0);
 
     // Handle Organize Action
     const handleOrganize = async () => {
@@ -151,12 +147,7 @@ const InnerApp = () => {
             duplicateCleaner.closeDuplicates();
         }
 
-        // 2. Download Cleaner
-        if (effectiveSelectedCards.has('download-cleaner')) {
-            downloadCleaner.handleClean();
-        }
-
-        // 3. Tab Grouper
+        // 2. Tab Grouper
         if (effectiveSelectedCards.has('tab-grouper')) {
             // If processing (foreground or background), do nothing
             if (tabGrouper.status === 'processing' || tabGrouper.isBackgroundProcessing) return;
@@ -221,16 +212,6 @@ const InnerApp = () => {
                         data={duplicateCleaner}
                         autopilotEnabled={!!autopilot['duplicate-cleaner']}
                         onAutopilotToggle={(enabled) => toggleAutopilot('duplicate-cleaner', enabled)}
-                    />
-                </div>
-
-                {/* Section: Optimization */}
-                <div className="space-y-3">
-                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Maintenance</h2>
-                    <DownloadCleanerCard
-                        isSelected={effectiveSelectedCards.has('download-cleaner')}
-                        onToggle={() => toggleCard('download-cleaner')}
-                        data={downloadCleaner}
                     />
                 </div>
 

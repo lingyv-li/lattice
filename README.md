@@ -21,11 +21,8 @@ For users who want more powerful reasoning (e.g., non-English content or complex
 - **Copilot Mode**: Generates suggestions, waits for your approval before applying
 - **Custom Rules**: Define your own grouping preferences (e.g., "Never group by domain")
 
-### 🧹 Download Cleaner
-Keep your downloads tidy:
-- Remove duplicate files (`(1)`, `(2)` copies)
-- Clean up interrupted/failed downloads
-- Remove entries for files that no longer exist
+### 🧹 Duplicate Tab Cleaner
+Automatically detects and closes duplicate tabs to reduce clutter.
 
 ## Installation
 
