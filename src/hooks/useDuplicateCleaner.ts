@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { findDuplicates, countDuplicates, getTabsToRemove } from '../utils/duplicates';
+import { findDuplicates, countDuplicates } from '../utils/duplicates';
+import { DuplicateCloser } from '../services/DuplicateCloser';
 
 export type DuplicateCleanerStatus = 'idle' | 'scanning' | 'cleaning' | 'success' | 'error';
 
@@ -47,16 +48,10 @@ export const useDuplicateCleaner = () => {
         setStatus('cleaning');
 
         try {
-            const tabs = await chrome.tabs.query({ currentWindow: true });
-            const urlMap = findDuplicates(tabs);
-            const tabsToRemove = getTabsToRemove(urlMap);
+            const result = await DuplicateCloser.closeDuplicates();
 
-            // Calculate count of removed duplicates
-            const count = tabsToRemove.length;
-
-            if (tabsToRemove.length > 0) {
-                await chrome.tabs.remove(tabsToRemove);
-                setClosedCount(count);
+            if (result.closedCount > 0) {
+                setClosedCount(result.closedCount);
                 setStatus('success');
             } else {
                 setStatus('idle');

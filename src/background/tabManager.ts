@@ -3,7 +3,7 @@ import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { getSettings } from '../utils/storage';
-import { findDuplicates, getTabsToRemove } from '../utils/duplicates';
+import { DuplicateCloser } from '../services/DuplicateCloser';
 import { debounce } from '../utils/debounce';
 
 const DEBOUNCE_DELAY_MS = 1500;
@@ -77,25 +77,16 @@ export class TabManager {
                 try {
                     const tab = await chrome.tabs.get(tabId);
                     if (tab.windowId) {
-                        const windowTabs = await chrome.tabs.query({ windowId: tab.windowId });
-                        const urlMap = findDuplicates(windowTabs);
-                        const tabsToRemove = getTabsToRemove(urlMap);
-
-                        // Prevent removing the recently updated tab if it's the one we want to keep?
-                        // getTabsToRemove heuristics already handle keeping active/oldest.
-                        // But if we JUST navigated, this tab might be "active".
-
-                        if (tabsToRemove.length > 0) {
-                            console.log(`[Autopilot] Closing ${tabsToRemove.length} duplicate tabs.`);
-                            await chrome.tabs.remove(tabsToRemove);
-                            // If we removed the current tab (unlikely due to heuristic), we stop processing?
-                            if (tabsToRemove.includes(tabId)) {
-                                return; // Tab is gone, no need to process
+                        const result = await DuplicateCloser.closeDuplicatesInWindow(tab.windowId);
+                        if (result.closedCount > 0) {
+                            console.log(`[Autopilot] Closed ${result.closedCount} duplicate tabs.`);
+                            // If we removed the current tab, stop processing
+                            if (result.tabsRemoved.includes(tabId)) {
+                                return;
                             }
                         }
                     }
                 } catch (e) {
-                    // Tab might be gone or error
                     console.error("[TabManager] Error checking duplicates:", e);
                 }
             }
