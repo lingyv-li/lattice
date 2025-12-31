@@ -1,10 +1,10 @@
-
 import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { SettingsStorage } from '../utils/storage';
 import { DuplicateCloser } from '../services/duplicates';
 import { debounce } from '../utils/debounce';
+import { FeatureId } from '../types/features';
 
 const DEBOUNCE_DELAY_MS = 1500;
 
@@ -78,10 +78,13 @@ export class TabManager {
     async handleTabUpdated(tabId: number, changeInfo: { url?: string; status?: string; groupId?: number }) {
         // Autopilot: close duplicates when a tab navigates or finishes loading
         if (changeInfo.url || changeInfo.status === 'complete') {
-            // Check for Autopilot duplicate cleaning
+            // Check global autopilot setting for Tab Grouper
             const settings = await SettingsStorage.get();
-            if (settings.autopilot?.['duplicate-cleaner']) {
-                // Scope to the window of the updated tab? 
+            // FIX: Use DuplicateCleaner for this check, as per original logic
+            const autopilotEnabled = settings.features?.[FeatureId.DuplicateCleaner]?.autopilot ?? false;
+
+            if (autopilotEnabled) {
+                console.log(`[TabManager] Autopilot enabled for duplicate cleaning (tabId: ${tabId}).`);
                 // We need the tab object to know the windowId, but handleTabUpdated only gives ID.
                 // We'll query for the tab first.
                 try {

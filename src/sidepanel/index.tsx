@@ -9,15 +9,21 @@ import { Loader2 } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
-import { SettingsStorage } from '../utils/storage';
+import { SettingsStorage, FeatureSettings } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { ToastProvider, useToast } from '../context/ToastContext';
+
+import { FeatureId } from '../types/features';
 
 // Inner App component that can use the hook
 const InnerApp = () => {
     const { showToast } = useToast();
     const [modelInfo, _] = useState<string>("");
-    const [autopilot, setAutopilot] = useState<Record<string, boolean>>({});
+    // Unified Feature State
+    const [features, setFeatures] = useState<Record<FeatureId, FeatureSettings>>({
+        [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
+        [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+    });
 
     // Modal State
     const [modalConfig, setModalConfig] = useState<{
@@ -54,30 +60,51 @@ const InnerApp = () => {
     const tabGrouper = useTabGrouper();
     const duplicateCleaner = useDuplicateCleaner();
 
-    // Selection State with Persistence
-    const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set(['tab-grouper', 'duplicate-cleaner']));
 
     // Load persisted selection
     useEffect(() => {
         SettingsStorage.get().then(settings => {
-            if (settings.selectedCards) {
-                setSelectedCards(new Set(settings.selectedCards));
-            }
-            if (settings.autopilot !== undefined) {
-                setAutopilot(settings.autopilot || {});
+            if (settings.features) {
+                setFeatures(settings.features);
             }
         });
     }, []);
 
     // Persist selection changes
     useEffect(() => {
-        SettingsStorage.set({ selectedCards: Array.from(selectedCards), autopilot });
-    }, [selectedCards, autopilot]);
+        SettingsStorage.set({ features });
+    }, [features]);
 
-    const toggleAutopilot = (cardId: string, checked: boolean) => {
+    const updateFeature = (id: FeatureId, updates: Partial<FeatureSettings>) => {
+        setFeatures(prev => {
+            const current = prev[id];
+            // Safety check
+            if (!current) return prev;
+
+            const next = { ...current, ...updates };
+
+            // ENFORCE RULE: If enabled becomes false, autopilot must be false
+            if (updates.enabled === false) {
+                next.autopilot = false;
+            }
+
+            // Allow autopilot update only if enabled is true (or becoming true)
+            if (updates.autopilot === true && !next.enabled) {
+                // If trying to enable autopilot but feature is disabled, ignore or auto-enable?
+                // Plan said: "If enabled becomes false, autopilot must be false".
+                // Let's strictly enforce: Autopilot cannot be true if enabled is false.
+                next.enabled = true; // Auto-enable feature if autopilot is turned on? 
+                // OR prevent it. Let's just follow the 'uncheck' rule for now.
+            }
+
+            return { ...prev, [id]: next };
+        });
+    };
+
+    const toggleAutopilot = (cardId: FeatureId, checked: boolean) => {
         if (checked) {
             // User is turning ON autopilot -> Warn them
-            const isClosing = cardId === 'duplicate-cleaner';
+            const isClosing = cardId === FeatureId.DuplicateCleaner;
             const title = isClosing ? "Enable Auto-Removal?" : "Enable Auto-Grouping?";
             const description = isClosing
                 ? "This will automatically close duplicate tabs in the background. Closed tabs cannot be restored."
@@ -88,44 +115,40 @@ const InnerApp = () => {
                 title,
                 description,
                 onConfirm: () => {
-                    setAutopilot(prev => ({ ...prev, [cardId]: true }));
+                    updateFeature(cardId, { autopilot: true });
                 }
             });
         } else {
             // Turning OFF -> No warning needed
-            setAutopilot(prev => ({ ...prev, [cardId]: false }));
+            updateFeature(cardId, { autopilot: false });
         }
     };
 
-    const toggleCard = (id: string) => {
-        const newSet = new Set(selectedCards);
-
-        // Toggle the persistent selection state
-        if (newSet.has(id)) {
-            newSet.delete(id);
-            setAutopilot(prev => ({ ...prev, [id]: false }));
-        } else {
-            newSet.add(id);
-        }
+    const toggleCard = (id: FeatureId) => {
+        const isEnabled = features[id]?.enabled ?? false;
 
         // Feature-specific side effects
-        if (id === 'tab-grouper') {
-            const isNowSelected = newSet.has(id);
-            // If the user toggles the card, we want to select/deselect all inner items
-            tabGrouper.setAllGroupsSelected(isNowSelected);
+        if (id === FeatureId.TabGrouper) {
+            // We are about to toggle it. If it WAS enabled, it will become disabled.
+            // setAllGroupsSelected should reflect the NEW state.
+            tabGrouper.setAllGroupsSelected(!isEnabled);
         }
 
-        setSelectedCards(newSet);
+        updateFeature(id, { enabled: !isEnabled });
     };
 
     // Declarative Selection State:
     const effectiveSelectedCards = useMemo(() => {
-        const set = new Set(selectedCards);
+        const set = new Set<FeatureId>();
+        if (features[FeatureId.TabGrouper]?.enabled) set.add(FeatureId.TabGrouper);
+        if (features[FeatureId.DuplicateCleaner]?.enabled) set.add(FeatureId.DuplicateCleaner);
+
+        // Tab Grouper specific: also selecting if previewing
         if (tabGrouper.selectedPreviewIndices.size > 0) {
-            set.add('tab-grouper');
+            set.add(FeatureId.TabGrouper);
         }
         return set;
-    }, [selectedCards, tabGrouper.selectedPreviewIndices]);
+    }, [features, tabGrouper.selectedPreviewIndices]);
 
     // Derived States uses effective set
     const isProcessing =
@@ -135,20 +158,20 @@ const InnerApp = () => {
         duplicateCleaner.status === 'cleaning';
 
     const hasWork =
-        (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) ||
-        (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0);
+        (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) ||
+        (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0);
 
     // Handle Organize Action
     const handleOrganize = async () => {
         if (isProcessing) return;
 
         // 1. Duplicate Cleaner
-        if (effectiveSelectedCards.has('duplicate-cleaner') && duplicateCleaner.duplicateCount > 0) {
+        if (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0) {
             duplicateCleaner.closeDuplicates();
         }
 
         // 2. Tab Grouper
-        if (effectiveSelectedCards.has('tab-grouper')) {
+        if (effectiveSelectedCards.has(FeatureId.TabGrouper)) {
             // If processing (foreground or background), do nothing
             if (tabGrouper.status === 'processing' || tabGrouper.isBackgroundProcessing) return;
 
@@ -163,7 +186,7 @@ const InnerApp = () => {
     const getButtonLabel = () => {
         if (isProcessing) return "Processing...";
 
-        if (effectiveSelectedCards.has('tab-grouper') && tabGrouper.previewGroups) {
+        if (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) {
             return "Apply Changes";
         }
 
@@ -200,18 +223,18 @@ const InnerApp = () => {
                 <div className="space-y-3">
                     <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Tab Organization</h2>
                     <TabGrouperCard
-                        isSelected={effectiveSelectedCards.has('tab-grouper')}
-                        onToggle={() => toggleCard('tab-grouper')}
+                        isSelected={effectiveSelectedCards.has(FeatureId.TabGrouper)}
+                        onToggle={() => toggleCard(FeatureId.TabGrouper)}
                         data={tabGrouper}
-                        autopilotEnabled={!!autopilot['tab-grouper']}
-                        onAutopilotToggle={(enabled) => toggleAutopilot('tab-grouper', enabled)}
+                        autopilotEnabled={!!features[FeatureId.TabGrouper]?.autopilot}
+                        onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.TabGrouper, enabled)}
                     />
                     <DuplicateCleanerCard
-                        isSelected={effectiveSelectedCards.has('duplicate-cleaner')}
-                        onToggle={() => toggleCard('duplicate-cleaner')}
+                        isSelected={effectiveSelectedCards.has(FeatureId.DuplicateCleaner)}
+                        onToggle={() => toggleCard(FeatureId.DuplicateCleaner)}
                         data={duplicateCleaner}
-                        autopilotEnabled={!!autopilot['duplicate-cleaner']}
-                        onAutopilotToggle={(enabled) => toggleAutopilot('duplicate-cleaner', enabled)}
+                        autopilotEnabled={!!features[FeatureId.DuplicateCleaner]?.autopilot}
+                        onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.DuplicateCleaner, enabled)}
                     />
                 </div>
 

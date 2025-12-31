@@ -1,7 +1,14 @@
+import { FeatureId } from '../types/features';
+
 export enum AIProviderType {
     Local = 'local',
     Gemini = 'gemini',
     None = 'none'
+}
+
+export interface FeatureSettings {
+    enabled: boolean;
+    autopilot: boolean;
 }
 
 export interface AppSettings {
@@ -9,8 +16,8 @@ export interface AppSettings {
     aiProvider: AIProviderType;
     aiModel: string;
     geminiApiKey: string;
-    autopilot: Record<string, boolean>;
-    selectedCards?: string[];
+    // Unified Feature State
+    features: Record<FeatureId, FeatureSettings>;
     processingDebounceDelay?: number;
 }
 
@@ -22,7 +29,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     aiProvider: AIProviderType.None,
     aiModel: '',
     geminiApiKey: "",
-    autopilot: {},
+    features: {
+        [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
+        [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+    },
     processingDebounceDelay: 2000,
 };
 
@@ -33,8 +43,9 @@ export type SettingsChanges = {
 export const SettingsStorage = {
     get: async (): Promise<AppSettings> => {
         return new Promise((resolve) => {
-            chrome.storage.sync.get(DEFAULT_SETTINGS as unknown as { [key: string]: any }, (items) => {
-                resolve(items as unknown as AppSettings);
+            chrome.storage.sync.get(null, (items) => {
+                const settings = { ...DEFAULT_SETTINGS, ...items } as AppSettings;
+                resolve(settings);
             });
         });
     },

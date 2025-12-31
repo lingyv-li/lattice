@@ -4,6 +4,7 @@ import { StateService } from '../state';
 import { AIService } from '../../services/ai/AIService';
 import { SettingsStorage } from '../../utils/storage';
 import { applyTabGroup } from '../../utils/tabs';
+import { FeatureId } from '../../types/features';
 
 // Mock dependencies
 vi.mock('../processing');
@@ -58,7 +59,12 @@ describe('QueueProcessor', () => {
         processor = new QueueProcessor(mockState);
 
         // Default happy path mocks
-        mockSettings({ autopilot: {} });
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
+                [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+            }
+        });
         mockState.acquireQueue.mockReturnValue([101, 102]);
         mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
         mockWindows.get.mockResolvedValue({ id: 1, type: 'normal' });
@@ -87,7 +93,11 @@ describe('QueueProcessor', () => {
     };
 
     it('should cache suggestions when autopilot is OFF', async () => {
-        mockSettings({ autopilot: { 'tab-grouper': false } });
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: true, autopilot: false }
+            }
+        });
 
         await processor.process();
 
@@ -110,7 +120,11 @@ describe('QueueProcessor', () => {
     });
 
     it('should apply groups immediately when autopilot is ON', async () => {
-        mockSettings({ autopilot: { 'tab-grouper': true } });
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+            }
+        });
 
         await processor.process();
 
@@ -144,7 +158,11 @@ describe('QueueProcessor', () => {
 
     describe('staleness detection', () => {
         it('should release lock if tabs become stale', async () => {
-            mockSettings({ autopilot: false });
+            mockSettings({
+                features: {
+                    [FeatureId.TabGrouper]: { enabled: true, autopilot: false }
+                }
+            });
 
             // Tab changes URL during processing
             let callCount = 0;
@@ -166,7 +184,11 @@ describe('QueueProcessor', () => {
         });
 
         it('should skip tabs that moved to a different window during processing', async () => {
-            mockSettings({ autopilot: { 'tab-grouper': true } });
+            mockSettings({
+                features: {
+                    [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+                }
+            });
 
             // Tab 102 moves to window 2 (e.g. popup) during processing
             let callCount = 0;

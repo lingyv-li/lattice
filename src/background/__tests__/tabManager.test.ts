@@ -49,7 +49,12 @@ describe('TabManager', () => {
         // Default mocks
         mockTabs.query.mockResolvedValue([]);
         (StateService.getSuggestionCache as any).mockResolvedValue(new Map());
-        (SettingsStorage.get as any).mockResolvedValue({ autopilot: false });
+        (SettingsStorage.get as any).mockResolvedValue({
+            features: {
+                'tab-grouper': { enabled: true, autopilot: false },
+                'duplicate-cleaner': { enabled: true, autopilot: false }
+            }
+        });
     });
 
     afterEach(() => {
@@ -95,7 +100,11 @@ describe('TabManager', () => {
 
         describe('Autopilot Duplicate Cleaning', () => {
             beforeEach(() => {
-                (SettingsStorage.get as any).mockResolvedValue({ autopilot: {} });
+                (SettingsStorage.get as any).mockResolvedValue({
+                    features: {
+                        'duplicate-cleaner': { enabled: true, autopilot: false }
+                    }
+                });
             });
 
             it('should NOT check duplicates if autopilot is OFF', async () => {
@@ -104,7 +113,11 @@ describe('TabManager', () => {
             });
 
             it('should check and remove duplicates if autopilot is ON', async () => {
-                (SettingsStorage.get as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
+                (SettingsStorage.get as any).mockResolvedValue({
+                    features: {
+                        'duplicate-cleaner': { enabled: true, autopilot: true }
+                    }
+                });
 
                 const updatedTabId = 101;
                 const duplicateTabId = 102;
@@ -124,7 +137,11 @@ describe('TabManager', () => {
             });
 
             it('should NOT remove updated tab if it is the one to keep', async () => {
-                (SettingsStorage.get as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
+                (SettingsStorage.get as any).mockResolvedValue({
+                    features: {
+                        'duplicate-cleaner': { enabled: true, autopilot: true }
+                    }
+                });
                 const updatedTabId = 101;
                 mockTabs.get.mockResolvedValue({ id: updatedTabId, windowId: 1 });
 

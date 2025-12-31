@@ -7,6 +7,7 @@ import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
 import { computeBatchHash } from '../utils/hash';
 import { getUserFriendlyError } from '../utils/errors';
+import { FeatureId } from '../types/features';
 
 export class QueueProcessor {
     constructor(private state: ProcessingState) { }
@@ -142,7 +143,10 @@ export class QueueProcessor {
                     const suggestionsToUpdate = [];
 
                     for (const group of groups) {
-                        if (settings.autopilot?.['tab-grouper']) {
+                        // FIX: Use new features structure for autopilot check
+                        const autopilotEnabled = settings.features?.[FeatureId.TabGrouper]?.autopilot ?? false;
+
+                        if (autopilotEnabled) {
                             // Autopilot: Apply immediately
                             // Only include tabs that are still valid and in the correct window
                             const validTabIds = group.tabIds.filter(id => validCurrentTabs.find(t => t.id === id));
