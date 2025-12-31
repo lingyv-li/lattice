@@ -54,9 +54,9 @@ describe('GeminiProvider', () => {
 
         // Mock response
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify({
-                assignments: tabs.map(t => ({ tabId: t.id, groupName: 'Group A' }))
-            })
+            text: JSON.stringify(
+                tabs.map(t => ({ tabId: t.id, groupName: 'Group A' }))
+            )
         });
 
         await provider.generateSuggestions(request, () => { });
@@ -75,12 +75,10 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify({
-                assignments: [
-                    { tabId: 1, groupName: 'Shopping' },
-                    { tabId: 2, groupName: 'Shopping' }
-                ]
-            })
+            text: JSON.stringify([
+                { tabId: 1, groupName: 'Shopping' },
+                { tabId: 2, groupName: 'Shopping' }
+            ])
         });
 
         const result = await provider.generateSuggestions(request, () => { });
@@ -103,9 +101,9 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify({
-                assignments: [{ tabId: 1, groupName: 'Work' }]
-            })
+            text: JSON.stringify([
+                { tabId: 1, groupName: 'Work' }
+            ])
         });
 
         const result = await provider.generateSuggestions(request, () => { });
@@ -152,7 +150,7 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify({ assignments: [] })
+            text: JSON.stringify([])
         });
 
         await gemmaProvider.generateSuggestions(request, () => { });

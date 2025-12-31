@@ -43,18 +43,18 @@ export const cleanAndParseJson = (responseText: string): any => {
     }
 };
 
-export const constructSystemPrompt = (customRules: string = "", isBatch: boolean = false): string => {
+export const constructSystemPrompt = (customRules: string = ""): string => {
     return `You are a browser tab organizer. 
-    I will provide a list of "Existing Groups" and ${isBatch ? 'a list of "Ungrouped Tabs"' : 'a SINGLE "Ungrouped Tab"'}.
-    Your task is to assign ${isBatch ? 'EACH "Ungrouped Tab"' : 'the "Ungrouped Tab"'} to a group.
+    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+    Your task is to assign EACH "Ungrouped Tab" to a group.
 
     Rules:
     1. STRICTLY PREFER "Existing Groups". If the tab fits an existing group, you MUST use that EXACT name.
     2. Only create a NEW group name if the tab clearly does NOT fit any existing group.
     3. Use short, concise names for new groups (max 3 words).
     4. Do not include any markdown formatting or explanation.
-    5. Output ONLY a valid JSON object with the following structure:
-    ${isBatch ? '{"assignments": [{"tabId": number, "groupName": string}]}' : '{"groupName": string}'}
+    5. Output ONLY a valid JSON array with the following structure:
+    [{"tabId": number, "groupName": string}]
     ${customRules.trim().length > 0 ? `\n\nAdditional Rules:\n${customRules}` : ''}`;
 };
 

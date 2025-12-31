@@ -39,7 +39,7 @@ export abstract class BaseProvider implements AIProvider {
         }
 
         let processedCount = 0;
-        const systemPrompt = constructSystemPrompt(customRules, true);
+        const systemPrompt = constructSystemPrompt(customRules);
 
         for (const batch of batches) {
             const currentGroupNames = Array.from(groupNameMap.keys())
@@ -60,8 +60,8 @@ ${tabList}
                 const responseText = await this.promptAI(userPrompt, systemPrompt, customRules);
                 const parsed = cleanAndParseJson(responseText);
 
-                if (parsed.assignments && Array.isArray(parsed.assignments)) {
-                    for (const assignment of parsed.assignments) {
+                if (Array.isArray(parsed)) {
+                    for (const assignment of parsed) {
                         const { tabId, groupName } = assignment;
                         if (!batch.find(t => t.id === tabId)) continue;
 

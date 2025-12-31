@@ -37,9 +37,9 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }]
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify({
-            assignments: [{ tabId: 1, groupName: 'Group 1' }]
-        }));
+        mockPrompt.mockResolvedValue(JSON.stringify([
+            { tabId: 1, groupName: 'Group 1' }
+        ]));
 
         await provider.generateSuggestions(request, () => { });
 
@@ -57,9 +57,9 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 2, title: 'Tab', url: 'http://example.com' }],
             customRules: 'Rule B'
         };
-        mockPrompt.mockResolvedValue(JSON.stringify({
-            assignments: [{ tabId: 1, groupName: 'G' }]
-        }));
+        mockPrompt.mockResolvedValue(JSON.stringify([
+            { tabId: 1, groupName: 'G' }
+        ]));
 
         await provider.generateSuggestions(requestA, () => { });
         await provider.generateSuggestions(requestB, () => { });
@@ -78,12 +78,10 @@ describe('LocalProvider', () => {
             ungroupedTabs: tabs
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify({
-            assignments: [
-                { tabId: 1, groupName: 'Group A' },
-                { tabId: 2, groupName: 'Group A' }
-            ]
-        }));
+        mockPrompt.mockResolvedValue(JSON.stringify([
+            { tabId: 1, groupName: 'Group A' },
+            { tabId: 2, groupName: 'Group A' }
+        ]));
 
         const result = await provider.generateSuggestions(request, () => { });
 
