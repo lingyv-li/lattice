@@ -27,8 +27,10 @@ export class AIService {
             const modelList = await client.models.list();
 
             const models: ModelInfo[] = [];
+            const modelRegex = /^(models\/)?(gemini|gemma)/;
+
             for await (const model of modelList) {
-                if (model.name && model.name.includes('gemini') && model.supportedActions?.includes('generateContent')) {
+                if (model.name && modelRegex.test(model.name) && model.supportedActions?.includes('generateContent')) {
                     const id = model.name.replace('models/', '');
                     const displayName = model.displayName || id;
 
@@ -45,13 +47,14 @@ export class AIService {
                         displayName.toLowerCase().includes('robotics') ||
                         displayName.toLowerCase().includes('computer');
 
-                    const isLatestOrPreview = id.includes('latest') || id.includes('preview');
+                    const isLatestOrPreview = id.includes('latest') || id.includes('preview') || id.includes('it');
 
                     if (isLatestOrPreview && !isSpecialized) {
                         models.push({ id, displayName });
                     }
                 }
             }
+            console.log("Found models", models);
             return models;
 
         } catch (e) {

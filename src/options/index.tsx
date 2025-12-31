@@ -7,6 +7,7 @@ import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings, AIProviderTyp
 import { AIService } from '../services/ai/AIService';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
+import { ToastProvider, useToast } from '../context/ToastContext';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => {
     return twMerge(clsx(inputs));
@@ -27,9 +28,10 @@ const sortModels = (models: ModelInfo[]) => {
 
         // Priority tiers if versions match
         const getTier = (s: string) => {
-            if (s.includes('pro')) return 3;
-            if (s.includes('flash')) return 2;
-            if (s.includes('lite')) return 1;
+            if (s.includes('flash')) return 5;
+            if (s.includes('pro')) return 4;
+            if (s.includes('lite')) return 3;
+            // IT is lowest priority tier, but we want it.
             return 0;
         };
 
@@ -38,11 +40,23 @@ const sortModels = (models: ModelInfo[]) => {
 
         if (tA !== tB) return tB - tA; // Pro > Flash > Lite
 
+        // Sort by Parameter Size (for Gemma: 27b > 9b > 2b)
+        const getSize = (s: string) => {
+            const match = s.match(/-(\d+)b/);
+            return match ? parseInt(match[1]) : 0;
+        };
+
+        const sA = getSize(a.id);
+        const sB = getSize(b.id);
+
+        if (sA !== sB) return sB - sA; // Larger size first
+
         return a.displayName.localeCompare(b.displayName);
     });
 };
 
-const App = () => {
+const InnerApp = () => {
+    const { showToast } = useToast();
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saved, setSaved] = useState(false);
@@ -73,6 +87,7 @@ const App = () => {
             setAvailableModels(sortModels(models));
         } catch (e) {
             console.error("Failed to fetch models", e);
+            showToast("Failed to fetch Gemini models. Check your API Key.", 'error');
         } finally {
             setLoadingModels(false);
         }
@@ -95,9 +110,11 @@ const App = () => {
                     setDownloadProgress({ loaded, total });
                 });
                 setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
+                showToast("Local model initialized successfully", 'success');
             } catch (e: any) {
                 console.error("Failed to initialize local model", e);
                 setDownloadError(e.message || "Failed to load local AI model");
+                showToast("Failed to load local AI model", 'error');
                 // Don't switch provider if failed
             } finally {
                 setIsDownloading(false);
@@ -343,6 +360,12 @@ const App = () => {
         </div>
     );
 };
+
+const App = () => (
+    <ToastProvider>
+        <InnerApp />
+    </ToastProvider>
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>

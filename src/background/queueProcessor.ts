@@ -3,8 +3,10 @@ import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
 import { mapExistingGroups } from '../services/ai/shared';
 import { getSettings, AIProviderType } from '../utils/storage';
+import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
 import { computeBatchHash } from '../utils/hash';
+import { getUserFriendlyError } from '../utils/errors';
 
 export class QueueProcessor {
     constructor(private state: ProcessingState) { }
@@ -88,6 +90,18 @@ export class QueueProcessor {
 
                 if (errors.length > 0) {
                     console.warn(`[QueueProcessor] ${errors.length} batch errors for window ${windowId}:`, errors);
+
+                    for (const err of errors) {
+                        try {
+                            const errorMsg = getUserFriendlyError(err);
+
+                            // Persist error stack
+                            await ErrorStorage.addError(errorMsg);
+                            break; // Show the first error found
+                        } catch (e) {
+                            console.error("[QueueProcessor] Failed to persist batch error", e);
+                        }
+                    }
                 }
 
                 // Batch staleness check: re-fetch all tabs and groups, compare hash
@@ -164,8 +178,18 @@ export class QueueProcessor {
 
             // Note: automated cache broadcast happens via StateService listener
 
-        } catch (err) {
+        } catch (err: any) {
             console.error("[QueueProcessor] Processing error", err);
+
+            try {
+                const errorMsg = getUserFriendlyError(err);
+
+                // Persist error with timestamp to trigger onChanged in UI
+                await ErrorStorage.addError(errorMsg);
+            } catch (e) {
+                console.error("[QueueProcessor] Failed to handle error state", e);
+            }
+
             for (const id of tabIds) this.state.finish(id);
         }
     }

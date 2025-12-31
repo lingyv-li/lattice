@@ -18,11 +18,16 @@ export class GeminiProvider extends BaseProvider {
         if (!this.apiKey) throw new Error("API Key is missing for Gemini Cloud.");
 
         const client = new GoogleGenAI({ apiKey: this.apiKey });
+        const isGemma = this.model.includes('gemma');
 
-        const config = {
+        const config = isGemma ? {} : {
             responseMimeType: 'application/json',
             systemInstruction: systemPrompt,
         };
+
+        const finalUserPrompt = isGemma
+            ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
+            : userPrompt;
 
         const response = await client.models.generateContent({
             model: this.model,
@@ -30,7 +35,7 @@ export class GeminiProvider extends BaseProvider {
             contents: [
                 {
                     role: 'user',
-                    parts: [{ text: userPrompt }]
+                    parts: [{ text: finalUserPrompt }]
                 }
             ]
         });

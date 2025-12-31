@@ -12,8 +12,12 @@ import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
 import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
 import { getSettings, saveSettings } from '../utils/storage';
+import { ErrorStorage } from '../utils/errorStorage';
+import { ToastProvider, useToast } from '../context/ToastContext';
 
-const App = () => {
+// Inner App component that can use the hook
+const InnerApp = () => {
+    const { showToast } = useToast();
     const [modelInfo, _] = useState<string>("");
     const [autopilot, setAutopilot] = useState<Record<string, boolean>>({});
 
@@ -29,6 +33,24 @@ const App = () => {
         description: "",
         onConfirm: () => { }
     });
+
+    // Listen for background errors via storage
+    useEffect(() => {
+        const unsubscribe = ErrorStorage.subscribe((errors) => {
+            errors.forEach(err => showToast(err.message, 'error'));
+            ErrorStorage.clearErrors();
+        });
+
+        // Check for persisted errors
+        ErrorStorage.getErrors().then((errors) => {
+            if (errors.length > 0) {
+                errors.forEach(err => showToast(err.message, 'error'));
+                ErrorStorage.clearErrors();
+            }
+        });
+
+        return () => unsubscribe();
+    }, [showToast]);
 
     // Hooks
     const tabGrouper = useTabGrouper();
@@ -93,17 +115,12 @@ const App = () => {
             const isNowSelected = newSet.has(id);
             // If the user toggles the card, we want to select/deselect all inner items
             tabGrouper.setAllGroupsSelected(isNowSelected);
-
-            // If turning ON and we have no groups but can generate, maybe we should?
-            // Current behavior: User must click "Organize" to generate. This is fine.
         }
 
         setSelectedCards(newSet);
     };
 
     // Declarative Selection State:
-    // A card is selected if it's in the persisted set OR if it has active internal selections (e.g. tab groups).
-    // This derived state ensures the UI reflects if a "part" of the card is active.
     const effectiveSelectedCards = useMemo(() => {
         const set = new Set(selectedCards);
         if (tabGrouper.selectedPreviewIndices.size > 0) {
@@ -227,8 +244,6 @@ const App = () => {
             {/* Main Action Button - Floating Bottom */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
                 <div className="flex items-center gap-3">
-
-
                     <button
                         onClick={handleOrganize}
                         disabled={isProcessing || !hasWork}
@@ -257,6 +272,12 @@ const App = () => {
         </div>
     );
 };
+
+const App = () => (
+    <ToastProvider>
+        <InnerApp />
+    </ToastProvider>
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
     <StrictMode>

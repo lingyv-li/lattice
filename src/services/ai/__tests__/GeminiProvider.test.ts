@@ -144,4 +144,30 @@ describe('GeminiProvider', () => {
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].message).toContain('No response text');
     });
+    it('should handle Gemma models differently (no system instruction in config)', async () => {
+        const gemmaProvider = new GeminiProvider('fake-key', 'gemma-2-9b-it');
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+        };
+
+        mockGenerateContent.mockResolvedValue({
+            text: JSON.stringify({ assignments: [] })
+        });
+
+        await gemmaProvider.generateSuggestions(request, () => { });
+
+        const callArgs = mockGenerateContent.mock.calls[0][0];
+
+        // Config should be empty for Gemma
+        expect(callArgs.config).toEqual({});
+
+        // System prompt should be injected into user prompt
+        const promptText = callArgs.contents[0].parts[0].text;
+        expect(promptText).toContain('System Instructions:');
+        expect(promptText).toContain('Output ONLY valid JSON'); // Adjusted casing to match implementation if needed, checking insensitive? No, implementation has "Output ONLY valid JSON." vs "IMPORTANT: Output ONLY valid JSON."
+        // Implementation: `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
+        expect(promptText).toContain('IMPORTANT: Output ONLY valid JSON');
+    });
 });
+

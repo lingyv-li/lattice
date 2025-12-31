@@ -45,7 +45,7 @@ describe('badge utils', () => {
             // Mock active tab for window
             queryMock.mockResolvedValue([{ id: 99 }]);
 
-            await updateWindowBadge(123, true, 0);
+            await updateWindowBadge(123, true, 0, false);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "...", tabId: 99 });
@@ -64,7 +64,7 @@ describe('badge utils', () => {
             });
 
             // processing=false, groupCount=2, duplicateCount=1 => Total 3
-            await updateWindowBadge(123, false, 2);
+            await updateWindowBadge(123, false, 2, false);
 
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "3", tabId: 99 });
             expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#22C55E", tabId: 99 });
@@ -72,8 +72,19 @@ describe('badge utils', () => {
 
         it('should do nothing if no active tab in window', async () => {
             queryMock.mockResolvedValue([]);
-            await updateWindowBadge(123, false, 0);
+            await updateWindowBadge(123, false, 0, false);
             expect(setBadgeTextMock).not.toHaveBeenCalled();
+        });
+
+        it('should show error state with correct color', async () => {
+            // Mock active tab for window
+            queryMock.mockResolvedValue([{ id: 99 }]);
+
+            await updateWindowBadge(123, false, 0, true);
+
+            expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "ERR", tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#D93025", tabId: 99 });
         });
     });
 });

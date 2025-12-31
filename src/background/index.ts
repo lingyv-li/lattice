@@ -4,6 +4,7 @@ import { QueueProcessor } from './queueProcessor';
 import { TabManager } from './tabManager';
 
 import { updateWindowBadge } from '../utils/badge';
+import { ErrorStorage } from '../utils/errorStorage';
 import { getSettings, saveSettings, AIProviderType } from '../utils/storage';
 
 import { TabGroupResponse } from '../types/tabGrouper';
@@ -29,6 +30,9 @@ StateService.subscribe(async () => {
 // Removed local implementation in favor of utils/badge.ts
 
 const performBadgeUpdate = async () => {
+    // Check for global error
+    const hasError = await ErrorStorage.hasErrors();
+
     const isProcessing = processingState.isProcessing;
 
     // We need to calculate group counts PER WINDOW
@@ -61,7 +65,7 @@ const performBadgeUpdate = async () => {
     // 3. Update badge for each window
     for (const windowId of windows) {
         const groupCount = windowGroupCounts.get(windowId)?.size || 0;
-        await updateWindowBadge(windowId, isProcessing, groupCount);
+        await updateWindowBadge(windowId, isProcessing, groupCount, hasError);
     }
 };
 
