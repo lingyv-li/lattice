@@ -40,7 +40,10 @@ describe('TabManager', () => {
             clear: vi.fn(),
             size: 0
         };
-        tabManager = new TabManager(mockProcessingState);
+        const mockQueueProcessor = {
+            process: vi.fn().mockResolvedValue(undefined)
+        };
+        tabManager = new TabManager(mockProcessingState, mockQueueProcessor as any);
 
         // Default mocks
         mockTabs.query.mockResolvedValue([]);
@@ -140,7 +143,6 @@ describe('TabManager', () => {
         it('should debounce multiple rapid calls', async () => {
             const mockTab = { id: 200, groupId: -1, url: 'url', title: 'title', status: 'complete' };
             mockTabs.query.mockResolvedValue([mockTab]);
-            mockProcessingState.add.mockReturnValue(true);
 
             // Call multiple times rapidly
             tabManager.triggerRecalculation();
@@ -150,24 +152,22 @@ describe('TabManager', () => {
             // Before debounce timer fires, no processing should have occurred
             expect(mockTabs.query).not.toHaveBeenCalled();
 
-            // Advance past debounce delay (300ms)
-            await vi.advanceTimersByTimeAsync(350);
+            // Advance past debounce delay (1500ms)
+            await vi.advanceTimersByTimeAsync(1600);
 
             // Should only have queried once despite 3 calls
             expect(mockTabs.query).toHaveBeenCalledTimes(1);
         });
 
-        it('should add tabs to processing state and schedule alarm', async () => {
+        it('should add tabs to processing state after debounce', async () => {
             const mockTab = { id: 200, groupId: -1, url: 'url', title: 'title', status: 'complete' };
             mockTabs.query.mockResolvedValue([mockTab]);
-            mockProcessingState.add.mockReturnValue(true);
 
             tabManager.triggerRecalculation();
-            await vi.advanceTimersByTimeAsync(350);
+            await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockTabs.query).toHaveBeenCalledWith({ windowType: 'normal' });
             expect(mockProcessingState.add).toHaveBeenCalledWith(200);
-            expect(mockAlarms.create).toHaveBeenCalled();
         });
 
         it('should filter out already grouped tabs', async () => {
@@ -175,7 +175,7 @@ describe('TabManager', () => {
             mockTabs.query.mockResolvedValue([mockTab]);
 
             tabManager.triggerRecalculation();
-            await vi.advanceTimersByTimeAsync(350);
+            await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).not.toHaveBeenCalled();
         });
@@ -196,7 +196,7 @@ describe('TabManager', () => {
                 mockTabs.query.mockResolvedValue([mockTab]);
 
                 tabManager.triggerRecalculation();
-                await vi.advanceTimersByTimeAsync(350);
+                await vi.advanceTimersByTimeAsync(1600);
 
                 expect(mockProcessingState.add).not.toHaveBeenCalled();
             }
@@ -208,10 +208,9 @@ describe('TabManager', () => {
                 { id: 401, groupId: -1, url: 'chrome://newtab/', title: 'New tab', status: 'complete' }
             ];
             mockTabs.query.mockResolvedValue(tabs);
-            mockProcessingState.add.mockReturnValue(true);
 
             tabManager.triggerRecalculation();
-            await vi.advanceTimersByTimeAsync(350);
+            await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).toHaveBeenCalledWith(400);
             expect(mockProcessingState.add).not.toHaveBeenCalledWith(401);
@@ -224,10 +223,9 @@ describe('TabManager', () => {
             (StateService.getSuggestionCache as any).mockResolvedValue(new Map([[501, { tabId: 501 }]]));
 
             tabManager.triggerRecalculation();
-            await vi.advanceTimersByTimeAsync(350);
+            await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).not.toHaveBeenCalled();
         });
     });
 });
-

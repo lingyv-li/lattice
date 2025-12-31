@@ -1,32 +1,35 @@
 
 import { StateService } from './state';
 import { ProcessingState } from './processing';
+import { QueueProcessor } from './queueProcessor';
 import { getSettings } from '../utils/storage';
 import { findDuplicates, getTabsToRemove } from '../utils/duplicates';
 import { debounce } from '../utils/debounce';
 
-const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
-const PROCESS_DELAY_MS = 1000;
-const RECALCULATION_DEBOUNCE_MS = 300;
+const DEBOUNCE_DELAY_MS = 1500;
 
 export class TabManager {
-    private debouncedRecalculate: () => void;
+    private debouncedProcess: () => void;
 
-    constructor(private processingState: ProcessingState) {
-        this.debouncedRecalculate = debounce(() => {
-            this.queueUngroupedTabs();
-        }, RECALCULATION_DEBOUNCE_MS);
+    constructor(
+        private processingState: ProcessingState,
+        private queueProcessor: QueueProcessor
+    ) {
+        this.debouncedProcess = debounce(() => {
+            this.queueAndProcess();
+        }, DEBOUNCE_DELAY_MS);
     }
 
     /**
      * Single entry point for triggering tab recalculation.
-     * Debounces multiple rapid calls (e.g., from group events firing per-tab).
+     * Uses setTimeout debounce - safe for sub-30-second delays while service worker is active.
      */
     triggerRecalculation() {
-        this.debouncedRecalculate();
+        console.log("[TabManager] Triggering recalculation (debounced)");
+        this.debouncedProcess();
     }
 
-    private async queueUngroupedTabs() {
+    private async queueAndProcess() {
         const allTabs = await chrome.tabs.query({ windowType: chrome.tabs.WindowType.NORMAL });
         const cache = await StateService.getSuggestionCache();
 
@@ -49,21 +52,17 @@ export class TabManager {
             !this.processingState.has(t.id)
         );
 
-        let added = false;
         for (const tab of tabsToProcess) {
-            if (tab.id && this.processingState.add(tab.id)) {
-                added = true;
+            if (tab.id) {
+                this.processingState.add(tab.id);
             }
         }
 
-        if (added || this.processingState.size > 0) {
-            this.scheduleProcessing();
+        // Process immediately if we have tabs queued
+        if (tabsToProcess.length > 0) {
+            console.log("[TabManager] Processing queued tabs");
+            await this.queueProcessor.process();
         }
-    }
-
-    private scheduleProcessing() {
-        console.log("[TabManager] Scheduling processing alarm");
-        chrome.alarms.create(PROCESS_TABS_ALARM_NAME, { when: Date.now() + PROCESS_DELAY_MS });
     }
 
     async handleTabUpdated(tabId: number, changeInfo: { url?: string; status?: string; groupId?: number }) {

@@ -9,10 +9,6 @@ import { TabGroupResponse } from '../types/tabGrouper';
 
 console.log("[Background] Service Worker Initialized");
 
-// ===== CONSTANTS =====
-const PROCESS_TABS_ALARM_NAME = 'process_tabs_alarm';
-
-// ===== STATE =====
 // ===== STATE =====
 // Processing queue managed by ProcessingState
 // This handles status updates internally and fires the callback on change
@@ -90,17 +86,9 @@ const broadcastProcessingStatus = async (isProcessing: boolean) => {
 // ===== LOGIC =====
 
 const queueProcessor = new QueueProcessor(processingState);
-const tabManager = new TabManager(processingState);
+const tabManager = new TabManager(processingState, queueProcessor);
 
 // ===== LISTENERS =====
-
-// 1. Alarms (The core fix)
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === PROCESS_TABS_ALARM_NAME) {
-        console.log("[Background] Alarm fired, processing queue");
-        await queueProcessor.process();
-    }
-});
 
 // 2. Tab Events
 chrome.tabs.onCreated.addListener(async (tab) => {
