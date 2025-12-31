@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Lattice",
+    "name": "Lattice Tabs - AI Tab Manager",
     "version": "0.2.0",
-    "description": "Your AI-powered browser assistant for organizing tabs and cleaning history.",
+    "description": "Organize tabs with privacy-first Local AI. No data leaves your device.",
     "permissions": [
         "downloads",
         "storage",

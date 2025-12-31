@@ -137,7 +137,7 @@ const InnerApp = () => {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-main tracking-tight">Lattice</h1>
-                        <p className="text-sm text-muted font-medium">AI Browser Organizer</p>
+                        <p className="text-sm text-muted font-medium">AI Tab Manager</p>
                     </div>
                 </div>
 

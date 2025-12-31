@@ -1,44 +1,63 @@
-# Lattice - Chrome Cleaner & Tab Organizer
+# Lattice Tabs - AI Tab Manager
 
-A powerful Chrome Extension helping you keep your browser clean and organized using on-device AI.
+A privacy-first Chrome extension that organizes your tabs using **Local AI** (Gemini Nano). No data leaves your device.
+
+## Why Lattice Tabs?
+
+Most AI tab managers send your browsing data to the cloud. Lattice Tabs uses Chrome's **built-in Gemini Nano** model, which runs entirely on your device. This means:
+
+- **Zero network requests** for tab analysis (verify in DevTools Network tab)
+- **No API keys required** for local mode
+- **No subscription fees** - local AI has zero marginal cost
+
+### Optional Cloud Mode
+
+For users who want more powerful reasoning (e.g., non-English content or complex research topics), you can optionally enable **Gemini Cloud** with your own API key.
 
 ## Features
 
-### 🤖 AI Tab Grouper
-Automatically organizes your cluttered tabs into logical groups using Chrome's built-in Nano Gemini model.
-- **Privacy First**: All processing happens locally on your device.
-- **Smart Grouping**: Intelligently categorizes tabs based on their content.
-- **One-Click Organization**: Review suggested groups and apply them instantly.
+### 🤖 AI Tab Grouping
+- **Autopilot Mode**: Runs in the background, groups tabs automatically as you browse
+- **Copilot Mode**: Generates suggestions, waits for your approval before applying
+- **Custom Rules**: Define your own grouping preferences (e.g., "Never group by domain")
 
 ### 🧹 Download Cleaner
-Keep your downloads folder tidy by identifying and removing:
-- **Duplicate Files**: Removes `(1)`, `(2)` copies of files.
-- **Interrupted Downloads**: Cleans up failed or incomplete downloads.
-- **Missing Files**: Removes entries for files that no longer exist on disk.
-
-### ⚡ Performance
-- Built with **React 19** and **Vite** for blazing fast performance.
-- Uses **Tailwind CSS** for a modern, lightweight UI.
-- **Service Worker** architecture for efficient background processing.
+Keep your downloads tidy:
+- Remove duplicate files (`(1)`, `(2)` copies)
+- Clean up interrupted/failed downloads
+- Remove entries for files that no longer exist
 
 ## Installation
 
-1. Clone the repository.
-2. Run `npm install` to install dependencies.
-3. Run `npm run build` to build the extension.
-4. Open Chrome and navigate to `chrome://extensions/`.
-5. Enable "Developer mode".
-6. Click "Load unpacked" and select the `dist` directory.
+1. Clone the repository
+2. `npm install`
+3. `npm run build`
+4. Open `chrome://extensions/`, enable "Developer mode"
+5. "Load unpacked" → select the `dist` directory
 
 ## Development
 
-- `npm run dev`: Start the development server.
-- `npm run build`: Build for production.
-- `npm run lint`: Run linting checks.
-- `npm run pack`: Create a release zip file.
+```bash
+npm run dev      # Start dev server
+npm run build    # Build for production
+npm run test     # Run tests
+npm run pack     # Create release zip
+```
 
 ## Tech Stack
 
-- **Frontend**: React, TypeScript, Tailwind CSS, Lucide React
-- **Build Tool**: Vite
-- **AI**: Chrome Built-in AI (Gemini Nano)
+- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **AI**: Chrome Built-in AI (Gemini Nano) + Optional Gemini Cloud
+- **Build**: Vite
+- **Architecture**: Manifest V3, Service Worker
+
+## Privacy
+
+This extension:
+- ✅ Processes tabs locally using Chrome's built-in AI
+- ✅ Never sends browsing data to external servers (in local mode)
+- ✅ Open source - audit the code yourself
+
+## License
+
+MIT
