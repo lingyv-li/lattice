@@ -5,40 +5,50 @@ import { applyTabGroup } from '../tabs';
 // Mock chrome API
 const mockTabs = {
     group: vi.fn(),
-    get: vi.fn(),
 };
 const mockTabGroups = {
     update: vi.fn(),
-    TAB_GROUP_ID_NONE: -1,
+};
+const mockWindows = {
+    get: vi.fn(),
 };
 
 global.chrome = {
     tabs: mockTabs,
     tabGroups: mockTabGroups,
+    windows: mockWindows,
 } as any;
 
 describe('applyTabGroup', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        // Default mock: tabs exist and are not in a group
-        mockTabs.get.mockImplementation((tabId: number) =>
-            Promise.resolve({ id: tabId, groupId: -1 })
-        );
+        // Default: normal window with tabs 1-10
+        mockWindows.get.mockResolvedValue({
+            id: 1,
+            type: 'normal',
+            tabs: [
+                { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 },
+                { id: 6 }, { id: 7 }, { id: 8 }, { id: 9 }, { id: 10 }
+            ]
+        });
     });
 
     it('should return undefined if no tabIds provided', async () => {
-        const result = await applyTabGroup([], 'New Group');
+        const result = await applyTabGroup([], 'New Group', null, 1);
         expect(result).toBeUndefined();
         expect(mockTabs.group).not.toHaveBeenCalled();
     });
 
-    it('should create a new group if no existingGroupId provided', async () => {
+    it('should create a new group with windowId if no existingGroupId provided', async () => {
         mockTabs.group.mockResolvedValue(123);
         mockTabGroups.update.mockResolvedValue({ id: 123, title: 'New Group' });
 
-        const result = await applyTabGroup([1, 2], 'New Group');
+        const result = await applyTabGroup([1, 2], 'New Group', null, 1);
 
-        expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [1, 2] });
+        expect(mockTabs.group).toHaveBeenCalledWith({
+            tabIds: [1, 2],
+            createProperties: { windowId: 1 }
+        });
         expect(mockTabGroups.update).toHaveBeenCalledWith(123, { title: 'New Group' });
         expect(result).toBe(123);
     });
@@ -46,10 +56,10 @@ describe('applyTabGroup', () => {
     it('should add to existing group if existingGroupId provided', async () => {
         mockTabs.group.mockResolvedValue(456);
 
-        const result = await applyTabGroup([3], 'Existing Group', 456);
+        const result = await applyTabGroup([3], 'Existing Group', 456, 1);
 
         expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [3], groupId: 456 });
-        expect(mockTabGroups.update).not.toHaveBeenCalled(); // Should not update title if just adding
+        expect(mockTabGroups.update).not.toHaveBeenCalled();
         expect(result).toBe(456);
     });
 
@@ -59,11 +69,14 @@ describe('applyTabGroup', () => {
         // Second call (fallback) succeeds
         mockTabs.group.mockResolvedValue(789);
 
-        const result = await applyTabGroup([4], 'Fallback Group', 999);
+        const result = await applyTabGroup([4], 'Fallback Group', 999, 1);
 
         expect(mockTabs.group).toHaveBeenCalledTimes(2);
         expect(mockTabs.group).toHaveBeenNthCalledWith(1, { tabIds: [4], groupId: 999 });
-        expect(mockTabs.group).toHaveBeenNthCalledWith(2, { tabIds: [4] });
+        expect(mockTabs.group).toHaveBeenNthCalledWith(2, {
+            tabIds: [4],
+            createProperties: { windowId: 1 }
+        });
 
         expect(mockTabGroups.update).toHaveBeenCalledWith(789, { title: 'Fallback Group' });
         expect(result).toBe(789);
@@ -72,48 +85,56 @@ describe('applyTabGroup', () => {
     it('should throw error if adding to existing group fails with other error', async () => {
         mockTabs.group.mockRejectedValue(new Error("Random error"));
 
-        await expect(applyTabGroup([5], 'Error Group', 888)).rejects.toThrow("Random error");
+        await expect(applyTabGroup([5], 'Error Group', 888, 1)).rejects.toThrow("Random error");
 
         expect(mockTabs.group).toHaveBeenCalledTimes(1);
         expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [5], groupId: 888 });
     });
 
-    it('should skip tabs that no longer exist', async () => {
-        // Tab 1 exists, tab 2 does not
-        mockTabs.get.mockImplementation((tabId: number) => {
-            if (tabId === 1) return Promise.resolve({ id: 1, groupId: -1 });
-            return Promise.reject(new Error('Tab not found'));
+    it('should return undefined if window is not normal type', async () => {
+        mockWindows.get.mockResolvedValue({ id: 1, type: 'popup', tabs: [] });
+
+        const result = await applyTabGroup([1, 2], 'New Group', null, 1);
+
+        expect(result).toBeUndefined();
+        expect(mockTabs.group).not.toHaveBeenCalled();
+    });
+
+    it('should return undefined if window does not exist', async () => {
+        mockWindows.get.mockRejectedValue(new Error('Window not found'));
+
+        const result = await applyTabGroup([1, 2], 'New Group', null, 999);
+
+        expect(result).toBeUndefined();
+        expect(mockTabs.group).not.toHaveBeenCalled();
+    });
+
+    it('should filter out tabs not in the window', async () => {
+        mockWindows.get.mockResolvedValue({
+            id: 1,
+            type: 'normal',
+            tabs: [{ id: 1 }, { id: 2 }] // Only tabs 1 and 2 are in window
         });
         mockTabs.group.mockResolvedValue(123);
 
-        const result = await applyTabGroup([1, 2], 'New Group');
+        const result = await applyTabGroup([1, 2, 99, 100], 'New Group', null, 1);
 
-        expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [1] });
+        // Should only include tabs 1 and 2
+        expect(mockTabs.group).toHaveBeenCalledWith({
+            tabIds: [1, 2],
+            createProperties: { windowId: 1 }
+        });
         expect(result).toBe(123);
     });
 
-    it('should skip tabs that are already in a group', async () => {
-        // Tab 1 is not in a group, tab 2 is already in group 999
-        mockTabs.get.mockImplementation((tabId: number) => {
-            if (tabId === 1) return Promise.resolve({ id: 1, groupId: -1 });
-            return Promise.resolve({ id: 2, groupId: 999 });
-        });
-        mockTabs.group.mockResolvedValue(123);
-
-        const result = await applyTabGroup([1, 2], 'New Group');
-
-        expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [1] });
-        expect(result).toBe(123);
-    });
-
-    it('should return undefined if all tabs are already grouped or missing', async () => {
-        // Tab 1 is already grouped, tab 2 does not exist
-        mockTabs.get.mockImplementation((tabId: number) => {
-            if (tabId === 1) return Promise.resolve({ id: 1, groupId: 999 });
-            return Promise.reject(new Error('Tab not found'));
+    it('should return undefined if no tabs are in the window', async () => {
+        mockWindows.get.mockResolvedValue({
+            id: 1,
+            type: 'normal',
+            tabs: [{ id: 99 }] // None of the requested tabs are here
         });
 
-        const result = await applyTabGroup([1, 2], 'New Group');
+        const result = await applyTabGroup([1, 2], 'New Group', null, 1);
 
         expect(result).toBeUndefined();
         expect(mockTabs.group).not.toHaveBeenCalled();

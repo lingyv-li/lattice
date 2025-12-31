@@ -37,7 +37,6 @@ export class ProcessingState {
 
     add(tabId: number): boolean {
         if (!this.queue.has(tabId)) {
-            console.log(`[ProcessingState] Added tab ${tabId} to queue`);
             this.queue.add(tabId);
             this.updateStatus();
             return true;

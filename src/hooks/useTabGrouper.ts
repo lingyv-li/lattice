@@ -242,6 +242,8 @@ export const useTabGrouper = () => {
         setStatus(TabGrouperStatus.Processing);
 
         try {
+            const currentWindow = await chrome.windows.getCurrent();
+
             for (let i = 0; i < previewGroups.length; i++) {
                 if (!selectedPreviewIndices.has(i)) continue;
 
@@ -253,7 +255,8 @@ export const useTabGrouper = () => {
                         await applyTabGroup(
                             validTabIds,
                             group.groupName,
-                            group.existingGroupId
+                            group.existingGroupId,
+                            currentWindow.id!
                         );
                     }
                 }

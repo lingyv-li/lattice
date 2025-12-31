@@ -151,7 +151,8 @@ export class QueueProcessor {
                                 await applyTabGroup(
                                     validTabIds,
                                     group.groupName,
-                                    group.existingGroupId
+                                    group.existingGroupId,
+                                    windowId
                                 );
                                 for (const tid of validTabIds) groupedTabIds.add(tid);
                             }

@@ -119,7 +119,7 @@ describe('QueueProcessor', () => {
         expect(provider.generateSuggestions).toHaveBeenCalled();
 
         // Should apply group
-        expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null);
+        expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null, 1);
 
         // Should NOT cache suggestion (except maybe negative results? logic says only skipped if applied)
         expect(StateService.updateSuggestions).not.toHaveBeenCalled();
@@ -183,7 +183,7 @@ describe('QueueProcessor', () => {
 
             // Should NOT apply group for tab 102 because it moved
             // Tab 101 is still valid
-            expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null);
+            expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null, 1);
             expect(applyTabGroup).not.toHaveBeenCalledWith(expect.arrayContaining([102]), expect.any(String), expect.any(Object));
             expect(mockState.release).toHaveBeenCalled();
         });

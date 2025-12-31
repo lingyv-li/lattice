@@ -4,29 +4,31 @@
  * If an existingGroupId is provided, tries to add tabs to that group.
  * If that fails or no existingGroupId is provided, creates a new group.
  * 
+ * @param windowId - The window ID to create the group in.
  * @returns The groupId of the group (existing or new)
  */
 export const applyTabGroup = async (
     tabIds: number[],
     groupName: string,
-    existingGroupId?: number | null
+    existingGroupId: number | null | undefined,
+    windowId: number
 ): Promise<number | undefined> => {
     if (!tabIds || tabIds.length === 0) return undefined;
 
-    // Filter out tabs that no longer exist or already have a group
-    const validTabIds: number[] = [];
-    for (const tabId of tabIds) {
-        try {
-            const tab = await chrome.tabs.get(tabId);
-            // groupId of -1 means not in a group, skip tabs already in a group
-            if (tab.groupId === -1 || tab.groupId === chrome.tabGroups.TAB_GROUP_ID_NONE) {
-                validTabIds.push(tabId);
-            }
-        } catch {
-            // Tab no longer exists, skip it
+    // Validate window type and get tabs in single API call
+    let windowTabIds: Set<number>;
+    try {
+        const window = await chrome.windows.get(windowId, { populate: true });
+        if (window.type !== 'normal') {
+            return undefined; // Can't group tabs in non-normal windows
         }
+        windowTabIds = new Set(window.tabs?.map(t => t.id).filter((id): id is number => id !== undefined) ?? []);
+    } catch {
+        return undefined; // Window doesn't exist
     }
 
+    // Filter to only tabs that are still in this window
+    const validTabIds = tabIds.filter(id => windowTabIds.has(id));
     if (validTabIds.length === 0) return undefined;
 
     // After the length check, we know validTabIds is non-empty
@@ -43,8 +45,11 @@ export const applyTabGroup = async (
         } catch (e: any) {
             // Check for specific error message regarding missing group
             if (e.message && e.message.includes("No group with id")) {
-                // Fallback: Create new group instead
-                const groupId = await chrome.tabs.group({ tabIds: tabIdsToGroup });
+                // Fallback: Create new group in specified window
+                const groupId = await chrome.tabs.group({
+                    tabIds: tabIdsToGroup,
+                    createProperties: { windowId }
+                });
                 await chrome.tabGroups.update(groupId, { title: groupName });
                 return groupId;
             } else {
@@ -52,8 +57,11 @@ export const applyTabGroup = async (
             }
         }
     } else {
-        // Create new group
-        const groupId = await chrome.tabs.group({ tabIds: tabIdsToGroup });
+        // Create new group in specified window
+        const groupId = await chrome.tabs.group({
+            tabIds: tabIdsToGroup,
+            createProperties: { windowId }
+        });
         await chrome.tabGroups.update(groupId, { title: groupName });
         return groupId;
     }
