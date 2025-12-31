@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi } from 'vitest';
-import { ProcessingState } from './processing';
+import { ProcessingState } from '../processing';
 
 describe('ProcessingState', () => {
     it('should initialize with no processing', () => {

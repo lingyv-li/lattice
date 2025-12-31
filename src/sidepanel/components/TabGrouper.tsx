@@ -1,8 +1,8 @@
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
-import { useTabGrouper } from '../hooks/useTabGrouper';
-import { TabGrouperStatus } from '../types/tabGrouper';
-import { TabGroupPreview } from './components/TabGroupPreview';
-import { CleanState } from './components/CleanState';
+import { useTabGrouper } from '../../hooks/useTabGrouper';
+import { TabGrouperStatus } from '../../types/tabGrouper';
+import { TabGroupPreview } from './TabGroupPreview';
+import { CleanState } from './CleanState';
 
 export const TabGrouper = () => {
     const {

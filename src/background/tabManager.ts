@@ -3,7 +3,7 @@ import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { getSettings } from '../utils/storage';
-import { DuplicateCloser } from '../services/DuplicateCloser';
+import { DuplicateCloser } from '../services/duplicates';
 import { debounce } from '../utils/debounce';
 
 const DEBOUNCE_DELAY_MS = 1500;

@@ -1,6 +1,6 @@
 import { CopyMinus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { useDuplicateCleaner, DuplicateCleanerStatus } from '../hooks/useDuplicateCleaner';
-import { CleanState } from './components/CleanState';
+import { useDuplicateCleaner, DuplicateCleanerStatus } from '../../hooks/useDuplicateCleaner';
+import { CleanState } from './CleanState';
 
 export const DuplicateTabCleaner = () => {
     const { status, closedCount, duplicateCount, closeDuplicates } = useDuplicateCleaner();

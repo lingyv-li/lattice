@@ -1,4 +1,4 @@
-import { findDuplicates, getTabsToRemove } from '../utils/duplicates';
+import { findDuplicates, getTabsToRemove } from './utils';
 
 export interface CloseResult {
     closedCount: number;

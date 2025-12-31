@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { findDuplicates, countDuplicates } from '../utils/duplicates';
-import { DuplicateCloser } from '../services/DuplicateCloser';
+import { findDuplicates, countDuplicates } from '../services/duplicates';
+import { DuplicateCloser } from '../services/duplicates';
 
 
 export enum DuplicateCleanerStatus {

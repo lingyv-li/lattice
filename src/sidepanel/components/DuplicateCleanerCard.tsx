@@ -60,13 +60,13 @@ export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnab
                     <AlertCircle className="w-3 h-3" />
                     <span>Error cleaning duplicates</span>
                 </div>
-            ) : (
-                <div className="mt-2 text-xs text-muted">
-                    {duplicateCount > 0
-                        ? `Ready to close ${duplicateCount} duplicate ${duplicateCount === 1 ? 'tab' : 'tabs'}.`
-                        : "Everything looks clean!"}
-                </div>
-            )}
+            ) :
+                duplicateCount > 0 && (
+                    <div className="mt-2 text-xs text-muted">
+                        Ready to close {duplicateCount} duplicate {duplicateCount === 1 ? 'tab' : 'tabs'}.
+                    </div>
+                )
+            }
         </SelectionCard>
     );
 };

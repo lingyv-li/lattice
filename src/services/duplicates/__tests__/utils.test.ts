@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from 'vitest';
-import { findDuplicates, countDuplicates, getTabsToRemove } from '../duplicates';
+import { findDuplicates, countDuplicates, getTabsToRemove } from '../utils';
 
 describe('duplicates utility', () => {
     const createTab = (overrides: Partial<chrome.tabs.Tab> = {}): chrome.tabs.Tab => ({

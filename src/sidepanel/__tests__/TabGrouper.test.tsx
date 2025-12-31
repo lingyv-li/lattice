@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { TabGrouper } from '../TabGrouper';
+import { TabGrouper } from '../components/TabGrouper';
 import * as useTabGrouperHook from '../../hooks/useTabGrouper';
 
 // Mock the hook
