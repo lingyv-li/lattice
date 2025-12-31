@@ -1,36 +1,43 @@
-
 export class ProcessingState {
     private queue = new Set<number>();
-    private processing = new Set<number>();
+    private _isBusy = false;
+    private _lastEmittedState = false;
     private onStateChange: (isProcessing: boolean) => void;
-    private _isProcessing = false;
 
     constructor(onStateChange: (isProcessing: boolean) => void) {
         this.onStateChange = onStateChange;
     }
 
     private updateStatus() {
-        const newState = (this.queue.size + this.processing.size) > 0;
-        if (this._isProcessing !== newState) {
-            this._isProcessing = newState;
+        // Status is true if we are busy OR (busy and have items) OR (not busy and have items)
+        const newState = this._isBusy || this.queue.size > 0;
+
+        if (newState !== this._lastEmittedState) {
+            console.log(`[ProcessingState] Status changed: ${this._lastEmittedState} -> ${newState} (Busy: ${this._isBusy}, Queue: ${this.queue.size})`);
+            this._lastEmittedState = newState;
             this.onStateChange(newState);
         }
     }
 
     get isProcessing(): boolean {
-        return this._isProcessing;
+        return this._isBusy || this.queue.size > 0;
+    }
+
+    get isBusy(): boolean {
+        return this._isBusy;
     }
 
     get size(): number {
         return this.queue.size;
     }
 
-    get processingSize(): number {
-        return this.processing.size;
+    get hasItems(): boolean {
+        return this.queue.size > 0;
     }
 
     add(tabId: number): boolean {
-        if (!this.queue.has(tabId) && !this.processing.has(tabId)) {
+        if (!this.queue.has(tabId)) {
+            console.log(`[ProcessingState] Added tab ${tabId} to queue`);
             this.queue.add(tabId);
             this.updateStatus();
             return true;
@@ -39,39 +46,39 @@ export class ProcessingState {
     }
 
     has(tabId: number): boolean {
-        return this.queue.has(tabId) || this.processing.has(tabId);
+        return this.queue.has(tabId);
     }
 
-    // Move items from queue to processing
-    startProcessing(): number[] {
+    // Lock and get all items
+    acquireQueue(): number[] {
+        if (this._isBusy) {
+            console.log(`[ProcessingState] acquireQueue blocked: Busy`);
+            return [];
+        }
+
+        this._isBusy = true;
         const ids = Array.from(this.queue);
         this.queue.clear();
-        for (const id of ids) {
-            this.processing.add(id);
-        }
-        // Status likely remains true, but check anyway if queue was empty
+        console.log(`[ProcessingState] Acquired queue: ${ids.length} items`);
         this.updateStatus();
         return ids;
     }
 
-    finish(tabId: number) {
-        this.processing.delete(tabId);
-        // Also ensure it's removed from queue if it somehow got back in (rare but possible)
-        this.queue.delete(tabId);
+    release() {
+        console.log(`[ProcessingState] Releasing lock`);
+        this._isBusy = false;
         this.updateStatus();
     }
 
     remove(tabId: number): boolean {
-        let changed = false;
-        if (this.queue.delete(tabId)) changed = true;
-        if (this.processing.delete(tabId)) changed = true;
+        const changed = this.queue.delete(tabId);
         if (changed) this.updateStatus();
         return changed;
     }
 
     clear() {
         this.queue.clear();
-        this.processing.clear();
+        this._isBusy = false;
         this.updateStatus();
     }
 }

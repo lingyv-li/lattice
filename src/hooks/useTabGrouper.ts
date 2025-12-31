@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus, TabSuggestionCache } from '../types/tabGrouper';
 import { applyTabGroup } from '../utils/tabs';
-import { getSettings, AIProviderType } from '../utils/storage';
+import { AIProviderType, SettingsStorage } from '../utils/storage';
 
+import { StateService } from '../background/state';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -25,17 +26,17 @@ export const useTabGrouper = () => {
 
     // Check settings for enabled state
     useEffect(() => {
-        getSettings().then(s => {
+        SettingsStorage.get().then(s => {
             setAiEnabled(s.aiProvider !== AIProviderType.None);
         });
 
-        const changeListener = (changes: { [key: string]: chrome.storage.StorageChange }, area: string) => {
-            if (area === 'sync' && changes.aiProvider) {
+        const unsubscribe = SettingsStorage.subscribe((changes) => {
+            if (changes.aiProvider) {
                 setAiEnabled(changes.aiProvider.newValue !== AIProviderType.None);
             }
-        };
-        chrome.storage.onChanged.addListener(changeListener);
-        return () => chrome.storage.onChanged.removeListener(changeListener);
+        });
+
+        return () => unsubscribe();
     }, []);
 
     // Update refs when state changes
@@ -155,88 +156,86 @@ export const useTabGrouper = () => {
         };
     }, [scanUngrouped]);
 
+    // Process suggestions and update state
+    const processSuggestions = useCallback(async (cache: Map<number, TabSuggestionCache>) => {
+        const newValue = Array.from(cache.values());
+        const map = await scanUngrouped();
+
+        let groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
+        if (newValue && Array.isArray(newValue) && newValue.length > 0) {
+            groups = convertCacheToGroups(newValue, map);
+        }
+
+        // Check if groups actually changed to prevent resetting selection
+        // Use ref to compare against current state without adding dependency
+        const currentGroups = previewGroupsRef.current;
+        if (currentGroups && JSON.stringify(groups) === JSON.stringify(currentGroups)) {
+            return;
+        }
+
+        const currentStatus = statusRef.current;
+        if (groups.length > 0 && currentStatus !== TabGrouperStatus.Processing && currentStatus !== TabGrouperStatus.Initializing) {
+            // Smart Selection Preservation:
+            // If we have previous groups, try to preserve the selection state for identical groups
+            let newSelection = new Set<number>();
+
+            if (currentGroups && selectedPreviewIndices.size > 0) {
+                // Create a signature set of currently selected groups
+                const selectedSignatures = new Set<string>();
+                currentGroups.forEach((g, idx) => {
+                    if (selectedPreviewIndices.has(idx)) {
+                        selectedSignatures.add(JSON.stringify(g));
+                    }
+                });
+
+                // For each new group, check if it matches a previously selected one
+                groups.forEach((g, idx) => {
+                    // If it matches a selected group, select it. 
+                    // Or if it's a completely new set (no previous groups), select all (handled by default below).
+                    if (selectedSignatures.has(JSON.stringify(g))) {
+                        newSelection.add(idx);
+                    }
+                });
+
+                // If we found NO matches (totally new suggestions), default to Select All
+                // But if we found *some* matches, implies a partial update, so we trust our preservation.
+                // Edge case: entire set changed but we wanted to select all? 
+                // If selectedSignatures was NOT empty, but newSelection IS empty, it means we lost all selected groups.
+                // In that case, maybe default to Select All again?
+                if (newSelection.size === 0 && selectedSignatures.size > 0) {
+                    newSelection = new Set(groups.map((_, i) => i));
+                }
+            } else {
+                // No previous selection or groups, select all by default
+                newSelection = new Set(groups.map((_, i) => i));
+            }
+
+            setPreviewGroups(groups);
+            setSelectedPreviewIndices(newSelection);
+            setStatus(TabGrouperStatus.Reviewing);
+        } else if (groups.length === 0) {
+            setPreviewGroups(null);
+            if (currentStatus === TabGrouperStatus.Reviewing) setStatus(TabGrouperStatus.Idle);
+        }
+    }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]);
+
     // --- Storage Listener for Suggestions ---
     useEffect(() => {
-        const handleStorageChange = async (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-            if (areaName === 'session' && changes.suggestionCache) {
-                const newValue = changes.suggestionCache.newValue as TabSuggestionCache[] | undefined;
-                const map = await scanUngrouped();
+        const unsubscribe = StateService.subscribe((cache) => {
+            processSuggestions(cache);
+        });
 
-                let groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
-                if (newValue && Array.isArray(newValue) && newValue.length > 0) {
-                    groups = convertCacheToGroups(newValue, map);
-                }
-
-                // Check if groups actually changed to prevent resetting selection
-                // Use ref to compare against current state without adding dependency
-                const currentGroups = previewGroupsRef.current;
-                if (currentGroups && JSON.stringify(groups) === JSON.stringify(currentGroups)) {
-                    return;
-                }
-
-                const currentStatus = statusRef.current;
-                if (groups.length > 0 && currentStatus !== TabGrouperStatus.Processing && currentStatus !== TabGrouperStatus.Initializing) {
-                    // Smart Selection Preservation:
-                    // If we have previous groups, try to preserve the selection state for identical groups
-                    let newSelection = new Set<number>();
-
-                    if (currentGroups && selectedPreviewIndices.size > 0) {
-                        // Create a signature set of currently selected groups
-                        const selectedSignatures = new Set<string>();
-                        currentGroups.forEach((g, idx) => {
-                            if (selectedPreviewIndices.has(idx)) {
-                                selectedSignatures.add(JSON.stringify(g));
-                            }
-                        });
-
-                        // For each new group, check if it matches a previously selected one
-                        groups.forEach((g, idx) => {
-                            // If it matches a selected group, select it. 
-                            // Or if it's a completely new set (no previous groups), select all (handled by default below).
-                            if (selectedSignatures.has(JSON.stringify(g))) {
-                                newSelection.add(idx);
-                            }
-                        });
-
-                        // If we found NO matches (totally new suggestions), default to Select All
-                        // But if we found *some* matches, implies a partial update, so we trust our preservation.
-                        // Edge case: entire set changed but we wanted to select all? 
-                        // If selectedSignatures was NOT empty, but newSelection IS empty, it means we lost all selected groups.
-                        // In that case, maybe default to Select All again?
-                        if (newSelection.size === 0 && selectedSignatures.size > 0) {
-                            newSelection = new Set(groups.map((_, i) => i));
-                        }
-                    } else {
-                        // No previous selection or groups, select all by default
-                        newSelection = new Set(groups.map((_, i) => i));
-                    }
-
-                    setPreviewGroups(groups);
-                    setSelectedPreviewIndices(newSelection);
-                    setStatus(TabGrouperStatus.Reviewing);
-                } else if (groups.length === 0) {
-                    setPreviewGroups(null);
-                    if (currentStatus === TabGrouperStatus.Reviewing) setStatus(TabGrouperStatus.Idle);
-                }
-            }
-        };
-
-        chrome.storage.onChanged.addListener(handleStorageChange);
-
-        // Initial load from storage
-        chrome.storage.session.get('suggestionCache').then(async (data) => {
-            if (data && Array.isArray(data.suggestionCache)) {
-                // Simulate change event to reuse logic
-                handleStorageChange({
-                    suggestionCache: { newValue: data.suggestionCache, oldValue: undefined }
-                }, 'session');
+        // Initial load from storage via StateService
+        StateService.getSuggestionCache().then(cache => {
+            if (cache.size > 0) {
+                processSuggestions(cache);
             }
         });
 
         return () => {
-            chrome.storage.onChanged.removeListener(handleStorageChange);
+            unsubscribe();
         };
-    }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]); // Added selectedPreviewIndices dependency for smart preservation
+    }, [processSuggestions]);
 
     const applyGroups = async () => {
         if (!previewGroups) return;

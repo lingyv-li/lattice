@@ -5,6 +5,10 @@ interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
 }
 
+type StateChanges = {
+    [K in keyof StorageSchema]?: chrome.storage.StorageChange;
+};
+
 export class StateService {
     // In-memory cache for speed
     private static cache: Map<number, TabSuggestionCache> | null = null;
@@ -68,6 +72,19 @@ export class StateService {
     }
 
     /**
+     * Update multiple suggestions in batch
+     */
+    static async updateSuggestions(suggestions: TabSuggestionCache[]): Promise<void> {
+        await this.hydrate();
+        if (!this.cache) this.cache = new Map();
+
+        for (const suggestion of suggestions) {
+            this.cache.set(suggestion.tabId, suggestion);
+        }
+        await this.persist();
+    }
+
+    /**
      * Remove a suggestion by tab ID
      */
     static async removeSuggestion(tabId: number): Promise<boolean> {
@@ -90,20 +107,26 @@ export class StateService {
         await this.persist();
     }
 
-    private static listeners: Set<() => void> = new Set();
-
     /**
-     * Subscribe to changes
+     * Subscribe to changes in the suggestion cache.
+     * Returns a function to unsubscribe.
      */
-    static subscribe(callback: () => void): () => void {
-        this.listeners.add(callback);
-        return () => this.listeners.delete(callback);
-    }
+    static subscribe(callback: (cache: Map<number, TabSuggestionCache>) => void): () => void {
+        const handleStorageChange = (changes: StateChanges, areaName: string) => {
+            if (areaName === 'session' && changes.suggestionCache?.newValue) {
+                const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
+                const newCache = new Map(rawData.map(s => [s.tabId, s]));
 
-    private static notifyListeners() {
-        for (const listener of this.listeners) {
-            listener();
-        }
+                // Update local cache as well
+                this.cache = newCache;
+                this.isHydrated = true;
+
+                callback(newCache);
+            }
+        };
+
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
     }
 
     /**
@@ -114,7 +137,6 @@ export class StateService {
         try {
             const serialized = Array.from(this.cache.values());
             await chrome.storage.session.set({ suggestionCache: serialized });
-            this.notifyListeners();
         } catch (e) {
             console.error("[StateService] Failed to persist:", e);
         }

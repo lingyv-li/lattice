@@ -8,7 +8,6 @@ describe('ProcessingState', () => {
         const state = new ProcessingState(callback);
         expect(state.isProcessing).toBe(false);
         expect(state.size).toBe(0);
-        expect(state.processingSize).toBe(0);
     });
 
     it('should update status and fire callback when adding items', () => {
@@ -34,7 +33,7 @@ describe('ProcessingState', () => {
         expect(state.size).toBe(2);
     });
 
-    it('should handle startProcessing', () => {
+    it('should handle acquireQueue', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
 
@@ -43,27 +42,42 @@ describe('ProcessingState', () => {
 
         callback.mockClear();
 
-        const processingIds = state.startProcessing();
+        // acquireQueue removes everything from queue and sets busy
+        const processingIds = state.acquireQueue();
         expect(processingIds).toEqual([1, 2]);
         expect(state.size).toBe(0);
-        expect(state.processingSize).toBe(2);
+        expect(state.isBusy).toBe(true);
         expect(state.isProcessing).toBe(true);
         expect(callback).not.toHaveBeenCalled(); // Status didn't change (true -> true)
     });
 
-    it('should update status when all items finish', () => {
+    it('should return empty if acquireQueue called while busy', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
 
         state.add(1);
-        state.startProcessing();
+        state.acquireQueue();
+
+        state.add(2); // Added to queue while busy
+
+        // Try to acquire again while busy
+        const ids = state.acquireQueue();
+        expect(ids).toEqual([]);
+        expect(state.size).toBe(1); // Item 2 still in queue
+    });
+
+    it('should update status when released', () => {
+        const callback = vi.fn();
+        const state = new ProcessingState(callback);
+
+        state.add(1);
+        state.acquireQueue();
 
         callback.mockClear();
 
-        state.finish(1);
+        state.release();
         expect(state.isProcessing).toBe(false);
         expect(callback).toHaveBeenCalledWith(false);
-        expect(state.processingSize).toBe(0);
     });
 
     it('should handle remove correctly', () => {
@@ -83,15 +97,15 @@ describe('ProcessingState', () => {
         const state = new ProcessingState(callback);
 
         state.add(1);
-        state.startProcessing();
+        state.acquireQueue();
         state.add(2);
 
         callback.mockClear();
 
         state.clear();
         expect(state.isProcessing).toBe(false);
+        expect(state.isBusy).toBe(false);
         expect(state.size).toBe(0);
-        expect(state.processingSize).toBe(0);
         expect(callback).toHaveBeenCalledWith(false);
     });
 });

@@ -6,6 +6,17 @@ import { TabSuggestionCache } from '../../types/tabGrouper';
 // Mock chrome.storage.session
 const mockStorage: Record<string, any> = {};
 
+// Mock listeners
+const listeners: Set<Function> = new Set();
+const mockOnChanged = {
+    addListener: vi.fn((cb) => listeners.add(cb)),
+    removeListener: vi.fn((cb) => listeners.delete(cb))
+};
+
+const notifyListeners = (changes: any) => {
+    listeners.forEach(cb => cb(changes, 'session'));
+};
+
 const mockSession = {
     get: vi.fn((keys: string | string[] | null) => {
         if (typeof keys === 'string') {
@@ -14,15 +25,24 @@ const mockSession = {
         return Promise.resolve(mockStorage);
     }),
     set: vi.fn((items: Record<string, any>) => {
+        const changes: any = {};
+        for (const [key, value] of Object.entries(items)) {
+            changes[key] = { newValue: value };
+        }
         Object.assign(mockStorage, items);
+        notifyListeners(changes);
         return Promise.resolve();
     }),
     remove: vi.fn((keys: string | string[]) => {
-        if (typeof keys === 'string') {
-            delete mockStorage[keys];
-        } else if (Array.isArray(keys)) {
-            keys.forEach(k => delete mockStorage[k]);
-        }
+        const changes: any = {};
+        const keyList = Array.isArray(keys) ? keys : [keys];
+
+        keyList.forEach(k => {
+            changes[k] = { newValue: undefined }; // Simulate removal
+            delete mockStorage[k];
+        });
+
+        notifyListeners(changes);
         return Promise.resolve();
     })
 };
@@ -30,7 +50,8 @@ const mockSession = {
 // Setup global chrome mock
 global.chrome = {
     storage: {
-        session: mockSession
+        session: mockSession,
+        onChanged: mockOnChanged
     }
 } as any;
 

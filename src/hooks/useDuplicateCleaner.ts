@@ -33,7 +33,7 @@ export const useDuplicateCleaner = () => {
     useEffect(() => {
         scanDuplicates();
 
-        const handleTabUpdate = (_tabId: number, changeInfo: any, _tab: chrome.tabs.Tab) => {
+        const handleTabUpdate = (_tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo, _tab: chrome.tabs.Tab) => {
             if (changeInfo.url || changeInfo.status === 'complete') {
                 scanDuplicates();
             }

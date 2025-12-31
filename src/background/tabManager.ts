@@ -2,7 +2,7 @@
 import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
-import { getSettings } from '../utils/storage';
+import { SettingsStorage } from '../utils/storage';
 import { DuplicateCloser } from '../services/duplicates';
 import { debounce } from '../utils/debounce';
 
@@ -34,17 +34,15 @@ export class TabManager {
     }
 
     /**
-     * Single entry point for triggering tab recalculation.
-     * Uses setTimeout debounce - safe for sub-30-second delays while service worker is active.
+     * Trigger a check for new/ungrouped tabs
      */
-    triggerRecalculation() {
-        console.log(`[TabManager] Triggering recalculation (debounced ${this.currentDebounceDelay}ms)`);
+    triggerRecalculation(reason: string) {
+        console.log(`[TabManager] Triggering recalculation (${reason}) (debounced ${this.currentDebounceDelay}ms)`);
         this.debouncedProcess();
     }
 
     private async queueAndProcess() {
         const allTabs = await chrome.tabs.query({ windowType: chrome.tabs.WindowType.NORMAL });
-        const cache = await StateService.getSuggestionCache();
 
         // Skip empty new tab pages - they have no meaningful content to group
         const isEmptyNewTab = (url: string) =>
@@ -59,9 +57,8 @@ export class TabManager {
             t.id &&
             t.url &&
             t.title &&
-            t.status === 'complete' &&
+            t.status !== chrome.tabs.TabStatus.LOADING &&
             !isEmptyNewTab(t.url) &&
-            !cache.has(t.id) &&
             !this.processingState.has(t.id)
         );
 
@@ -82,7 +79,7 @@ export class TabManager {
         // Autopilot: close duplicates when a tab navigates or finishes loading
         if (changeInfo.url || changeInfo.status === 'complete') {
             // Check for Autopilot duplicate cleaning
-            const settings = await getSettings();
+            const settings = await SettingsStorage.get();
             if (settings.autopilot?.['duplicate-cleaner']) {
                 // Scope to the window of the updated tab? 
                 // We need the tab object to know the windowId, but handleTabUpdated only gives ID.
@@ -115,13 +112,13 @@ export class TabManager {
             await StateService.removeSuggestion(tabId);
             if (changeInfo.groupId === chrome.tabs.TAB_ID_NONE) {
                 // Tab was ungrouped -> candidate for re-grouping
-                this.triggerRecalculation();
+                this.triggerRecalculation(`Tab ${tabId} Ungrouped`);
             }
         }
 
         if (changeInfo.status === 'complete') {
             // Tab finished loading -> candidate for grouping
-            this.triggerRecalculation();
+            this.triggerRecalculation(`Tab ${tabId} Updated (Complete)`);
         }
     }
 }

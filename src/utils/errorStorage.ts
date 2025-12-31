@@ -6,6 +6,10 @@ export interface GlobalError {
 
 const STORAGE_KEY = 'globalErrors';
 
+type ErrorChanges = {
+    [STORAGE_KEY]?: chrome.storage.StorageChange;
+};
+
 export const ErrorStorage = {
     /**
      * Fetch all persisted errors.
@@ -61,7 +65,7 @@ export const ErrorStorage = {
      * Returns a function to unsubscribe.
      */
     subscribe: (callback: (errors: GlobalError[]) => void): () => void => {
-        const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+        const handleStorageChange = (changes: ErrorChanges, areaName: string) => {
             if (areaName === 'session' && changes[STORAGE_KEY]?.newValue) {
                 const errors = changes[STORAGE_KEY].newValue as GlobalError[];
                 if (Array.isArray(errors) && errors.length > 0) {

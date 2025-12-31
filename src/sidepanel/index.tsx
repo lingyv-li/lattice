@@ -11,7 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
 import { useDownloadCleaner } from '../hooks/useDownloadCleaner';
-import { getSettings, saveSettings } from '../utils/storage';
+import { SettingsStorage } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { ToastProvider, useToast } from '../context/ToastContext';
 
@@ -62,7 +62,7 @@ const InnerApp = () => {
 
     // Load persisted selection
     useEffect(() => {
-        getSettings().then(settings => {
+        SettingsStorage.get().then(settings => {
             if (settings.selectedCards) {
                 setSelectedCards(new Set(settings.selectedCards));
             }
@@ -74,7 +74,7 @@ const InnerApp = () => {
 
     // Persist selection changes
     useEffect(() => {
-        saveSettings({ selectedCards: Array.from(selectedCards), autopilot });
+        SettingsStorage.set({ selectedCards: Array.from(selectedCards), autopilot });
     }, [selectedCards, autopilot]);
 
     const toggleAutopilot = (cardId: string, checked: boolean) => {

@@ -5,7 +5,7 @@ import { TabManager } from './tabManager';
 
 import { updateWindowBadge } from '../utils/badge';
 import { ErrorStorage } from '../utils/errorStorage';
-import { getSettings, saveSettings, AIProviderType } from '../utils/storage';
+import { SettingsStorage } from '../utils/storage';
 
 import { TabGroupResponse } from '../types/tabGrouper';
 
@@ -99,7 +99,7 @@ const tabManager = new TabManager(processingState, queueProcessor);
 chrome.tabs.onCreated.addListener(async (tab) => {
     // If tab is not complete, triggerRecalculation will handle it via debounce.
     if (tab.status !== 'loading') {
-        tabManager.triggerRecalculation();
+        tabManager.triggerRecalculation(`Tab Created ${tab.id}`);
     }
 });
 
@@ -113,9 +113,9 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 });
 
 // 3. Group Events
-chrome.tabGroups.onCreated.addListener(() => tabManager.triggerRecalculation());
-chrome.tabGroups.onRemoved.addListener(() => tabManager.triggerRecalculation());
-chrome.tabGroups.onUpdated.addListener(() => tabManager.triggerRecalculation());
+chrome.tabGroups.onCreated.addListener((g) => tabManager.triggerRecalculation(`Group Created ${g.id}`));
+chrome.tabGroups.onRemoved.addListener((g) => tabManager.triggerRecalculation(`Group Removed ${g.id}`));
+chrome.tabGroups.onUpdated.addListener((g) => tabManager.triggerRecalculation(`Group Updated ${g.id}`));
 
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async (_activeInfo) => {
@@ -138,37 +138,20 @@ chrome.runtime.onConnect.addListener((port) => {
             } as TabGroupResponse);
 
             // Trigger proactive check for new tabs
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('UI Connected');
         }
     });
 });
 
-// Startup check
+// Enable action button.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
 
-// Check and set default AI provider if not set
-chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'sync' && changes.processingDebounceDelay) {
+// Updating debounce delay.
+SettingsStorage.subscribe((changes) => {
+    if (changes.processingDebounceDelay) {
         const newDelay = changes.processingDebounceDelay.newValue;
-        if (typeof newDelay === 'number' && newDelay >= 500) {
+        if (typeof newDelay === 'number') {
             tabManager.updateDebounceDelay(newDelay);
         }
     }
-});
-
-getSettings().then(async (settings) => {
-    // Only run this auto-configure logic if the provider is still 'none'
-    if (settings.aiProvider === AIProviderType.None) {
-        const availability = await LanguageModel.availability({ expectedInputs: [{ type: 'text', languages: ['en'] }] });
-        if (availability === "available") {
-            // It is available, set default to local.
-            await saveSettings({ aiProvider: AIProviderType.Local });
-        }
-    }
-
-    if (settings.processingDebounceDelay) {
-        tabManager.updateDebounceDelay(settings.processingDebounceDelay);
-    }
-
-    tabManager.triggerRecalculation();
 });

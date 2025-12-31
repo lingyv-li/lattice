@@ -26,18 +26,35 @@ export const DEFAULT_SETTINGS: AppSettings = {
     processingDebounceDelay: 2000,
 };
 
-export const getSettings = async (): Promise<AppSettings> => {
-    return new Promise((resolve) => {
-        // Cast to any to satisfy the overload or use a partial object cast
-        chrome.storage.sync.get(DEFAULT_SETTINGS as unknown as { [key: string]: any }, (items) => {
-            resolve(items as unknown as AppSettings);
-        });
-    });
+export type SettingsChanges = {
+    [K in keyof AppSettings]?: chrome.storage.StorageChange;
 };
 
-export const saveSettings = async (settings: Partial<AppSettings>): Promise<void> => {
-    return new Promise((resolve) => {
-        chrome.storage.sync.set(settings, () => resolve());
-    });
+export const SettingsStorage = {
+    get: async (): Promise<AppSettings> => {
+        return new Promise((resolve) => {
+            chrome.storage.sync.get(DEFAULT_SETTINGS as unknown as { [key: string]: any }, (items) => {
+                resolve(items as unknown as AppSettings);
+            });
+        });
+    },
+
+    set: async (settings: Partial<AppSettings>): Promise<void> => {
+        return new Promise((resolve) => {
+            chrome.storage.sync.set(settings, () => resolve());
+        });
+    },
+
+    subscribe: (callback: (changes: SettingsChanges) => void): () => void => {
+        const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
+            if (areaName === 'sync') {
+                callback(changes as SettingsChanges);
+            }
+        };
+
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
 };
+
 

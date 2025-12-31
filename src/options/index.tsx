@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AppSettings, DEFAULT_SETTINGS, getSettings, saveSettings, AIProviderType } from '../utils/storage';
+import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType } from '../utils/storage';
 import { AIService } from '../services/ai/AIService';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
@@ -70,7 +70,7 @@ const InnerApp = () => {
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
     useEffect(() => {
-        getSettings().then((s) => {
+        SettingsStorage.get().then((s) => {
             setSettings(s);
             setLoading(false);
             if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
@@ -94,7 +94,7 @@ const InnerApp = () => {
     };
 
     const handleSave = async () => {
-        await saveSettings(settings);
+        await SettingsStorage.set(settings);
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };

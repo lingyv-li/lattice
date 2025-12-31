@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TabManager } from '../tabManager';
 import { StateService } from '../state';
 
-import { getSettings } from '../../utils/storage';
+import { SettingsStorage } from '../../utils/storage';
 
 // Mock dependencies
 vi.mock('../state');
@@ -16,6 +16,7 @@ const mockTabs = {
     get: vi.fn(),
     remove: vi.fn(),
     TAB_ID_NONE: -1,
+    TabStatus: { LOADING: 'loading', COMPLETE: 'complete' }, // Mock Enum
     WindowType: { NORMAL: 'normal' }
 };
 const mockAlarms = {
@@ -48,7 +49,7 @@ describe('TabManager', () => {
         // Default mocks
         mockTabs.query.mockResolvedValue([]);
         (StateService.getSuggestionCache as any).mockResolvedValue(new Map());
-        (getSettings as any).mockResolvedValue({ autopilot: false });
+        (SettingsStorage.get as any).mockResolvedValue({ autopilot: false });
     });
 
     afterEach(() => {
@@ -94,7 +95,7 @@ describe('TabManager', () => {
 
         describe('Autopilot Duplicate Cleaning', () => {
             beforeEach(() => {
-                (getSettings as any).mockResolvedValue({ autopilot: {} });
+                (SettingsStorage.get as any).mockResolvedValue({ autopilot: {} });
             });
 
             it('should NOT check duplicates if autopilot is OFF', async () => {
@@ -103,7 +104,7 @@ describe('TabManager', () => {
             });
 
             it('should check and remove duplicates if autopilot is ON', async () => {
-                (getSettings as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
+                (SettingsStorage.get as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
 
                 const updatedTabId = 101;
                 const duplicateTabId = 102;
@@ -123,7 +124,7 @@ describe('TabManager', () => {
             });
 
             it('should NOT remove updated tab if it is the one to keep', async () => {
-                (getSettings as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
+                (SettingsStorage.get as any).mockResolvedValue({ autopilot: { 'duplicate-cleaner': true } });
                 const updatedTabId = 101;
                 mockTabs.get.mockResolvedValue({ id: updatedTabId, windowId: 1 });
 
@@ -145,9 +146,9 @@ describe('TabManager', () => {
             mockTabs.query.mockResolvedValue([mockTab]);
 
             // Call multiple times rapidly
-            tabManager.triggerRecalculation();
-            tabManager.triggerRecalculation();
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('Test Call 1');
+            tabManager.triggerRecalculation('Test Call 2');
+            tabManager.triggerRecalculation('Test Call 3');
 
             // Before debounce timer fires, no processing should have occurred
             expect(mockTabs.query).not.toHaveBeenCalled();
@@ -163,7 +164,7 @@ describe('TabManager', () => {
             const mockTab = { id: 200, groupId: -1, url: 'url', title: 'title', status: 'complete' };
             mockTabs.query.mockResolvedValue([mockTab]);
 
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('Test Debounce');
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockTabs.query).toHaveBeenCalledWith({ windowType: 'normal' });
@@ -174,7 +175,7 @@ describe('TabManager', () => {
             const mockTab = { id: 201, groupId: 999, url: 'url', title: 'title', status: 'complete' };
             mockTabs.query.mockResolvedValue([mockTab]);
 
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('Test Call Filter');
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).not.toHaveBeenCalled();
@@ -195,7 +196,7 @@ describe('TabManager', () => {
                 const mockTab = { id: 300, groupId: -1, url, title: 'New tab', status: 'complete' };
                 mockTabs.query.mockResolvedValue([mockTab]);
 
-                tabManager.triggerRecalculation();
+                tabManager.triggerRecalculation('Test New Tab');
                 await vi.advanceTimersByTimeAsync(1600);
 
                 expect(mockProcessingState.add).not.toHaveBeenCalled();
@@ -209,23 +210,24 @@ describe('TabManager', () => {
             ];
             mockTabs.query.mockResolvedValue(tabs);
 
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('Test Mixed');
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).toHaveBeenCalledWith(400);
             expect(mockProcessingState.add).not.toHaveBeenCalledWith(401);
         });
 
-        it('should NOT re-queue cached tabs', async () => {
+        it('should re-queue cached tabs', async () => {
             const mockTab = { id: 501, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' };
             mockTabs.query.mockResolvedValue([mockTab]);
             // Tab is already in cache
             (StateService.getSuggestionCache as any).mockResolvedValue(new Map([[501, { tabId: 501 }]]));
 
-            tabManager.triggerRecalculation();
+            tabManager.triggerRecalculation('Test Cached');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).not.toHaveBeenCalled();
+            // Should still add to processing state because we want to re-process everything
+            expect(mockProcessingState.add).toHaveBeenCalledWith(501);
         });
     });
 });

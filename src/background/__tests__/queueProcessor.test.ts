@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueueProcessor } from '../queueProcessor';
 import { StateService } from '../state';
 import { AIService } from '../../services/ai/AIService';
-import { getSettings } from '../../utils/storage';
+import { SettingsStorage } from '../../utils/storage';
 import { applyTabGroup } from '../../utils/tabs';
 
 // Mock dependencies
@@ -43,15 +43,23 @@ describe('QueueProcessor', () => {
         vi.clearAllMocks();
 
         mockState = {
-            size: 1,
-            startProcessing: vi.fn(),
-            finish: vi.fn(),
+            hasItems: true,
+            acquireQueue: vi.fn(),
+            release: vi.fn(),
         };
+        // Mock hasItems getter
+        Object.defineProperty(mockState, 'hasItems', {
+            get: vi.fn()
+                .mockReturnValueOnce(true) // First check: Logging
+                .mockReturnValueOnce(true) // Second check: Loop condition
+                .mockReturnValue(false)    // Subsequent checks: false
+        });
+
         processor = new QueueProcessor(mockState);
 
         // Default happy path mocks
         mockSettings({ autopilot: {} });
-        mockState.startProcessing.mockReturnValue([101, 102]);
+        mockState.acquireQueue.mockReturnValue([101, 102]);
         mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
         mockWindows.get.mockResolvedValue({ id: 1, type: 'normal' });
         mockTabGroups.query.mockResolvedValue([]);
@@ -71,7 +79,7 @@ describe('QueueProcessor', () => {
     });
 
     const mockSettings = (settings: any) => {
-        (getSettings as any).mockResolvedValue(settings);
+        (SettingsStorage.get as any).mockResolvedValue(settings);
     };
 
     const mockStateServiceCache = (cache: Map<any, any>) => {
@@ -91,11 +99,14 @@ describe('QueueProcessor', () => {
         expect(applyTabGroup).not.toHaveBeenCalled();
 
         // Should cache suggestion
-        expect(StateService.updateSuggestion).toHaveBeenCalledTimes(2); // One for each tab
-        expect(StateService.updateSuggestion).toHaveBeenCalledWith(expect.objectContaining({
-            tabId: 101,
-            groupName: 'AI Group'
-        }));
+        expect(StateService.updateSuggestions).toHaveBeenCalledTimes(1);
+        expect(StateService.updateSuggestions).toHaveBeenCalledWith(expect.arrayContaining([
+            expect.objectContaining({ tabId: 101, groupName: 'AI Group' }),
+            expect.objectContaining({ tabId: 102, groupName: 'AI Group' })
+        ]));
+
+        // Should release lock
+        expect(mockState.release).toHaveBeenCalled();
     });
 
     it('should apply groups immediately when autopilot is ON', async () => {
@@ -111,15 +122,16 @@ describe('QueueProcessor', () => {
         expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null);
 
         // Should NOT cache suggestion (except maybe negative results? logic says only skipped if applied)
-        // In the code: if autopilot -> apply -> skip cache loop
-        // So updateSuggestion should NOT be called for these tabs
-        expect(StateService.updateSuggestion).not.toHaveBeenCalled();
+        expect(StateService.updateSuggestions).not.toHaveBeenCalled();
+
+        expect(mockState.release).toHaveBeenCalled();
     });
 
     it('should handle window closed error gracefully', async () => {
         mockWindows.get.mockRejectedValue(new Error("Window closed"));
         await processor.process();
         expect(AIService.getProvider).not.toHaveBeenCalled();
+        expect(mockState.release).toHaveBeenCalled();
     });
 
     it('should skip non-normal windows', async () => {
@@ -127,10 +139,11 @@ describe('QueueProcessor', () => {
         await processor.process();
         const provider = await AIService.getProvider({} as any);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
+        expect(mockState.release).toHaveBeenCalled();
     });
 
     describe('staleness detection', () => {
-        it('should call finish() for tabs that become stale during processing', async () => {
+        it('should release lock if tabs become stale', async () => {
             mockSettings({ autopilot: false });
 
             // Tab changes URL during processing
@@ -146,26 +159,10 @@ describe('QueueProcessor', () => {
 
             await processor.process();
 
-            // finish() should be called for stale tab
-            expect(mockState.finish).toHaveBeenCalledWith(102);
-        });
-
-        it('should call finish() for tabs that no longer exist', async () => {
-            mockSettings({ autopilot: false });
-
-            // Tab 102 disappears during processing
-            let callCount = 0;
-            mockTabs.get.mockImplementation((id) => {
-                callCount++;
-                if (id === 102 && callCount > 2) {
-                    return Promise.reject(new Error('Tab not found'));
-                }
-                return Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' });
-            });
-
-            await processor.process();
-
-            expect(mockState.finish).toHaveBeenCalledWith(102);
+            // finish() is removed, but we should verify it completes without applying/caching
+            expect(mockState.release).toHaveBeenCalled();
+            // Staleness means NO updates applied
+            expect(StateService.updateSuggestions).not.toHaveBeenCalled();
         });
 
         it('should skip tabs that moved to a different window during processing', async () => {
@@ -175,14 +172,6 @@ describe('QueueProcessor', () => {
             let callCount = 0;
             mockTabs.get.mockImplementation((id) => {
                 callCount++;
-                // First call: initial fetch (window 1)
-                // Second call: batch hash check (window 1) -> wait, batch check fetches all tabs?
-                // The queueProcessor implementation re-fetches tabs for batch hash check.
-                // We want to simulate that at the moment of 'applying' or just before, it changes.
-                // BUT current implementation re-fetches all tabs to check batch hash. 
-                // If we change it there, batch hash might change -> staleness detected -> everything discarded.
-                // That is ALSO a valid outcome that prevents the error.
-
                 if (id === 102 && callCount > 2) {
                     // Moves to window 2
                     return Promise.resolve({ id, windowId: 2, url: 'http://example.com', title: 'Example' });
@@ -196,6 +185,8 @@ describe('QueueProcessor', () => {
             // Tab 101 is still valid
             expect(applyTabGroup).toHaveBeenCalledWith([101], 'AI Group', null);
             expect(applyTabGroup).not.toHaveBeenCalledWith(expect.arrayContaining([102]), expect.any(String), expect.any(Object));
+            expect(mockState.release).toHaveBeenCalled();
         });
     });
 });
+

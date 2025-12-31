@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTabGrouper } from '../useTabGrouper';
 import { TabGrouperStatus } from '../../types/tabGrouper';
 import { AIProviderType } from '../../utils/storage';
+import { StateService } from '../../background/state';
 
 // --- Mocks ---
 
@@ -46,6 +47,8 @@ describe('useTabGrouper', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         setupMocks();
+        (StateService as any).isHydrated = false;
+        (StateService as any).cache = null;
     });
 
     afterEach(() => {
