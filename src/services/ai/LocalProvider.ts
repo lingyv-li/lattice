@@ -64,7 +64,7 @@ export class LocalProvider extends BaseProvider {
                     content: systemPrompt
                 }],
                 monitor(m: any) {
-                    m.addEventListener('downloadprogress', (e: any) => {
+                    m.addEventListener('downloadprogress', (e: ProgressEvent) => {
                         if (onProgress) {
                             onProgress(e.loaded, e.total);
                         }

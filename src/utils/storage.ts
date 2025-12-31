@@ -21,8 +21,8 @@ export interface AppSettings {
     processingDebounceDelay?: number;
 }
 
-export const DEFAULT_GROUPING_RULES = `- Never use generic group names like development, finance, coding.
-- Never create groups simply by domain. Base on their contents instead, like search text, video names.`;
+export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevant emoji (e.g., 🗼Travel, ⚛️React).
+- Avoid generic names (e.g., don't use 'General', 'Miscellaneous', or 'Tabs').`;
 
 export const DEFAULT_SETTINGS: AppSettings = {
     customGroupingRules: DEFAULT_GROUPING_RULES,

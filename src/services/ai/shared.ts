@@ -44,18 +44,26 @@ export const cleanAndParseJson = (responseText: string): any => {
 };
 
 export const constructSystemPrompt = (customRules: string = ""): string => {
-    return `You are a browser tab organizer. 
+    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
     I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
     Your task is to assign EACH "Ungrouped Tab" to a group.
 
-    Rules:
-    1. STRICTLY PREFER "Existing Groups". If the tab fits an existing group, you MUST use that EXACT name.
-    2. Only create a NEW group name if the tab clearly does NOT fit any existing group.
-    3. Use short, concise names for new groups (max 3 words).
-    4. Do not include any markdown formatting or explanation.
-    5. Output ONLY a valid JSON array with the following structure:
-    [{"tabId": number, "groupName": string}]
-    ${customRules.trim().length > 0 ? `\n\nAdditional Rules:\n${customRules}` : ''}`;
+    Objectives:
+    1. MINIMIZE the total number of groups while MAXIMIZING the logical cohesion within each group.
+    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
+    3. Create NEW groups only for tabs that don't fit existing ones. 
+    4. Group multiple related "Ungrouped Tabs" together into new logical clusters.
+
+    Naming Standards for NEW groups:
+    - Use 1 concise word if possible.
+    - Title Case.
+    - Logical and descriptive (avoid generic names like "Work" or "Other").
+
+    Output ONLY a valid JSON array with the following structure:
+    [{"tabId": 123, "groupName": "🚀Project Alpha"}, {"tabId": 456, "groupName": "Existing Group Name"}]
+
+    ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
 };
 
 export const mapExistingGroups = (groups: { id: number, title?: string }[]): Map<string, number> => {

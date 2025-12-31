@@ -19,3 +19,18 @@ This directory is versions controlled using `jj` (Jujutsu).
 - **Maintainability**: Prioritize clean, modular, and easy-to-maintain code.
 - **Readability**: Ensure code is self-documenting and easy to read.
 - **Improvements**: Look for areas with room for improvement, but do not implement them immediately. Suggest them to the user at the end of the task.
+
+## Browser Testing
+
+Due to browser security restrictions, automation tools cannot interact with `chrome://` pages (like `chrome://extensions`).
+
+### Manual Installation Required
+1.  **Build**: Run `npm run build` first.
+2.  **Open Extensions Page**: Go to `chrome://extensions`.
+3.  **Enable Developer Mode**: Toggle the switch in the top right.
+4.  **Load Unpacked**: Click "Load unpacked" and select the `dist` folder.
+    *   *Note*: Drag-and-drop also works.
+
+### Automation Capabilities
+-   **Can**: Navigate to extension pages directly if the extension is installed (e.g., `chrome-extension://<id>/src/sidepanel/index.html`).
+-   **Cannot**: Click buttons on `chrome://` system pages.
