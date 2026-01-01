@@ -16,6 +16,7 @@ export interface AppSettings {
     aiProvider: AIProviderType;
     aiModel: string;
     geminiApiKey: string;
+    hasCompletedOnboarding: boolean;
     // Unified Feature State
     features: Record<FeatureId, FeatureSettings>;
 }
@@ -28,8 +29,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
     aiProvider: AIProviderType.None,
     aiModel: '',
     geminiApiKey: "",
+    hasCompletedOnboarding: false,
     features: {
-        [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
+        [FeatureId.TabGrouper]: { enabled: false, autopilot: false },
         [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
     }
 };

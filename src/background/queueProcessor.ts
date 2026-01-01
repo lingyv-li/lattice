@@ -1,7 +1,7 @@
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
-import { SettingsStorage, AppSettings } from '../utils/storage';
+import { SettingsStorage, AppSettings, AIProviderType } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
 import { getUserFriendlyError } from '../utils/errors';
@@ -75,6 +75,10 @@ export class QueueProcessor {
                             groupIdManager,
                             settings
                         );
+
+                        if (batches.length > 1) {
+                            console.log(`[QueueProcessor] Processed batch ${batches.indexOf(batchTabs) + 1}/${batches.length} for window ${windowId}`);
+                        }
 
                         if (result.aborted) {
                             windowProcessingAborted = true;
@@ -193,9 +197,14 @@ export class QueueProcessor {
             }
 
         } catch (e: any) {
-            const errorMsg = getUserFriendlyError(e);
-            console.error(`[QueueProcessor] AI Error in window ${windowId}:`, e);
-            await ErrorStorage.addError(errorMsg);
+            // Don't show error if user hasn't configured an AI provider yet
+            if (settings.aiProvider !== AIProviderType.None) {
+                const errorMsg = getUserFriendlyError(e);
+                console.error(`[QueueProcessor] AI Error in window ${windowId}:`, e);
+                await ErrorStorage.addError(errorMsg);
+            } else {
+                console.log(`[QueueProcessor] Skipping AI processing: No provider configured`);
+            }
         }
 
         return { aborted: false };

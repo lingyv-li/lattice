@@ -5,6 +5,7 @@ import './index.css';
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
 import { ConfirmationModal } from './components/ConfirmationModal';
+import { OnboardingModal } from './components/OnboardingModal';
 import { Loader2 } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
@@ -38,6 +39,18 @@ const InnerApp = () => {
         description: "",
         onConfirm: () => { }
     });
+
+    // Onboarding State
+    const [showOnboarding, setShowOnboarding] = useState(false);
+
+    // Check if user has completed onboarding
+    useEffect(() => {
+        SettingsStorage.get().then(settings => {
+            if (!settings.hasCompletedOnboarding) {
+                setShowOnboarding(true);
+            }
+        });
+    }, []);
 
     // Listen for background errors via storage
     useEffect(() => {
@@ -260,6 +273,18 @@ const InnerApp = () => {
                     </button>
                 </div>
             </div>
+            <OnboardingModal
+                isOpen={showOnboarding}
+                onComplete={() => {
+                    setShowOnboarding(false);
+                    // Reload settings after onboarding
+                    SettingsStorage.get().then(settings => {
+                        if (settings.features) {
+                            setFeatures(settings.features);
+                        }
+                    });
+                }}
+            />
             <ConfirmationModal
                 isOpen={modalConfig.isOpen}
                 onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
