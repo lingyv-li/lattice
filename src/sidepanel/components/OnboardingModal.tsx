@@ -78,6 +78,21 @@ export const OnboardingModal = ({ isOpen, onComplete }: OnboardingModalProps) =>
                 [FeatureId.DuplicateCleaner]: { enabled: enableDuplicateCleaner, autopilot: false }
             }
         });
+
+        // Trigger background processing if Tab Grouper was enabled
+        if (enableTabGrouper && selectedProvider !== AIProviderType.None) {
+            try {
+                const port = chrome.runtime.connect({ name: 'tab-grouper' });
+                const win = await chrome.windows.getCurrent();
+                if (win.id) {
+                    port.postMessage({ type: 'SYNC_STATE', windowId: win.id });
+                }
+                port.disconnect();
+            } catch (e) {
+                console.error('Failed to trigger processing:', e);
+            }
+        }
+
         onComplete();
     };
 
