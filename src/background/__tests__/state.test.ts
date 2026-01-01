@@ -115,7 +115,7 @@ describe('StateService', () => {
         const cache = await StateService.getSuggestionCache();
         expect(cache.size).toBe(1);
         expect(cache.get(1)).toEqual(testData[0]);
-        expect(mockSession.get).toHaveBeenCalledWith('suggestionCache');
+        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots']);
     });
 
     it('should update and persist suggestion', async () => {

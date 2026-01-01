@@ -9,37 +9,18 @@ import { FeatureId } from '../types/features';
 const DEBOUNCE_DELAY_MS = 1500;
 
 export class TabManager {
-    private debouncedProcess: () => void;
-    private currentDebounceDelay: number;
-
     constructor(
         private processingState: ProcessingState,
-        private queueProcessor: QueueProcessor,
-        initialDelay: number = DEBOUNCE_DELAY_MS
-    ) {
-        this.currentDebounceDelay = initialDelay;
-        // Initialize immediately to satisfy TS
-        this.debouncedProcess = debounce(() => {
-            this.queueAndProcess();
-        }, this.currentDebounceDelay);
-    }
-
-    updateDebounceDelay(delay: number) {
-        this.currentDebounceDelay = delay;
-        // Create new debounce instance
-        this.debouncedProcess = debounce(() => {
-            this.queueAndProcess();
-        }, this.currentDebounceDelay);
-        console.log(`[TabManager] Updated debounce delay to ${delay}ms`);
-    }
+        private queueProcessor: QueueProcessor
+    ) { }
 
     /**
      * Trigger a check for new/ungrouped tabs
      */
-    triggerRecalculation(reason: string) {
-        console.log(`[TabManager] Triggering recalculation (${reason}) (debounced ${this.currentDebounceDelay}ms)`);
-        this.debouncedProcess();
-    }
+    triggerRecalculation = debounce((reason: string) => {
+        console.log(`[TabManager] Triggering recalculation (${reason}) (debounced ${DEBOUNCE_DELAY_MS}ms)`);
+        this.queueAndProcess();
+    }, DEBOUNCE_DELAY_MS);
 
     private async queueAndProcess() {
         const settings = await SettingsStorage.get();
@@ -48,22 +29,56 @@ export class TabManager {
             return;
         }
 
-        const ungroupedTabs = await chrome.tabs.query({
-            windowType: chrome.tabs.WindowType.NORMAL,
-            groupId: chrome.tabs.TAB_ID_NONE
-        });
+        // Get all normal windows and their tabs/groups
+        const [allTabs, allGroups] = await Promise.all([
+            chrome.tabs.query({ windowType: chrome.windows.WindowType.NORMAL }),
+            chrome.tabGroups.query({})
+        ]);
 
-        const windowIdsToProcess = new Set<number>();
-        for (const tab of ungroupedTabs) {
-            windowIdsToProcess.add(tab.windowId);
+
+        // Group tabs and groups by windowId
+        const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
+        const groupsByWindow = new Map<number, chrome.tabGroups.TabGroup[]>();
+
+        for (const tab of allTabs) {
+            if (!tabsByWindow.has(tab.windowId)) tabsByWindow.set(tab.windowId, []);
+            tabsByWindow.get(tab.windowId)!.push(tab);
+        }
+        for (const group of allGroups) {
+            if (!groupsByWindow.has(group.windowId)) groupsByWindow.set(group.windowId, []);
+            groupsByWindow.get(group.windowId)!.push(group);
         }
 
-        for (const windowId of windowIdsToProcess) {
+        // Iterate through unique windows
+        const uniqueWindowIds = new Set([...tabsByWindow.keys(), ...groupsByWindow.keys()]);
+
+        for (const windowId of uniqueWindowIds) {
+            const tabs = tabsByWindow.get(windowId) || [];
+            const groups = groupsByWindow.get(windowId) || [];
+
+            // 2. Compare with last processed successful snapshot via ProcessingState
+            const isChanged = await this.processingState.isWindowChanged(windowId, tabs, groups);
+
+            if (!isChanged) {
+                console.log(`[TabManager] Skipping window ${windowId}: No changes since last successful processing.`);
+                continue;
+            }
+
+            // 3. Only queue if there are actually ungrouped tabs (optional but good for efficiency)
+            const hasUngroupedTabs = tabs.some(t => t.groupId === chrome.tabs.TAB_ID_NONE);
+            if (!hasUngroupedTabs) {
+                // If everything is already grouped, we should still record the snapshot 
+                // so we don't re-check until someone ungroups or moves something.
+                await this.processingState.completeWindow(windowId, tabs, groups);
+                continue;
+            }
+
+            console.log(`[TabManager] Window ${windowId} has changes, queuing.`);
             this.processingState.add(windowId);
         }
 
-        // Process immediately if we have windows queued
-        if (windowIdsToProcess.size > 0) {
+        // Process immediately if we have windows queued in ProcessingState
+        if (this.processingState.hasItems) {
             console.log("[TabManager] Processing queued windows");
             await this.queueProcessor.process();
         }

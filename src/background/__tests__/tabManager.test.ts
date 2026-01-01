@@ -21,11 +21,21 @@ const mockTabs = {
 };
 const mockAlarms = {
     create: vi.fn(),
+    get: vi.fn(),
+};
+const mockWindows = {
+    get: vi.fn(),
+    WindowType: { NORMAL: 'normal' }
+};
+const mockTabGroups = {
+    query: vi.fn(),
 };
 
 global.chrome = {
     tabs: mockTabs,
     alarms: mockAlarms,
+    windows: mockWindows,
+    tabGroups: mockTabGroups,
 } as any;
 
 describe('TabManager', () => {
@@ -39,6 +49,8 @@ describe('TabManager', () => {
             add: vi.fn(),
             has: vi.fn(),
             clear: vi.fn(),
+            isWindowChanged: vi.fn().mockResolvedValue(true),
+            completeWindow: vi.fn().mockResolvedValue(undefined),
             size: 0
         };
         const mockQueueProcessor = {
@@ -49,12 +61,15 @@ describe('TabManager', () => {
         // Default mocks
         mockTabs.query.mockResolvedValue([]);
         (StateService.getSuggestionCache as any).mockResolvedValue(new Map());
+        (StateService.getWindowSnapshot as any).mockResolvedValue(undefined);
+        (StateService.updateWindowSnapshot as any).mockResolvedValue(undefined);
         (SettingsStorage.get as any).mockResolvedValue({
             features: {
                 'tab-grouper': { enabled: true, autopilot: false },
                 'duplicate-cleaner': { enabled: true, autopilot: false }
             }
         });
+        mockTabGroups.query.mockResolvedValue([]);
     });
 
     afterEach(() => {
@@ -184,7 +199,8 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Debounce');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockTabs.query).toHaveBeenCalledWith({ windowType: 'normal', groupId: -1 });
+            expect(mockTabs.query).toHaveBeenCalledWith({ windowType: 'normal' });
+            expect(mockTabGroups.query).toHaveBeenCalled();
             expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 

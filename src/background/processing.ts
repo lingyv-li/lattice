@@ -1,74 +1,43 @@
+import { generateWindowSnapshot } from '../utils/snapshots';
+import { StateService } from './state';
+
 /**
  * Encapsulates the processing status of a single window.
  */
 class WindowState {
-    private _inputSnapshot: string = '';
-    private _snapshotTabs: { id: number; title: string; url: string }[] = [];
-    private _snapshotGroups: { id: number; title: string }[] = [];
+    public inputSnapshot: string = '';
+    public snapshotTabs: { id: number; title: string; url: string }[] = [];
+    public snapshotGroups: { id: number; title: string }[] = [];
 
-    constructor(public readonly id: number, private _isStale: boolean = false) { }
-
-    get isStale(): boolean {
-        return this._isStale;
-    }
-
-    markStale() {
-        this._isStale = true;
-    }
-
-    markClean() {
-        this._isStale = false;
-    }
+    constructor(
+        public readonly id: number,
+        public lastPersistentSnapshot: string | null = null
+    ) { }
 
     /**
      * Creates a string snapshot of the current state (tabs + groups) in the window.
      * Captures IDs, URLs, and titles to detect any relevant changes.
      */
     updateSnapshot(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
-        // Store structured data for AI prompts
-        this._snapshotTabs = tabs.map(t => ({
+        this.snapshotTabs = tabs.map(t => ({
             id: t.id!,
             title: t.title || '',
             url: t.url || ''
         }));
-        this._snapshotGroups = groups.map(g => ({
+        this.snapshotGroups = groups.map(g => ({
             id: g.id,
             title: g.title || ''
         }));
 
-        // Generate comparison string
-        const tabPart = tabs
-            .map(t => `${t.id}:${t.url}:${t.title}`)
-            .sort()
-            .join('|');
-        const groupPart = groups
-            .map(g => `${g.id}:${g.title}`)
-            .sort()
-            .join('|');
-
-        this._inputSnapshot = `${tabPart}#${groupPart}`;
-        this._isStale = false;
+        this.inputSnapshot = generateWindowSnapshot(tabs, groups);
     }
 
     /**
      * Verifies if the current state matches the last snapshot.
      */
     verifySnapshot(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): boolean {
-        const tabPart = tabs
-            .map(t => `${t.id}:${t.url}:${t.title}`)
-            .sort()
-            .join('|');
-        const groupPart = groups
-            .map(g => `${g.id}:${g.title}`)
-            .sort()
-            .join('|');
-
-        const current = `${tabPart}#${groupPart}`;
-        return current === this._inputSnapshot;
+        return generateWindowSnapshot(tabs, groups) === this.inputSnapshot;
     }
-
-    get snapshotTabs() { return this._snapshotTabs; }
-    get snapshotGroups() { return this._snapshotGroups; }
 }
 
 export class ProcessingState {
@@ -100,34 +69,45 @@ export class ProcessingState {
         return this._isBusy;
     }
 
-
-    isWindowStale(windowId: number): boolean {
-        return this.windowStates.get(windowId)?.isStale ?? false;
+    /**
+     * Gets the window state if it exists.
+     */
+    getWindowState(windowId: number): WindowState | undefined {
+        return this.windowStates.get(windowId);
     }
 
-    updateSnapshot(windowId: number, tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
-        this.windowStates.get(windowId)?.updateSnapshot(tabs, groups);
-    }
-
-    verifySnapshot(windowId: number, tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): boolean {
+    /**
+     * Checks if the window state has changed since it was last successfully processed.
+     */
+    async isWindowChanged(windowId: number, tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): Promise<boolean> {
+        const currentSnapshot = generateWindowSnapshot(tabs, groups);
         const state = this.windowStates.get(windowId);
-        if (!state) return false;
-        return state.verifySnapshot(tabs, groups);
-    }
 
-    getSnapshotTabs(windowId: number) {
-        return this.windowStates.get(windowId)?.snapshotTabs ?? [];
-    }
+        if (!state) {
+            const lastPersistent = await StateService.getWindowSnapshot(windowId);
+            return currentSnapshot !== lastPersistent;
+        }
 
-    getSnapshotGroups(windowId: number) {
-        return this.windowStates.get(windowId)?.snapshotGroups ?? [];
+        return currentSnapshot !== state.lastPersistentSnapshot;
     }
 
     /**
      * Marks a window processing as complete and clean.
+     * Optionally updates the persistent snapshot.
      */
-    completeWindow(windowId: number) {
+    async completeWindow(windowId: number, tabs?: chrome.tabs.Tab[], groups?: chrome.tabGroups.TabGroup[]) {
         console.log(`[ProcessingState] Window ${windowId} completed`);
+
+        if (tabs && groups) {
+            const finalSnapshot = generateWindowSnapshot(tabs, groups);
+            await StateService.updateWindowSnapshot(windowId, finalSnapshot);
+
+            const state = this.windowStates.get(windowId);
+            if (state) {
+                state.lastPersistentSnapshot = finalSnapshot;
+            }
+        }
+
         this.windowStates.delete(windowId);
     }
 
@@ -145,11 +125,8 @@ export class ProcessingState {
     add(windowId: number): boolean {
         const existingIndex = this.windowQueue.indexOf(windowId);
 
-        // Ensure we have a WindowState for this window
-        let state = this.windowStates.get(windowId);
-        if (!state) {
-            state = new WindowState(windowId);
-            this.windowStates.set(windowId, state);
+        if (!this.windowStates.has(windowId)) {
+            this.windowStates.set(windowId, new WindowState(windowId));
         }
 
         if (existingIndex !== -1) {
@@ -158,21 +135,11 @@ export class ProcessingState {
                 this.windowQueue.splice(existingIndex, 1);
                 this.windowQueue.unshift(windowId);
             }
-            if (this._isBusy) {
-                state.markStale();
-                console.log(`[ProcessingState] Window ${windowId} re-added during busy state, marked as STALE`);
-            }
             return false;
         }
 
         // New window: Prepend for priority
         this.windowQueue.unshift(windowId);
-
-        if (this._isBusy) {
-            state.markStale();
-            console.log(`[ProcessingState] Window ${windowId} added during busy state, marked as STALE`);
-        }
-
         this.updateStatus();
         return true;
     }
@@ -186,19 +153,11 @@ export class ProcessingState {
 
     // Lock and get all window IDs in priority order
     acquireQueue(): number[] {
-        if (this._isBusy) {
-            console.log(`[ProcessingState] acquireQueue blocked: Busy`);
-            return [];
-        }
+        if (this._isBusy) return [];
 
         this._isBusy = true;
 
-        // Reset staleness for acquired windows - they are now the "current" reality
         const workQueue = [...this.windowQueue];
-        for (const id of workQueue) {
-            this.windowStates.get(id)?.markClean();
-        }
-
         this.windowQueue = [];
 
         console.log(`[ProcessingState] Acquired queue: ${workQueue.length} windows`);
@@ -216,8 +175,6 @@ export class ProcessingState {
         const index = this.windowQueue.indexOf(windowId);
         if (index !== -1) {
             this.windowQueue.splice(index, 1);
-            const state = this.windowStates.get(windowId);
-            if (this._isBusy && state) state.markStale();
             this.updateStatus();
             return true;
         }

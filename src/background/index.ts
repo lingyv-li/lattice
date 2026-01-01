@@ -5,7 +5,6 @@ import { TabManager } from './tabManager';
 
 import { updateWindowBadge } from '../utils/badge';
 import { ErrorStorage } from '../utils/errorStorage';
-import { SettingsStorage } from '../utils/storage';
 
 import { TabGroupResponse } from '../types/tabGrouper';
 
@@ -146,12 +145,17 @@ chrome.runtime.onConnect.addListener((port) => {
 // Enable action button.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
 
-// Updating debounce delay.
-SettingsStorage.subscribe((changes) => {
-    if (changes.processingDebounceDelay) {
-        const newDelay = changes.processingDebounceDelay.newValue;
-        if (typeof newDelay === 'number') {
-            tabManager.updateDebounceDelay(newDelay);
-        }
+// 7. Alarm for periodic checks
+const ALARM_NAME = 'periodic-grouping-check';
+chrome.alarms.get(ALARM_NAME, (alarm) => {
+    if (!alarm) {
+        chrome.alarms.create(ALARM_NAME, { periodInMinutes: 0.5 });
+        console.log(`[Background] Created periodic alarm every 30s`);
+    }
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === ALARM_NAME) {
+        tabManager.triggerRecalculation('Alarm');
     }
 });

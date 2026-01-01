@@ -35,10 +35,6 @@ export class QueueProcessor {
 
             try {
                 for (const windowId of windowIds) {
-                    if (this.state.isWindowStale(windowId)) {
-                        console.log(`[QueueProcessor] Skipping window ${windowId}: State is STALE`);
-                        continue;
-                    }
 
                     // Fresh scan: find all current ungrouped tabs and groups in THIS window
                     const [initialTabs, initialGroups] = await Promise.all([
@@ -47,11 +43,17 @@ export class QueueProcessor {
                     ]);
 
                     // Capture snapshot of THIS iteration's input (Source of Truth)
-                    this.state.updateSnapshot(windowId, initialTabs, initialGroups);
+                    const windowState = this.state.getWindowState(windowId);
+                    if (!windowState) {
+                        console.error(`[QueueProcessor] No window state for ${windowId}`);
+                        this.state.completeWindow(windowId);
+                        continue;
+                    }
+                    windowState.updateSnapshot(initialTabs, initialGroups);
 
                     // Reconstruct valid tabs from snapshot (to avoid race conditions)
-                    const snapshotTabs = this.state.getSnapshotTabs(windowId);
-                    const validTabs = snapshotTabs.filter(t => isGroupableTab(t as any)) as { id: number; title: string; url: string }[];
+                    const snapshotTabs = windowState.snapshotTabs;
+                    const validTabs = snapshotTabs.filter((t: any) => isGroupableTab(t)) as { id: number; title: string; url: string }[];
 
                     if (validTabs.length === 0) {
                         console.log(`[QueueProcessor] No valid ungrouped tabs in window ${windowId}`);
@@ -71,7 +73,7 @@ export class QueueProcessor {
                     }
 
                     // Reconstruct groups from snapshot
-                    const snapshotGroups = this.state.getSnapshotGroups(windowId);
+                    const snapshotGroups = windowState.snapshotGroups;
                     const groupNameMap = mapExistingGroups(snapshotGroups);
 
                     const virtualGroups = new Map<string, number>();
@@ -96,7 +98,8 @@ export class QueueProcessor {
                     }
 
                     if (!windowProcessingAborted) {
-                        this.state.completeWindow(windowId);
+                        // Persist the successful snapshot to skip redundant re-processing on completion
+                        await this.state.completeWindow(windowId, initialTabs, initialGroups);
                     }
                 }
             } catch (err: any) {
@@ -115,14 +118,16 @@ export class QueueProcessor {
         state: { nextVirtualId: number },
         settings: AppSettings
     ): Promise<boolean> {
-        // 1. CHECK STALENESS & SNAPSHOT BEFORE EACH BATCH
+        // 1. CHECK SNAPSHOT BEFORE EACH BATCH
         const [currentTabs, currentGroups] = await Promise.all([
             chrome.tabs.query({ windowId, groupId: chrome.tabs.TAB_ID_NONE }),
             chrome.tabGroups.query({ windowId })
         ]);
 
-        if (this.state.isWindowStale(windowId) || !this.state.verifySnapshot(windowId, currentTabs, currentGroups)) {
-            console.log(`[QueueProcessor] Window ${windowId} aborted: Stale or snapshot changed before batch`);
+        const windowState = this.state.getWindowState(windowId);
+        if (!windowState || !windowState.verifySnapshot(currentTabs, currentGroups)) {
+            console.log(`[QueueProcessor] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
+            this.state.add(windowId);
             return true;
         }
 
@@ -138,17 +143,17 @@ export class QueueProcessor {
             console.log(`[QueueProcessor] Prompting AI in window ${windowId}`);
 
             const results = await provider.generateSuggestions({
-                existingGroups: windowGroupNameMap,
                 ungroupedTabs: batchTabsData,
+                existingGroups: windowGroupNameMap,
                 customRules: settings.customGroupingRules
             });
 
             console.log(`[QueueProcessor] AI results:`, results.suggestions.map(s => s.groupName));
 
-            const now = Date.now();
-            const suggestionsToCache = [];
             const autopilotEnabled = settings.features?.[FeatureId.TabGrouper]?.autopilot ?? false;
             const groupedTabIds = new Set<number>();
+            const suggestionsToCache = [];
+            const now = Date.now();
 
             for (const suggestion of results.suggestions) {
                 try {
@@ -179,7 +184,7 @@ export class QueueProcessor {
                             suggestionsToCache.push({
                                 tabId,
                                 groupName: suggestion.groupName,
-                                existingGroupId: groupId || null,
+                                existingGroupId: groupId && groupId > 0 ? groupId : null,
                                 timestamp: now
                             });
                         }

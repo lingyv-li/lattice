@@ -18,7 +18,6 @@ export interface AppSettings {
     geminiApiKey: string;
     // Unified Feature State
     features: Record<FeatureId, FeatureSettings>;
-    processingDebounceDelay?: number;
 }
 
 export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevant emoji (e.g., 🗼Travel, ⚛️React).
@@ -32,8 +31,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     features: {
         [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
         [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
-    },
-    processingDebounceDelay: 2000,
+    }
 };
 
 export type SettingsChanges = {

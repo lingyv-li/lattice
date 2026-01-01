@@ -107,118 +107,80 @@ describe('ProcessingState', () => {
         expect(callback).toHaveBeenCalledWith(false);
     });
 
-    describe('Staleness', () => {
-        it('should mark a window as stale if added while busy', () => {
+    describe('Snapshotting', () => {
+        const tabs: chrome.tabs.Tab[] = [
+            { id: 101, url: 'https://a.com', title: 'A' } as any,
+            { id: 102, url: 'https://b.com', title: 'B' } as any
+        ];
+        const groups: chrome.tabGroups.TabGroup[] = [
+            { id: 1, title: 'Group 1' } as any
+        ];
+
+        it('should verify matching snapshot', () => {
             const state = new ProcessingState(() => { });
             state.add(10);
-            state.acquireQueue();
+            state.getWindowState(10)!.updateSnapshot(tabs, groups);
 
-            state.add(20);
-            expect(state.isWindowStale(20)).toBe(true);
-            expect(state.isWindowStale(10)).toBe(false);
+            expect(state.getWindowState(10)!.verifySnapshot(tabs, groups)).toBe(true);
         });
 
-        it('should mark a window as stale if RE-added while busy', () => {
+        it('should fail verification if tabs are different', () => {
             const state = new ProcessingState(() => { });
             state.add(10);
-            state.acquireQueue(); // State is now processing 10
+            state.getWindowState(10)!.updateSnapshot(tabs, groups);
 
-            state.add(10); // 10 is updated while being processed
-            expect(state.isWindowStale(10)).toBe(true);
-        });
-
-        it('should reset stale windows on acquireQueue', () => {
-            const state = new ProcessingState(() => { });
-            state.add(10);
-            state.acquireQueue();
-            state.add(10);
-            expect(state.isWindowStale(10)).toBe(true);
-
-            state.release();
-            state.acquireQueue(); // Should clear staleness
-            expect(state.isWindowStale(10)).toBe(false);
-        });
-
-        it('should allow completing a specific window', () => {
-            const state = new ProcessingState(() => { });
-            state.add(10);
-            state.acquireQueue();
-            state.add(10);
-            state.add(20);
-
-            expect(state.isWindowStale(10)).toBe(true);
-            expect(state.isWindowStale(20)).toBe(true);
-
-            state.completeWindow(10);
-            expect(state.isWindowStale(10)).toBe(false);
-            expect(state.has(10)).toBe(false);
-            expect(state.isWindowStale(20)).toBe(true);
-        });
-
-        describe('Snapshotting', () => {
-            const tabs: chrome.tabs.Tab[] = [
+            const differentTabs = [
                 { id: 101, url: 'https://a.com', title: 'A' } as any,
-                { id: 102, url: 'https://b.com', title: 'B' } as any
+                { id: 103, url: 'https://c.com', title: 'C' } as any
             ];
-            const groups: chrome.tabGroups.TabGroup[] = [
-                { id: 1, title: 'Group 1' } as any
+            expect(state.getWindowState(10)!.verifySnapshot(differentTabs, groups)).toBe(false);
+        });
+
+        it('should fail verification if groups are different', () => {
+            const state = new ProcessingState(() => { });
+            state.add(10);
+            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+
+            const differentGroups = [
+                { id: 1, title: 'Renamed Group' } as any
             ];
+            expect(state.getWindowState(10)!.verifySnapshot(tabs, differentGroups)).toBe(false);
+        });
 
-            it('should verify matching snapshot', () => {
-                const state = new ProcessingState(() => { });
-                state.add(10);
-                state.updateSnapshot(10, tabs, groups);
+        it('should reconstruct tab and group data from snapshot', () => {
+            const state = new ProcessingState(() => { });
+            state.add(10);
+            state.getWindowState(10)!.updateSnapshot(tabs, groups);
 
-                expect(state.verifySnapshot(10, tabs, groups)).toBe(true);
-            });
+            expect(state.getWindowState(10)!.snapshotTabs).toEqual([
+                { id: 101, url: 'https://a.com', title: 'A' },
+                { id: 102, url: 'https://b.com', title: 'B' }
+            ]);
+            expect(state.getWindowState(10)!.snapshotGroups).toEqual([
+                { id: 1, title: 'Group 1' }
+            ]);
+        });
 
-            it('should fail verification if tabs are different', () => {
-                const state = new ProcessingState(() => { });
-                state.add(10);
-                state.updateSnapshot(10, tabs, groups);
+        it('should isolate snapshots by window', () => {
+            const state = new ProcessingState(() => { });
+            state.add(10);
+            state.add(20);
+            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+            state.getWindowState(20)!.updateSnapshot([{ id: 99, url: 'https://z.com', title: 'Z' } as any], []);
 
-                const differentTabs = [
-                    { id: 101, url: 'https://a.com', title: 'A' } as any,
-                    { id: 103, url: 'https://c.com', title: 'C' } as any
-                ];
-                expect(state.verifySnapshot(10, differentTabs, groups)).toBe(false);
-            });
+            expect(state.getWindowState(10)!.verifySnapshot(tabs, groups)).toBe(true);
+            expect(state.getWindowState(20)!.verifySnapshot(tabs, groups)).toBe(false);
+        });
 
-            it('should fail verification if groups are different', () => {
-                const state = new ProcessingState(() => { });
-                state.add(10);
-                state.updateSnapshot(10, tabs, groups);
+        it('should allow completing a specific window', async () => {
+            const state = new ProcessingState(() => { });
+            state.add(10);
+            state.acquireQueue();
+            state.add(20);
 
-                const differentGroups = [
-                    { id: 1, title: 'Renamed Group' } as any
-                ];
-                expect(state.verifySnapshot(10, tabs, differentGroups)).toBe(false);
-            });
-
-            it('should reconstruct tab and group data from snapshot', () => {
-                const state = new ProcessingState(() => { });
-                state.add(10);
-                state.updateSnapshot(10, tabs, groups);
-
-                expect(state.getSnapshotTabs(10)).toEqual([
-                    { id: 101, url: 'https://a.com', title: 'A' },
-                    { id: 102, url: 'https://b.com', title: 'B' }
-                ]);
-                expect(state.getSnapshotGroups(10)).toEqual([
-                    { id: 1, title: 'Group 1' }
-                ]);
-            });
-
-            it('should isolate snapshots by window', () => {
-                const state = new ProcessingState(() => { });
-                state.add(10);
-                state.add(20);
-                state.updateSnapshot(10, tabs, groups);
-                state.updateSnapshot(20, [{ id: 99, url: 'https://z.com', title: 'Z' } as any], []);
-
-                expect(state.verifySnapshot(10, tabs, groups)).toBe(true);
-                expect(state.verifySnapshot(20, tabs, groups)).toBe(false);
-            });
+            await state.completeWindow(10);
+            expect(state.has(10)).toBe(false);
+            expect(state.has(20)).toBe(true);
         });
     });
 });

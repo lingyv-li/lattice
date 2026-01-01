@@ -3,6 +3,7 @@ import { TabSuggestionCache } from '../types/tabGrouper';
 
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
+    windowSnapshots: Record<number, string>;
 }
 
 type StateChanges = {
@@ -12,6 +13,7 @@ type StateChanges = {
 export class StateService {
     // In-memory cache for speed
     private static cache: Map<number, TabSuggestionCache> | null = null;
+    private static snapshots: Map<number, string> = new Map();
     private static isHydrated = false;
 
     /**
@@ -21,11 +23,17 @@ export class StateService {
         if (this.isHydrated) return;
 
         try {
-            const data = await chrome.storage.session.get('suggestionCache') as Partial<StorageSchema>;
+            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots']) as Partial<StorageSchema>;
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
                 this.cache = new Map(data.suggestionCache.map(s => [s.tabId, s]));
             } else {
                 this.cache = new Map();
+            }
+
+            if (data.windowSnapshots) {
+                this.snapshots = new Map(Object.entries(data.windowSnapshots).map(([k, v]) => [Number(k), v]));
+            } else {
+                this.snapshots = new Map();
             }
             this.isHydrated = true;
         } catch (e) {
@@ -108,20 +116,50 @@ export class StateService {
     }
 
     /**
+     * Get the last processed snapshot for a window
+     */
+    static async getWindowSnapshot(windowId: number): Promise<string | undefined> {
+        await this.hydrate();
+        return this.snapshots.get(windowId);
+    }
+
+    /**
+     * Update the snapshot for a window
+     */
+    static async updateWindowSnapshot(windowId: number, snapshot: string): Promise<void> {
+        await this.hydrate();
+        this.snapshots.set(windowId, snapshot);
+        await this.persist();
+    }
+
+    /**
+     * Clear snapshot for a window
+     */
+    static async clearWindowSnapshot(windowId: number): Promise<void> {
+        await this.hydrate();
+        if (this.snapshots.delete(windowId)) {
+            await this.persist();
+        }
+    }
+
+    /**
      * Subscribe to changes in the suggestion cache.
      * Returns a function to unsubscribe.
      */
     static subscribe(callback: (cache: Map<number, TabSuggestionCache>) => void): () => void {
         const handleStorageChange = (changes: StateChanges, areaName: string) => {
-            if (areaName === 'session' && changes.suggestionCache?.newValue) {
-                const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
-                const newCache = new Map(rawData.map(s => [s.tabId, s]));
-
-                // Update local cache as well
-                this.cache = newCache;
-                this.isHydrated = true;
-
-                callback(newCache);
+            if (areaName === 'session') {
+                if (changes.suggestionCache?.newValue) {
+                    const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
+                    this.cache = new Map(rawData.map(s => [s.tabId, s]));
+                    this.isHydrated = true;
+                    callback(this.cache);
+                }
+                if (changes.windowSnapshots?.newValue) {
+                    const rawData = changes.windowSnapshots.newValue as Record<number, string>;
+                    this.snapshots = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
+                    this.isHydrated = true;
+                }
             }
         };
 
@@ -133,10 +171,13 @@ export class StateService {
      * Persist current in-memory cache to session storage
      */
     private static async persist(): Promise<void> {
-        if (!this.cache) return;
         try {
-            const serialized = Array.from(this.cache.values());
-            await chrome.storage.session.set({ suggestionCache: serialized });
+            const update: Partial<StorageSchema> = {};
+            if (this.cache) {
+                update.suggestionCache = Array.from(this.cache.values());
+            }
+            update.windowSnapshots = Object.fromEntries(this.snapshots.entries());
+            await chrome.storage.session.set(update);
         } catch (e) {
             console.error("[StateService] Failed to persist:", e);
         }
