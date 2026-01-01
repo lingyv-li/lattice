@@ -10,6 +10,7 @@ export interface GroupingRequest {
     existingGroups: Map<string, number>;
     ungroupedTabs: TabData[];
     customRules?: string;
+    signal?: AbortSignal;
 }
 
 export interface SuggestionResult {

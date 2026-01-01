@@ -72,13 +72,7 @@ export const cleanAndParseJson = (responseText: string): any => {
     }
 };
 
-export const constructSystemPrompt = (customRules: string = ""): string => {
-    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
-
-    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
-    Your task is to assign EACH "Ungrouped Tab" to a group.
-
-    Objectives:
+const COMMON_OBJECTIVES = `Objectives:
     1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
     2. STRICTLY PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
     3. Create NEW groups only for tabs that definitively don't fit existing ones. 
@@ -87,11 +81,23 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
     Naming Standards for NEW groups:
     - Use 1-2 concise words (Title Case).
     - Descriptive but broad enough to encompass multiple tabs.
-    - NO generic names like "Other", "Misc", "Tabs".
+    - NO generic names like "Other", "Misc", "Tabs".`;
+
+const COMMON_CONSTRAINTS = `IMPORTANT:
+    - Assign each tab ID to EXACTLY ONE group.
+    - Do not duplicate tab IDs across groups.`;
+
+export const constructSystemPrompt = (customRules: string = ""): string => {
+    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
+    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+    Your task is to assign EACH "Ungrouped Tab" to a group.
+
+    ${COMMON_OBJECTIVES}
 
     CRITICAL INSTRUCTIONS:
     - Output ONLY a valid JSON object.
-    - Assign each tab ID to EXACTLY ONE group.
+    ${COMMON_CONSTRAINTS}
     - DO NOT echo the user input or explain your reasoning.
     - The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
 
@@ -100,6 +106,22 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
         "...": [123, 124, 129],
         "...": [456]
     }
+
+    ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
+};
+
+export const constructCoTSystemPrompt = (customRules: string = ""): string => {
+    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
+    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+
+    Process:
+    1.  **Analyze**: First, think through the relationships between the tabs. Identify key themes and how they relate to existing groups or new potential groups.
+    2.  **Assign**: Then, definitively assign EACH "Ungrouped Tab" to a group.
+
+    ${COMMON_OBJECTIVES}
+
+    ${COMMON_CONSTRAINTS}
 
     ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
 };

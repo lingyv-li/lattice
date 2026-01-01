@@ -13,23 +13,32 @@ export abstract class BaseProvider implements AIProvider {
      * @param userPrompt The user prompt with tabs to analyze
      * @param systemPrompt The system prompt with instructions
      * @param customRules Optional custom grouping rules
+     * @param signal Optional AbortSignal for cancellation
      */
     protected abstract promptAI(
         userPrompt: string,
         systemPrompt: string,
-        customRules?: string
+        customRules?: string,
+        signal?: AbortSignal
     ): Promise<string>;
+
+    protected getSystemPrompt(customRules?: string): string {
+        return constructSystemPrompt(customRules);
+    }
 
     async generateSuggestions(
         request: GroupingRequest
     ): Promise<SuggestionResult> {
-        const { ungroupedTabs, existingGroups, customRules } = request;
+        const { ungroupedTabs, existingGroups, customRules, signal } = request;
         const groupNameMap = existingGroups;
         const suggestions = new Map<string, TabGroupSuggestion>();
         const errors: Error[] = [];
         let nextNewGroupId = -1;
 
-        const systemPrompt = constructSystemPrompt(customRules);
+        const startTime = Date.now();
+        console.log(`[${this.id}] [${new Date().toISOString()}] Generating suggestions for ${ungroupedTabs.length} tabs`);
+
+        const systemPrompt = this.getSystemPrompt(customRules);
 
         const currentGroupNames = Array.from(groupNameMap.keys())
             .filter(name => name.trim().length > 0);
@@ -43,7 +52,8 @@ export abstract class BaseProvider implements AIProvider {
             + `\nUngrouped Tabs:\n${tabList}`;
 
         try {
-            const responseText = await this.promptAI(userPrompt, systemPrompt, customRules);
+            const responseText = await this.promptAI(userPrompt, systemPrompt, customRules, signal);
+            console.log(`[${this.id}] [${new Date().toISOString()}] Parsing AI response`);
             const parsed = cleanAndParseJson(responseText);
 
             if (Array.isArray(parsed)) {
@@ -82,9 +92,12 @@ export abstract class BaseProvider implements AIProvider {
             }
         } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));
-            console.error(`[${this.id}] Prompt failed`, error);
+            console.error(`[${this.id}] [${new Date().toISOString()}] Prompt failed`, error);
             errors.push(error);
         }
+
+        const duration = Date.now() - startTime;
+        console.log(`[${this.id}] [${new Date().toISOString()}] Generated ${suggestions.size} suggestions with ${errors.length} errors (took ${duration}ms)`);
 
         return {
             suggestions: Array.from(suggestions.values()),

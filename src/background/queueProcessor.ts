@@ -10,15 +10,17 @@ import { FeatureId } from '../types/features';
 const BATCH_SIZE = 10;
 
 export class QueueProcessor {
+    private windowAbortControllers = new Map<number, AbortController>();
+
     constructor(private state: ProcessingState) { }
 
     async process(): Promise<void> {
-        console.log(`[QueueProcessor] process() called (Items: ${this.state.hasItems})`);
+        console.log(`[QueueProcessor] [${new Date().toISOString()}] process() called (Items: ${this.state.hasItems})`);
 
         while (this.state.hasItems) {
             const settings = await SettingsStorage.get();
             if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
-                console.log("[QueueProcessor] Tab Grouper feature is disabled, stopping.");
+                console.log(`[QueueProcessor] [${new Date().toISOString()}] Tab Grouper feature is disabled, stopping.`);
                 this.state.release();
                 return;
             }
@@ -29,7 +31,7 @@ export class QueueProcessor {
                 return;
             }
 
-            console.log(`[QueueProcessor] Starting processing for ${windowIds.length} windows`);
+            console.log(`[QueueProcessor] [${new Date().toISOString()}] Starting processing for ${windowIds.length} windows`);
 
             try {
                 for (const windowId of windowIds) {
@@ -61,6 +63,12 @@ export class QueueProcessor {
                         await this.state.completeWindow(windowId);
                         continue;
                     }
+
+                    // Persist the snapshot immediately to prevent subsequent tab changes from aborting this processing
+                    // The snapshot was captured at enqueue time and represents the state we're working with
+                    await StateService.updateWindowSnapshot(windowId, windowState.inputSnapshot);
+                    console.log(`[QueueProcessor] [${new Date().toISOString()}] Snapshot persisted for window ${windowId}`);
+
                     const virtualGroups = new Map<string, number>();
 
                     let nextVirtualId = -1;
@@ -81,10 +89,16 @@ export class QueueProcessor {
                         if (windowProcessingAborted) break;
                     }
 
-                    if (!windowProcessingAborted) {
-                        // Persist the snapshot that was captured at enqueue time
+                    if (windowProcessingAborted) {
+                        // If aborted, we already re-queued in processWindowBatch
+                        // Don't complete the window
+                    } else {
+                        // Mark window as complete (snapshot already persisted above)
                         await this.state.completeWindow(windowId);
                     }
+
+                    // Clean up abort controller
+                    this.windowAbortControllers.delete(windowId);
                 }
             } catch (err: any) {
                 console.error("[QueueProcessor] Global processing error", err);
@@ -105,7 +119,14 @@ export class QueueProcessor {
         const windowState = this.state.getWindowState(windowId);
 
         if (!windowState || !(await windowState.verifySnapshot())) {
-            console.log(`[QueueProcessor] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
+            console.log(`[QueueProcessor] [${new Date().toISOString()}] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
+            // Abort any in-progress AI request
+            const controller = this.windowAbortControllers.get(windowId);
+            if (controller) {
+                console.log(`[QueueProcessor] [${new Date().toISOString()}] Aborting AI request for window ${windowId}`);
+                controller.abort();
+                this.windowAbortControllers.delete(windowId);
+            }
             await this.state.add(windowId);
             return true;
         }
@@ -113,7 +134,12 @@ export class QueueProcessor {
 
         try {
             const provider = await AIService.getProvider(settings);
-            console.log(`[QueueProcessor] Prompting AI in window ${windowId}`);
+            const batchStartTime = Date.now();
+            console.log(`[QueueProcessor] [${new Date().toISOString()}] Prompting AI in window ${windowId}`);
+
+            // Create abort controller for this window's request
+            const controller = new AbortController();
+            this.windowAbortControllers.set(windowId, controller);
 
             const promptInput = windowState.inputSnapshot.getPromptForBatch(
                 batchTabs,
@@ -121,9 +147,13 @@ export class QueueProcessor {
                 settings.customGroupingRules
             );
 
-            const results = await provider.generateSuggestions(promptInput);
+            const results = await provider.generateSuggestions({
+                ...promptInput,
+                signal: controller.signal
+            });
 
-            console.log(`[QueueProcessor] AI results:`, results.suggestions.map(s => s.groupName));
+            const batchDuration = Date.now() - batchStartTime;
+            console.log(`[QueueProcessor] [${new Date().toISOString()}] AI results for window ${windowId}:`, results.suggestions.map(s => s.groupName), `(took ${batchDuration}ms)`);
 
             const autopilotEnabled = settings.features?.[FeatureId.TabGrouper]?.autopilot ?? false;
             const groupedTabIds = new Set<number>();

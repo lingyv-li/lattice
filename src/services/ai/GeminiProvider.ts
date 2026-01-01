@@ -13,9 +13,13 @@ export class GeminiProvider extends BaseProvider {
 
     protected async promptAI(
         userPrompt: string,
-        systemPrompt: string
+        systemPrompt: string,
+        _customRules?: string,
+        signal?: AbortSignal
     ): Promise<string> {
         if (!this.apiKey) throw new Error("API Key is missing for Gemini Cloud.");
+
+        console.log(`[GeminiProvider] [${new Date().toISOString()}] Prompting model: ${this.model}`);
 
         const client = new GoogleGenAI({ apiKey: this.apiKey });
         const isGemma = this.model.includes('gemma');
@@ -29,7 +33,10 @@ export class GeminiProvider extends BaseProvider {
             ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
             : userPrompt;
 
-        const response = await client.models.generateContent({
+        console.log(`[GeminiProvider] [${new Date().toISOString()}] Sending request to ${this.model}${isGemma ? ' (Gemma mode)' : ''}`);
+
+        // Handle abort signal manually since Google GenAI SDK doesn't directly support it
+        const requestPromise = client.models.generateContent({
             model: this.model,
             config: config,
             contents: [
@@ -40,15 +47,33 @@ export class GeminiProvider extends BaseProvider {
             ]
         });
 
+        // Race the request against the abort signal
+        const response = signal
+            ? await Promise.race([
+                requestPromise,
+                new Promise<never>((_, reject) => {
+                    if (signal.aborted) {
+                        reject(new DOMException('Request aborted', 'AbortError'));
+                    }
+                    signal.addEventListener('abort', () => {
+                        reject(new DOMException('Request aborted', 'AbortError'));
+                    });
+                })
+            ])
+            : await requestPromise;
+
         if (response.text) {
+            console.log(`[GeminiProvider] [${new Date().toISOString()}] Response received successfully`);
             return response.text;
         }
 
         const candidate = response.candidates?.[0];
         if (candidate?.content?.parts?.[0]?.text) {
+            console.log(`[GeminiProvider] [${new Date().toISOString()}] Response received from candidate`);
             return candidate.content.parts[0].text;
         }
 
+        console.error(`[GeminiProvider] [${new Date().toISOString()}] No response text from Gemini`);
         throw new Error("No response text from Gemini");
     }
 }

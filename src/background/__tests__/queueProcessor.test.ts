@@ -271,4 +271,88 @@ describe('QueueProcessor', () => {
         expect(tab102).toBeUndefined();
     });
 
+    it('should handle failed queue acquisition', async () => {
+        // Mock acquireQueue to return empty array (busy or empty)
+        mockState.acquireQueue.mockReturnValue([]);
+
+        await processor.process();
+
+        // Should not call AI
+        expect(AIService.getProvider).not.toHaveBeenCalled();
+        // Should not release (already released by acquireQueue failure)
+        expect(mockState.release).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors when applying suggestions in autopilot mode', async () => {
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+            }
+        });
+
+        // Mock applyTabGroup to throw an error
+        (applyTabGroup as any).mockRejectedValue(new Error('Failed to apply group'));
+
+        await processor.process();
+
+        // Should still complete processing
+        expect(mockState.release).toHaveBeenCalled();
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+    });
+
+    it('should handle AI errors and store them', async () => {
+        // Mock AI provider to throw an error
+        const mockProvider = {
+            id: 'mock',
+            generateSuggestions: vi.fn().mockRejectedValue(new Error('AI service failed'))
+        };
+        (AIService.getProvider as any).mockResolvedValue(mockProvider);
+
+        await processor.process();
+
+        // Should store error
+        expect(mockState.release).toHaveBeenCalled();
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+    });
+
+    it('should track virtual group IDs when creating new groups in autopilot', async () => {
+        mockSettings({
+            features: {
+                [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+            }
+        });
+
+        // Mock applyTabGroup to return a new group ID
+        (applyTabGroup as any).mockResolvedValue(123);
+
+        await processor.process();
+
+        // Should apply group and get back the new group ID
+        expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null, 1);
+        expect(mockState.release).toHaveBeenCalled();
+    });
+
+    it('should handle missing window state gracefully', async () => {
+        // Mock getWindowState to return null
+        mockState.getWindowState.mockReturnValue(null);
+
+        await processor.process();
+
+        // Should complete the window and continue
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+        expect(mockState.release).toHaveBeenCalled();
+    });
+
+    it('should handle windows with no ungrouped tabs', async () => {
+        // Mock snapshot with no ungrouped tabs
+        mockWindowState.inputSnapshot = new MockWindowSnapshot([], []);
+
+        await processor.process();
+
+        // Should complete the window without calling AI
+        expect(AIService.getProvider).not.toHaveBeenCalled();
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+        expect(mockState.release).toHaveBeenCalled();
+    });
+
 });
