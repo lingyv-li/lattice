@@ -90,11 +90,6 @@ export class ProcessingState {
     async completeWindow(windowId: number) {
         console.log(`[ProcessingState] Window ${windowId} completed`);
 
-        const state = this.windowStates.get(windowId);
-        if (state && state.inputSnapshot) {
-            await StateService.updateWindowSnapshot(windowId, state.inputSnapshot);
-        }
-
         // If the window was re-queued while processing (e.g. rapid changes),
         // do NOT delete the state, so the next processor cycle can find it.
         if (this.windowQueue.includes(windowId)) {
@@ -130,6 +125,10 @@ export class ProcessingState {
             const state = this.windowStates.get(windowId)!;
             state.update(snapshot);
         }
+
+        // Persist snapshot immediately to prevent false "window changed" detections
+        // during queue waits (e.g., when other windows are processing)
+        await StateService.updateWindowSnapshot(windowId, snapshot);
 
         if (existingIndex !== -1) {
             // Priority: Move to front if already exists

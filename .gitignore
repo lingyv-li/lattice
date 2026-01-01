@@ -30,3 +30,6 @@ releases/
 
 # TypeScript build cache
 tsconfig.tsbuildinfo
+
+# Test coverage
+coverage

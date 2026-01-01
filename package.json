@@ -31,6 +31,7 @@
     "@types/react-dom": "^19.0.2",
     "@types/sharp": "^0.31.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.0.16",
     "archiver": "^7.0.1",
     "crx": "^5.0.1",
     "jsdom": "^27.4.0",

@@ -6,6 +6,7 @@ import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
 import { getUserFriendlyError } from '../utils/errors';
 import { FeatureId } from '../types/features';
+import { GroupIdManager } from './GroupIdManager';
 
 const BATCH_SIZE = 10;
 
@@ -64,36 +65,25 @@ export class QueueProcessor {
                         continue;
                     }
 
-                    // Persist the snapshot immediately to prevent subsequent tab changes from aborting this processing
-                    // The snapshot was captured at enqueue time and represents the state we're working with
-                    await StateService.updateWindowSnapshot(windowId, windowState.inputSnapshot);
-                    console.log(`[QueueProcessor] [${new Date().toISOString()}] Snapshot persisted for window ${windowId}`);
-
-                    const virtualGroups = new Map<string, number>();
-
-                    let nextVirtualId = -1;
+                    const groupIdManager = new GroupIdManager();
                     let windowProcessingAborted = false;
 
                     for (const batchTabs of batches) {
-                        const wrap = { nextVirtualId };
-
-                        windowProcessingAborted = await this.processWindowBatch(
+                        const result = await this.processWindowBatch(
                             windowId,
                             batchTabs,
-                            virtualGroups,
-                            wrap,
+                            groupIdManager,
                             settings
                         );
 
-                        nextVirtualId = wrap.nextVirtualId;
-                        if (windowProcessingAborted) break;
+                        if (result.aborted) {
+                            windowProcessingAborted = true;
+                            break;
+                        }
                     }
 
-                    if (windowProcessingAborted) {
-                        // If aborted, we already re-queued in processWindowBatch
-                        // Don't complete the window
-                    } else {
-                        // Mark window as complete (snapshot already persisted above)
+                    // Complete window if not aborted (snapshot already persisted above)
+                    if (!windowProcessingAborted) {
                         await this.state.completeWindow(windowId);
                     }
 
@@ -111,10 +101,9 @@ export class QueueProcessor {
     private async processWindowBatch(
         windowId: number,
         batchTabs: chrome.tabs.Tab[],
-        virtualGroups: Map<string, number>,
-        state: { nextVirtualId: number },
+        groupIdManager: GroupIdManager,
         settings: AppSettings
-    ): Promise<boolean> {
+    ): Promise<{ aborted: boolean }> {
         // Check snapshot before each batch (uses centralized function)
         const windowState = this.state.getWindowState(windowId);
 
@@ -128,7 +117,7 @@ export class QueueProcessor {
                 this.windowAbortControllers.delete(windowId);
             }
             await this.state.add(windowId);
-            return true;
+            return { aborted: true };
         }
 
 
@@ -143,7 +132,7 @@ export class QueueProcessor {
 
             const promptInput = windowState.inputSnapshot.getPromptForBatch(
                 batchTabs,
-                virtualGroups,
+                groupIdManager.getGroupMap(),
                 settings.customGroupingRules
             );
 
@@ -162,35 +151,31 @@ export class QueueProcessor {
 
             for (const suggestion of results.suggestions) {
                 try {
-                    // 1. Determine/Create Virtual or Real ID
-                    let groupId = suggestion.existingGroupId || virtualGroups.get(suggestion.groupName) || null;
-
-                    if (!groupId) {
-                        // Assign a virtual ID for consistent cross-batch grouping in this window cycle
-                        groupId = state.nextVirtualId--;
-                        virtualGroups.set(suggestion.groupName, groupId);
-                    }
+                    // Resolve group ID (virtual or real)
+                    const groupId = groupIdManager.resolveGroupId(
+                        suggestion.groupName,
+                        suggestion.existingGroupId
+                    );
 
                     if (autopilotEnabled) {
                         const newGroupId = await applyTabGroup(
                             suggestion.tabIds,
                             suggestion.groupName,
-                            groupId && groupId > 0 ? groupId : null,
+                            groupIdManager.toRealIdOrNull(groupId),
                             windowId
                         );
 
                         if (newGroupId) {
-                            virtualGroups.set(suggestion.groupName, newGroupId);
-                            groupId = newGroupId;
+                            groupIdManager.updateWithRealId(suggestion.groupName, newGroupId);
                         }
                     } else {
-                        // Only add to cache loop if not autopilot (as per test expectations)
+                        // Cache suggestions for manual review
                         for (const tabId of suggestion.tabIds) {
                             suggestionsToCache.push({
                                 tabId,
                                 windowId,
                                 groupName: suggestion.groupName,
-                                existingGroupId: groupId && groupId > 0 ? groupId : null,
+                                existingGroupId: groupIdManager.toRealIdOrNull(groupId),
                                 timestamp: now
                             });
                         }
@@ -213,6 +198,6 @@ export class QueueProcessor {
             await ErrorStorage.addError(errorMsg);
         }
 
-        return false;
+        return { aborted: false };
     }
 }
