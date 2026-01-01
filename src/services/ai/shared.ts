@@ -91,6 +91,7 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
 
     CRITICAL INSTRUCTIONS:
     - Output ONLY a valid JSON object.
+    - Assign each tab ID to EXACTLY ONE group.
     - DO NOT echo the user input or explain your reasoning.
     - The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
 

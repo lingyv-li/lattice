@@ -20,7 +20,7 @@ export interface AppSettings {
     features: Record<FeatureId, FeatureSettings>;
 }
 
-export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevant emoji (e.g., 🗼Travel, ⚛️React).
+export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevant emoji (e.g., "🇯🇵Japan Trip", "⚛️React").
 - Avoid generic names (e.g., don't use 'General', 'Miscellaneous', or 'Tabs').`;
 
 export const DEFAULT_SETTINGS: AppSettings = {
