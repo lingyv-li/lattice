@@ -80,7 +80,7 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
 
     Objectives:
     1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Match the name exactly from the provided list.
+    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
     3. Create NEW groups only for tabs that definitively don't fit existing ones. 
     4. Avoid single-tab groups unless absolutely necessary.
 
@@ -96,9 +96,8 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
 
     Expected JSON Structure:
     {
-        "🚀Project Alpha": [123, 124, 129],
-        "💡Existing Group Name": [456],
-        "📝Documentation": [789]
+        "...": [123, 124, 129],
+        "...": [456]
     }
 
     ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;

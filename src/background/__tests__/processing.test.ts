@@ -13,8 +13,10 @@ describe('ProcessingState', () => {
     it('should update status and fire callback when adding items', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
 
-        const added = state.add(10);
+        const added = state.add(10, mockTabs, mockGroups);
         expect(added).toBe(true);
         expect(state.isProcessing).toBe(true);
         expect(callback).toHaveBeenCalledWith(true);
@@ -23,29 +25,34 @@ describe('ProcessingState', () => {
 
     it('should handle priority (move to front) when adding existing window', () => {
         const state = new ProcessingState(() => { });
-        state.add(10);
-        state.add(20);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
+
+        state.add(10, mockTabs, mockGroups);
+        state.add(20, mockTabs, mockGroups);
         expect(state.acquireQueue()).toEqual([20, 10]); // LIFO-ish (prepend)
 
         state.release();
-        state.add(10);
-        state.add(20);
-        state.add(30);
+        state.add(10, mockTabs, mockGroups);
+        state.add(20, mockTabs, mockGroups);
+        state.add(30, mockTabs, mockGroups);
         // Queue is [30, 20, 10]
 
         // Re-add 10 -> should move to front
-        state.add(10);
+        state.add(10, mockTabs, mockGroups);
         expect(state.acquireQueue()).toEqual([10, 30, 20]);
     });
 
     it('should not fire callback if status does not change', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
 
-        state.add(10);
+        state.add(10, mockTabs, mockGroups);
         expect(callback).toHaveBeenCalledTimes(1);
 
-        state.add(20);
+        state.add(20, mockTabs, mockGroups);
         expect(callback).toHaveBeenCalledTimes(1); // Still processing
         expect(state.size).toBe(2);
     });
@@ -53,9 +60,11 @@ describe('ProcessingState', () => {
     it('should handle acquireQueue', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
 
-        state.add(10);
-        state.add(20);
+        state.add(10, mockTabs, mockGroups);
+        state.add(20, mockTabs, mockGroups);
 
         callback.mockClear();
 
@@ -67,10 +76,13 @@ describe('ProcessingState', () => {
 
     it('should return empty if acquireQueue called while busy', () => {
         const state = new ProcessingState(() => { });
-        state.add(10);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
+
+        state.add(10, mockTabs, mockGroups);
         state.acquireQueue();
 
-        state.add(20);
+        state.add(20, mockTabs, mockGroups);
         const ids = state.acquireQueue();
         expect(ids).toEqual([]);
         expect(state.size).toBe(1);
@@ -79,8 +91,10 @@ describe('ProcessingState', () => {
     it('should update status when released', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
 
-        state.add(10);
+        state.add(10, mockTabs, mockGroups);
         state.acquireQueue();
         callback.mockClear();
 
@@ -92,9 +106,11 @@ describe('ProcessingState', () => {
     it('should handle remove correctly', () => {
         const callback = vi.fn();
         const state = new ProcessingState(callback);
+        const mockTabs: chrome.tabs.Tab[] = [];
+        const mockGroups: chrome.tabGroups.TabGroup[] = [];
 
-        state.add(10);
-        state.add(20);
+        state.add(10, mockTabs, mockGroups);
+        state.add(20, mockTabs, mockGroups);
         callback.mockClear();
 
         state.remove(10);
@@ -118,16 +134,14 @@ describe('ProcessingState', () => {
 
         it('should verify matching snapshot', () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
-            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+            state.add(10, tabs, groups);
 
             expect(state.getWindowState(10)!.verifySnapshot(tabs, groups)).toBe(true);
         });
 
         it('should fail verification if tabs are different', () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
-            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+            state.add(10, tabs, groups);
 
             const differentTabs = [
                 { id: 101, url: 'https://a.com', title: 'A' } as any,
@@ -138,8 +152,7 @@ describe('ProcessingState', () => {
 
         it('should fail verification if groups are different', () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
-            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+            state.add(10, tabs, groups);
 
             const differentGroups = [
                 { id: 1, title: 'Renamed Group' } as any
@@ -149,8 +162,7 @@ describe('ProcessingState', () => {
 
         it('should reconstruct tab and group data from snapshot', () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
-            state.getWindowState(10)!.updateSnapshot(tabs, groups);
+            state.add(10, tabs, groups);
 
             expect(state.getWindowState(10)!.snapshotTabs).toEqual([
                 { id: 101, url: 'https://a.com', title: 'A' },
@@ -163,10 +175,9 @@ describe('ProcessingState', () => {
 
         it('should isolate snapshots by window', () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
-            state.add(20);
-            state.getWindowState(10)!.updateSnapshot(tabs, groups);
-            state.getWindowState(20)!.updateSnapshot([{ id: 99, url: 'https://z.com', title: 'Z' } as any], []);
+            const otherTabs = [{ id: 99, url: 'https://z.com', title: 'Z' } as any];
+            state.add(10, tabs, groups);
+            state.add(20, otherTabs, []);
 
             expect(state.getWindowState(10)!.verifySnapshot(tabs, groups)).toBe(true);
             expect(state.getWindowState(20)!.verifySnapshot(tabs, groups)).toBe(false);
@@ -174,9 +185,12 @@ describe('ProcessingState', () => {
 
         it('should allow completing a specific window', async () => {
             const state = new ProcessingState(() => { });
-            state.add(10);
+            const mockTabs: chrome.tabs.Tab[] = [];
+            const mockGroups: chrome.tabGroups.TabGroup[] = [];
+
+            state.add(10, mockTabs, mockGroups);
             state.acquireQueue();
-            state.add(20);
+            state.add(20, mockTabs, mockGroups);
 
             await state.completeWindow(10);
             expect(state.has(10)).toBe(false);

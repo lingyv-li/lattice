@@ -36,20 +36,13 @@ export class QueueProcessor {
             try {
                 for (const windowId of windowIds) {
 
-                    // Fresh scan: find all current ungrouped tabs and groups in THIS window
-                    const [initialTabs, initialGroups] = await Promise.all([
-                        chrome.tabs.query({ windowId, groupId: chrome.tabs.TAB_ID_NONE }),
-                        chrome.tabGroups.query({ windowId })
-                    ]);
-
-                    // Capture snapshot of THIS iteration's input (Source of Truth)
+                    // The snapshot was already captured at enqueue time in TabManager
                     const windowState = this.state.getWindowState(windowId);
                     if (!windowState) {
                         console.error(`[QueueProcessor] No window state for ${windowId}`);
-                        this.state.completeWindow(windowId);
+                        await this.state.completeWindow(windowId);
                         continue;
                     }
-                    windowState.updateSnapshot(initialTabs, initialGroups);
 
                     // Reconstruct valid tabs from snapshot (to avoid race conditions)
                     const snapshotTabs = windowState.snapshotTabs;
@@ -57,18 +50,18 @@ export class QueueProcessor {
 
                     if (validTabs.length === 0) {
                         console.log(`[QueueProcessor] No valid ungrouped tabs in window ${windowId}`);
-                        this.state.completeWindow(windowId);
+                        await this.state.completeWindow(windowId);
                         continue;
                     }
 
                     try {
                         const window = await chrome.windows.get(windowId);
                         if (window.type !== chrome.windows.WindowType.NORMAL) {
-                            this.state.completeWindow(windowId);
+                            await this.state.completeWindow(windowId);
                             continue;
                         }
                     } catch (e) {
-                        this.state.completeWindow(windowId);
+                        await this.state.completeWindow(windowId);
                         continue;
                     }
 
@@ -98,8 +91,8 @@ export class QueueProcessor {
                     }
 
                     if (!windowProcessingAborted) {
-                        // Persist the successful snapshot to skip redundant re-processing on completion
-                        await this.state.completeWindow(windowId, initialTabs, initialGroups);
+                        // Persist the snapshot that was captured at enqueue time
+                        await this.state.completeWindow(windowId);
                     }
                 }
             } catch (err: any) {
@@ -127,7 +120,7 @@ export class QueueProcessor {
         const windowState = this.state.getWindowState(windowId);
         if (!windowState || !windowState.verifySnapshot(currentTabs, currentGroups)) {
             console.log(`[QueueProcessor] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
-            this.state.add(windowId);
+            this.state.add(windowId, currentTabs, currentGroups);
             return true;
         }
 

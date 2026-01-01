@@ -69,12 +69,14 @@ export class TabManager {
             if (!hasUngroupedTabs) {
                 // If everything is already grouped, we should still record the snapshot 
                 // so we don't re-check until someone ungroups or moves something.
-                await this.processingState.completeWindow(windowId, tabs, groups);
+                // We add then immediately complete to persist the snapshot.
+                this.processingState.add(windowId, tabs, groups);
+                await this.processingState.completeWindow(windowId);
                 continue;
             }
 
             console.log(`[TabManager] Window ${windowId} has changes, queuing.`);
-            this.processingState.add(windowId);
+            this.processingState.add(windowId, tabs, groups);
         }
 
         // Process immediately if we have windows queued in ProcessingState

@@ -213,7 +213,8 @@ describe('QueueProcessor', () => {
         const provider = await AIService.getProvider({} as any);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
         expect(mockState.release).toHaveBeenCalled();
-        expect(mockState.add).toHaveBeenCalledWith(1);
+        // add() is called with windowId, currentTabs, currentGroups to re-queue
+        expect(mockState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
         expect(mockState.completeWindow).not.toHaveBeenCalled();
     });
 
