@@ -6,6 +6,7 @@ import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType, DEFAULT_GROUPING_RULES } from '../utils/storage';
 import { FeatureId } from '../types/features';
 import { AIService } from '../services/ai/AIService';
+import { LocalProvider } from '../services/ai/LocalProvider';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
 import { ToastProvider, useToast } from '../context/ToastContext';
@@ -102,13 +103,30 @@ const InnerApp = () => {
 
     const handleProviderChange = async (provider: AIProviderType) => {
         if (provider === AIProviderType.Local) {
-            setIsDownloading(true);
+            const availability = await LocalProvider.checkAvailability();
+
+            switch (availability) {
+                case 'unavailable':
+                    showToast("Local AI is not supported in this browser.", 'error');
+                    return;
+                case 'available':
+                    setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
+                    return;
+                case 'downloadable':
+                    setIsDownloading(true);
+                    break;
+                case 'downloading':
+                    setIsDownloading(true);
+                    break;
+            }
+
+            // Proceed with download
             setDownloadError(null);
             setDownloadProgress(null);
 
             try {
-                await AIService.initializeLocalModel((loaded, total) => {
-                    setDownloadProgress({ loaded, total });
+                await LocalProvider.downloadModel((e: ProgressEvent) => {
+                    setDownloadProgress({ loaded: e.loaded, total: e.total });
                 });
                 setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
                 showToast("Local model initialized successfully", 'success');
@@ -219,9 +237,6 @@ const InnerApp = () => {
                                                         style={{ width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%` }}
                                                     />
                                                 </div>
-                                                <p className="text-xs text-muted font-mono">
-                                                    {(downloadProgress.loaded / 1024 / 1024).toFixed(1)}MB / {(downloadProgress.total / 1024 / 1024).toFixed(1)}MB
-                                                </p>
                                             </div>
                                         )}
 

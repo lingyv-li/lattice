@@ -1,34 +1,30 @@
 import { BaseProvider } from './BaseProvider';
 
-// Define types for the Local AI API (flaky spec)
-interface NanoSession {
-    prompt(text: string): Promise<string>;
-    destroy(): void;
-}
-
-interface NanoFactory {
-    create(options?: { initialPrompts?: { role: string, content: string }[] }): Promise<NanoSession>;
-}
-
-declare global {
-    interface Window {
-        ai: {
-            languageModel: NanoFactory;
-        };
-    }
-}
-
 export class LocalProvider extends BaseProvider {
     id = 'local';
 
     // Static cache to persist session across multiple calls/instantiations
-    private static cachedSession: NanoSession | null = null;
+    private static cachedSession: LanguageModel | null = null;
     private static cachedRules: string | null = null;
 
     // For testing purposes only
     static reset() {
         this.cachedSession = null;
         this.cachedRules = null;
+    }
+
+
+    public static async checkAvailability(): Promise<Availability> {
+        if (typeof LanguageModel === 'undefined') {
+            return 'unavailable';
+        }
+        try {
+            const status = await LanguageModel.availability();
+            return status;
+        } catch (e) {
+            console.error("Failed to check AI availability", e);
+            return 'unavailable';
+        }
     }
 
     protected async promptAI(
@@ -45,7 +41,7 @@ export class LocalProvider extends BaseProvider {
         return LocalProvider.cachedSession.prompt(userPrompt);
     }
 
-    private async ensureLocalSession(customRules: string, systemPrompt: string, onProgress?: (loaded: number, total: number) => void) {
+    private async ensureLocalSession(customRules: string, systemPrompt: string) {
         // Reset if rules changed
         if (LocalProvider.cachedSession && LocalProvider.cachedRules !== customRules) {
             LocalProvider.cachedSession.destroy();
@@ -53,32 +49,34 @@ export class LocalProvider extends BaseProvider {
         }
 
         if (!LocalProvider.cachedSession) {
-            if (typeof LanguageModel === 'undefined') {
-                throw new Error("AI API not supported in this browser.");
+            if (await LocalProvider.checkAvailability() !== 'available') {
+                throw new Error("Local AI is not available.");
             }
 
+            // Create actual session for inference (no monitoring needed here as we assume model is downloaded)
             LocalProvider.cachedSession = await LanguageModel.create({
                 expectedInputs: [{ type: 'text', languages: ['en'] }],
                 initialPrompts: [{
                     role: "system",
                     content: systemPrompt
-                }],
-                monitor(m: any) {
-                    m.addEventListener('downloadprogress', (e: ProgressEvent) => {
-                        if (onProgress) {
-                            onProgress(e.loaded, e.total);
-                        }
-                    });
-                }
+                }]
             });
             LocalProvider.cachedRules = customRules;
         }
     }
 
-    public static async initialize(onProgress?: (loaded: number, total: number) => void) {
-        const instance = new LocalProvider();
-        // Just ensure session with empty prompts to trigger download if needed
-        // We use a dummy system prompt just to check/init
-        await instance.ensureLocalSession('', 'Initialization check', onProgress);
+    public static async downloadModel(onProgress: (e: ProgressEvent) => void) {
+        // Create temporary session just to trigger download/check availability with progress monitoring
+        const session = await LanguageModel.create({
+            expectedInputs: [{ type: 'text', languages: ['en'] }],
+            monitor(m) {
+                m.addEventListener('downloadprogress', (e: ProgressEvent) => {
+                    onProgress(e);
+                });
+            }
+        });
+
+        // We only needed it for the download/verification
+        session.destroy();
     }
 }

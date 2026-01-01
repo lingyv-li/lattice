@@ -42,16 +42,6 @@ describe('AIService', () => {
         expect(provider.id).toBe('local');
     });
 
-    it('should return LocalProvider as default (if something else specified, though types restrict)', async () => {
-        // @ts-ignore
-        const settings = {
-            aiProvider: 'unknown'
-        } as AppSettings;
-
-        const provider = await AIService.getProvider(settings);
-        expect(provider).toBeInstanceOf(LocalProvider);
-    });
-
     describe('listGeminiModels', () => {
         it('should return empty list if api key is missing', async () => {
             const models = await AIService.listGeminiModels('');

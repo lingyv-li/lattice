@@ -7,15 +7,7 @@ import { GroupingRequest } from '../types';
 const mockPrompt = vi.fn();
 const mockCreate = vi.fn();
 const mockDestroy = vi.fn();
-
-// Setup global mock for Nano/LanguageModel
-// @ts-ignore
-global.LanguageModel = {
-    create: mockCreate
-};
-
-// @ts-ignore
-global.self = global;
+const mockAvailability = vi.fn();
 
 describe('LocalProvider', () => {
     let provider: LocalProvider;
@@ -25,9 +17,41 @@ describe('LocalProvider', () => {
         LocalProvider.reset();
         provider = new LocalProvider();
 
+        const mockLanguageModel = {
+            create: mockCreate,
+            availability: mockAvailability
+        };
+
+        // Use proper Vitest stubbing for Global
+        vi.stubGlobal('LanguageModel', mockLanguageModel);
+
         mockCreate.mockResolvedValue({
             prompt: mockPrompt,
             destroy: mockDestroy
+        });
+
+        // Default availability - User code expects 'available'
+        mockAvailability.mockResolvedValue('available');
+    });
+
+    describe('checkAvailability', () => {
+        it('should return "unavailable" if AI API is not present', async () => {
+            vi.stubGlobal('LanguageModel', undefined);
+            const result = await LocalProvider.checkAvailability();
+            expect(result).toBe('unavailable');
+        });
+
+        it('should return availability status from API', async () => {
+            // Mock returning a string directly
+            mockAvailability.mockResolvedValue('after-download');
+            const result = await LocalProvider.checkAvailability();
+            expect(result).toBe('after-download');
+        });
+
+        it('should return "unavailable" if availability check throws', async () => {
+            mockAvailability.mockRejectedValue(new Error("Fail"));
+            const result = await LocalProvider.checkAvailability();
+            expect(result).toBe('unavailable');
         });
     });
 
@@ -94,10 +118,7 @@ describe('LocalProvider', () => {
     });
 
     it('should collect error if AI API is not supported', async () => {
-        // @ts-ignore
-        global.LanguageModel = undefined;
-        // @ts-ignore
-        global.self.ai = undefined;
+        vi.stubGlobal('LanguageModel', undefined);
 
         LocalProvider.reset();
 
@@ -110,10 +131,16 @@ describe('LocalProvider', () => {
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0].message).toContain('AI API not supported');
+        expect(result.errors[0].message).toContain('Local AI is not available.');
+    });
 
-        // Restore global
-        // @ts-ignore
-        global.LanguageModel = { create: mockCreate };
+    it('should initialize download model with monitoring', async () => {
+        await LocalProvider.downloadModel(() => { });
+
+        expect(mockCreate).toHaveBeenCalledTimes(1);
+        const createArgs = mockCreate.mock.calls[0][0];
+        expect(createArgs).toHaveProperty('monitor');
+        expect(createArgs.initialPrompts).toBeUndefined(); // ensureLocalSession shouldn't be called here directly for prompts
+        expect(mockDestroy).toHaveBeenCalledTimes(1); // destroy called immediately after download check
     });
 });
