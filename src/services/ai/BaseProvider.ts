@@ -34,12 +34,12 @@ export abstract class BaseProvider implements AIProvider {
         const currentGroupNames = Array.from(groupNameMap.keys())
             .filter(name => name.trim().length > 0);
         const tabList = ungroupedTabs
-            .map(t => `- [ID: ${t.id}] Title: ${t.title}, URL: ${t.url}`)
+            .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${t.url}"`)
             .join('\n');
 
         const userPrompt = (
             currentGroupNames.length > 0 ?
-                "Existing Groups:\n" + currentGroupNames.map(name => `- ${name}`).join('\n') : "")
+                "Existing Groups:\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') : "")
             + `\nUngrouped Tabs:\n${tabList}`;
 
         try {

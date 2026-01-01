@@ -176,39 +176,24 @@ export const useTabGrouper = () => {
         const currentStatus = statusRef.current;
         if (groups.length > 0 && currentStatus !== OrganizerStatus.Applying) {
             // Smart Selection Preservation:
-            // If we have previous groups, try to preserve the selection state for identical groups
+            // Logic: Default to selected, unless it matches a group the user previously ignored.
             let newSelection = new Set<number>();
+            const unselectedSignatures = new Set<string>();
 
-            if (currentGroups && selectedPreviewIndices.size > 0) {
-                // Create a signature set of currently selected groups
-                const selectedSignatures = new Set<string>();
+            if (currentGroups) {
                 currentGroups.forEach((g, idx) => {
-                    if (selectedPreviewIndices.has(idx)) {
-                        selectedSignatures.add(JSON.stringify(g));
+                    if (!selectedPreviewIndices.has(idx)) {
+                        unselectedSignatures.add(JSON.stringify(g));
                     }
                 });
-
-                // For each new group, check if it matches a previously selected one
-                groups.forEach((g, idx) => {
-                    // If it matches a selected group, select it. 
-                    // Or if it's a completely new set (no previous groups), select all (handled by default below).
-                    if (selectedSignatures.has(JSON.stringify(g))) {
-                        newSelection.add(idx);
-                    }
-                });
-
-                // If we found NO matches (totally new suggestions), default to Select All
-                // But if we found *some* matches, implies a partial update, so we trust our preservation.
-                // Edge case: entire set changed but we wanted to select all? 
-                // If selectedSignatures was NOT empty, but newSelection IS empty, it means we lost all selected groups.
-                // In that case, maybe default to Select All again?
-                if (newSelection.size === 0 && selectedSignatures.size > 0) {
-                    newSelection = new Set(groups.map((_, i) => i));
-                }
-            } else {
-                // No previous selection or groups, select all by default
-                newSelection = new Set(groups.map((_, i) => i));
             }
+
+            groups.forEach((g, idx) => {
+                // If it's NOT in the unselected set -> Select it.
+                if (!unselectedSignatures.has(JSON.stringify(g))) {
+                    newSelection.add(idx);
+                }
+            });
 
             setPreviewGroups(groups);
             setSelectedPreviewIndices(newSelection);

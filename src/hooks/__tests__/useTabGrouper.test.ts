@@ -226,90 +226,114 @@ describe('useTabGrouper', () => {
     it('should maintain user selection when identical storage updates occur', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
-        // 1. Initial State - wait for windowId to be set and subscription to be established
-        // The effect runs twice: once with undefined windowId (early return), then with windowId=1
+        // 1. Initial wait
         await waitFor(() => {
             expect(result.current.status).toBe(OrganizerStatus.Idle);
-            // Wait for at least 2 listener registrations (initial + after windowId is set)
             expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
         });
-
-        // Give a moment for the effect to re-run with the correct windowId
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        // 2. Simulate Storage Update (get the LATEST listener after subscription is established)
-        const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
-        const storageListener = calls[calls.length - 1][0];
+        // Helper to get fresh listener
+        const fireUpdate = (newVal: any) => {
+            const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
+            const listener = calls[calls.length - 1][0];
+            act(() => {
+                listener({
+                    suggestionCache: { newValue: newVal, oldValue: undefined }
+                }, 'session');
+            });
+        };
+
         const suggestions = [
             { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
             { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
         ];
 
-        act(() => {
-            storageListener({
-                suggestionCache: { newValue: suggestions, oldValue: undefined }
-            }, 'session');
-        });
+        fireUpdate(suggestions);
 
         await waitFor(() => {
-            expect(result.current.previewGroups).not.toBeNull();
-            expect(result.current.status).toBe(OrganizerStatus.Idle);
             expect(result.current.selectedPreviewIndices.size).toBe(2);
-        }, { timeout: 2000 });
+        });
 
-        // 3. User deselects one group (Index 1: 'Dev')
+        // Deselect 'Dev' (1)
         act(() => {
             result.current.toggleGroupSelection(1);
         });
 
         await waitFor(() => {
             expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
-            expect(result.current.selectedPreviewIndices.size).toBe(1);
         });
 
-        // 4. Simulate IDENTICAL storage update
-        // We ensure we pass a COPY to ensure reference equality check in hook (if any) doesn't false-positive,
-        // though the hook explicitly checks JSON content. 
-        act(() => {
-            storageListener({
-                suggestionCache: { newValue: [...suggestions], oldValue: undefined }
-            }, 'session');
-        });
+        // Update Identical
+        fireUpdate([...suggestions]);
 
-        // 5. Verify selection persists (should NOT reset to all selected)
+        // Verify persistence
         await waitFor(() => {
-            expect(result.current.selectedPreviewIndices.size).toBe(1);
-            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
             expect(result.current.selectedPreviewIndices.has(0)).toBe(true);
+            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
+        });
+    });
+
+    it('should select new groups by default while preserving existing selections', async () => {
+        const { result } = renderHook(() => useTabGrouper());
+
+        await waitFor(() => {
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
+            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+        });
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const fireUpdate = (newVal: any) => {
+            const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
+            const listener = calls[calls.length - 1][0];
+            act(() => {
+                listener({
+                    suggestionCache: { newValue: newVal, oldValue: undefined }
+                }, 'session');
+            });
+        };
+
+        const suggestions = [
+            { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
+            { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
+        ];
+
+        fireUpdate(suggestions);
+
+        await waitFor(() => {
+            expect(result.current.selectedPreviewIndices.size).toBe(2);
         });
 
-        // 6. Simulate PARTIAL update (Adding a new group, keeping old ones)
-        // 'Search' (Index 0) is still there. 'Dev' (Index 1) is still there. 'New' (Index 2) added.
-        // Logic: If it matches a previously selected group, select it.
-        // 0 matches selected -> 0 selected.
-        // 1 matches unselected -> 1 NOT selected.
-        // 2 is new -> No match in selectedSignatures.
-        // Result: 0 selected, 1 unselected, 2 unselected.
-        // This ensures partial updates don't disturb existing user choices.
+        // Deselect 'Dev' (1)
+        act(() => {
+            result.current.toggleGroupSelection(1);
+        });
 
+        await waitFor(() => {
+            expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
+        });
+
+        // New group
         const newSuggestions = [
             ...suggestions,
             { tabId: 103, windowId: 1, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
         ];
 
-        act(() => {
-            storageListener({
-                suggestionCache: { newValue: newSuggestions, oldValue: undefined }
-            }, 'session');
-        });
+        (global.chrome.tabs.query as any).mockResolvedValue([
+            { id: 101, title: 'Google', url: 'https://google.com', groupId: -1 },
+            { id: 102, title: 'GitHub', url: 'https://github.com', groupId: -1 },
+            { id: 103, title: 'New Tab', url: 'https://new.com', groupId: -1 }
+        ]);
+
+        fireUpdate(newSuggestions);
 
         await waitFor(() => {
-            // Index 0 ('Search') should be selected (preserved)
+            // 0 (Search) -> Selected (Preserved)
             expect(result.current.selectedPreviewIndices.has(0)).toBe(true);
-            // Index 1 ('Dev') should be unselected (preserved)
+            // 1 (Dev) -> Unselected (Preserved)
             expect(result.current.selectedPreviewIndices.has(1)).toBe(false);
-            // Index 2 ('New Group') should be unselected (because it wasn't in signature set)
-            expect(result.current.selectedPreviewIndices.has(2)).toBe(false);
+            // 2 (New) -> Selected (Default)
+            expect(result.current.selectedPreviewIndices.has(2)).toBe(true);
         });
     });
 
