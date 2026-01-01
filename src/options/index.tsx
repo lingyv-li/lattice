@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType } from '../utils/storage';
+import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType, DEFAULT_GROUPING_RULES } from '../utils/storage';
 import { FeatureId } from '../types/features';
 import { AIService } from '../services/ai/AIService';
 import { ModelInfo } from '../services/ai/types';
@@ -71,7 +71,7 @@ const InnerApp = () => {
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
     useEffect(() => {
-        SettingsStorage.get().then((s) => {
+        SettingsStorage.get(false).then((s) => {
             setSettings(s);
             setLoading(false);
             if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
@@ -308,7 +308,7 @@ const InnerApp = () => {
                             <textarea
                                 value={settings.customGroupingRules}
                                 onChange={(e) => setSettings({ ...settings, customGroupingRules: e.target.value })}
-                                placeholder="- All GitHub pages go to 'Code'&#10;- Group 'Docs' and 'Sheets' into 'Work'"
+                                placeholder={DEFAULT_GROUPING_RULES}
                                 className="w-full h-32 bg-surface/50 rounded-xl border border-border-subtle p-3 text-sm text-main placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none"
                             />
                         </div>

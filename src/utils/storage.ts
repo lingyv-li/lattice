@@ -24,7 +24,7 @@ export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevan
 - Avoid generic names (e.g., don't use 'General', 'Miscellaneous', or 'Tabs').`;
 
 export const DEFAULT_SETTINGS: AppSettings = {
-    customGroupingRules: DEFAULT_GROUPING_RULES,
+    customGroupingRules: "",
     aiProvider: AIProviderType.None,
     aiModel: '',
     geminiApiKey: "",
@@ -39,10 +39,13 @@ export type SettingsChanges = {
 };
 
 export const SettingsStorage = {
-    get: async (): Promise<AppSettings> => {
+    get: async (resolveDefaults: boolean = true): Promise<AppSettings> => {
         return new Promise((resolve) => {
             chrome.storage.sync.get(null, (items) => {
                 const settings = { ...DEFAULT_SETTINGS, ...items } as AppSettings;
+                if (resolveDefaults && !settings.customGroupingRules) {
+                    settings.customGroupingRules = DEFAULT_GROUPING_RULES;
+                }
                 resolve(settings);
             });
         });

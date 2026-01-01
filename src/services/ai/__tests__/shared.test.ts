@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cleanAndParseJson, constructSystemPrompt, handleAssignment } from '../shared';
-import { TabGroupSuggestion } from '../../types/tabGrouper';
+import { TabGroupSuggestion } from '../../../types/tabGrouper';
 
 describe('shared utilities', () => {
     describe('cleanAndParseJson', () => {

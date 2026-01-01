@@ -124,6 +124,16 @@ const InnerApp = () => {
         }
     };
 
+
+
+    // Declarative Selection State:
+    const effectiveSelectedCards = useMemo(() => {
+        const set = new Set<FeatureId>();
+        if (features[FeatureId.TabGrouper]?.enabled) set.add(FeatureId.TabGrouper);
+        if (features[FeatureId.DuplicateCleaner]?.enabled) set.add(FeatureId.DuplicateCleaner);
+        return set;
+    }, [features]);
+
     const toggleCard = (id: FeatureId) => {
         const isEnabled = features[id]?.enabled ?? false;
 
@@ -136,19 +146,6 @@ const InnerApp = () => {
 
         updateFeature(id, { enabled: !isEnabled });
     };
-
-    // Declarative Selection State:
-    const effectiveSelectedCards = useMemo(() => {
-        const set = new Set<FeatureId>();
-        if (features[FeatureId.TabGrouper]?.enabled) set.add(FeatureId.TabGrouper);
-        if (features[FeatureId.DuplicateCleaner]?.enabled) set.add(FeatureId.DuplicateCleaner);
-
-        // Tab Grouper specific: also selecting if previewing
-        if (tabGrouper.selectedPreviewIndices.size > 0) {
-            set.add(FeatureId.TabGrouper);
-        }
-        return set;
-    }, [features, tabGrouper.selectedPreviewIndices]);
 
     // Derived States uses effective set
     const isProcessing =
