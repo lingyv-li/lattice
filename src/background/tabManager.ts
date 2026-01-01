@@ -29,54 +29,22 @@ export class TabManager {
             return;
         }
 
-        // Get all normal windows and their tabs/groups
-        const [allTabs, allGroups] = await Promise.all([
-            chrome.tabs.query({ windowType: chrome.windows.WindowType.NORMAL }),
-            chrome.tabGroups.query({})
-        ]);
+        // Get all normal windows
+        const allWindows = await chrome.windows.getAll({ windowTypes: [chrome.windows.WindowType.NORMAL] });
+        const windowIds = allWindows.map(w => w.id!).filter(id => id !== undefined);
 
+        for (const windowId of windowIds) {
+            // Check if window state has changed (fetches snapshot internally)
+            const changed = await this.processingState.isWindowChanged(windowId);
 
-        // Group tabs and groups by windowId
-        const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
-        const groupsByWindow = new Map<number, chrome.tabGroups.TabGroup[]>();
-
-        for (const tab of allTabs) {
-            if (!tabsByWindow.has(tab.windowId)) tabsByWindow.set(tab.windowId, []);
-            tabsByWindow.get(tab.windowId)!.push(tab);
-        }
-        for (const group of allGroups) {
-            if (!groupsByWindow.has(group.windowId)) groupsByWindow.set(group.windowId, []);
-            groupsByWindow.get(group.windowId)!.push(group);
-        }
-
-        // Iterate through unique windows
-        const uniqueWindowIds = new Set([...tabsByWindow.keys(), ...groupsByWindow.keys()]);
-
-        for (const windowId of uniqueWindowIds) {
-            const tabs = tabsByWindow.get(windowId) || [];
-            const groups = groupsByWindow.get(windowId) || [];
-
-            // 2. Compare with last processed successful snapshot via ProcessingState
-            const isChanged = await this.processingState.isWindowChanged(windowId, tabs, groups);
-
-            if (!isChanged) {
+            if (!changed) {
                 console.log(`[TabManager] Skipping window ${windowId}: No changes since last successful processing.`);
                 continue;
             }
 
-            // 3. Only queue if there are actually ungrouped tabs (optional but good for efficiency)
-            const hasUngroupedTabs = tabs.some(t => t.groupId === chrome.tabs.TAB_ID_NONE);
-            if (!hasUngroupedTabs) {
-                // If everything is already grouped, we should still record the snapshot 
-                // so we don't re-check until someone ungroups or moves something.
-                // We add then immediately complete to persist the snapshot.
-                this.processingState.add(windowId, tabs, groups);
-                await this.processingState.completeWindow(windowId);
-                continue;
-            }
-
+            // Queue for processing - QueueProcessor handles the "no ungrouped tabs" case
             console.log(`[TabManager] Window ${windowId} has changes, queuing.`);
-            this.processingState.add(windowId, tabs, groups);
+            await this.processingState.add(windowId);
         }
 
         // Process immediately if we have windows queued in ProcessingState

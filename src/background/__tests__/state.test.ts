@@ -180,4 +180,44 @@ describe('StateService', () => {
         expect(window2Cache.size).toBe(1);
         expect(window2Cache.get(2)?.groupName).toBe('B');
     });
+
+    it('should store and retrieve window snapshots', async () => {
+        await StateService.clearCache();
+        const windowId = 123;
+        const snapshot = 'tab1:url1|tab2:url2';
+
+        await StateService.updateWindowSnapshot(windowId, { fingerprint: snapshot } as any);
+
+        const retrieved = await StateService.getWindowSnapshot(windowId);
+        expect(retrieved).toBe(snapshot);
+
+        // Verify persistence
+        expect(mockStorage['windowSnapshots'][windowId]).toBe(snapshot);
+    });
+
+    it('should hydrate snapshots from storage', async () => {
+        const windowId = 789;
+        const snapshot = 'persisted-snapshot';
+
+        mockStorage['windowSnapshots'] = {
+            [windowId]: snapshot
+        };
+
+        // Reset private state for testing
+        (StateService as any).isHydrated = false;
+        (StateService as any).snapshots = new Map();
+
+        const retrieved = await StateService.getWindowSnapshot(windowId);
+        expect(retrieved).toBe(snapshot);
+    });
+
+    it('should handle snapshot updates gracefully', async () => {
+        const windowId = 999;
+        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v1' } as any);
+        expect(await StateService.getWindowSnapshot(windowId)).toBe('v1');
+
+        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v2' } as any);
+        expect(await StateService.getWindowSnapshot(windowId)).toBe('v2');
+        expect(mockStorage['windowSnapshots'][windowId]).toBe('v2');
+    });
 });

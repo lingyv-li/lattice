@@ -1,5 +1,6 @@
 
 import { TabSuggestionCache } from '../types/tabGrouper';
+import { WindowSnapshot } from '../utils/snapshots';
 
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
@@ -151,9 +152,9 @@ export class StateService {
     /**
      * Update the snapshot for a window
      */
-    static async updateWindowSnapshot(windowId: number, snapshot: string): Promise<void> {
+    static async updateWindowSnapshot(windowId: number, snapshot: WindowSnapshot): Promise<void> {
         await this.hydrate();
-        this.snapshots.set(windowId, snapshot);
+        this.snapshots.set(windowId, snapshot.fingerprint);
         await this.persist();
     }
 

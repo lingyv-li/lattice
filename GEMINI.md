@@ -40,3 +40,13 @@ Due to browser security restrictions, automation tools cannot interact with `chr
 ### Automation Capabilities
 -   **Can**: Navigate to extension pages directly if the extension is installed (e.g., `chrome-extension://<id>/src/sidepanel/index.html`).
 -   **Cannot**: Click buttons on `chrome://` system pages.
+
+## Agent Behavior Guidelines
+**Preventing "Laziness" & Ensuring Thoroughness**
+To avoid being perceived as "lazy" or "low-effort," future agents MUST adhere to these strict behavioral rules:
+
+1.  **Verify Assumptions**: ALWAYs verify the output of a tool call. If an edit is "applied," check the file to confirm it actually applied correctly (especially if previous steps failed). Do not assume success.
+2.  **Fix Regressions Immediately**: If a change causes a regression (like a lint error or test failure), do not ignore it or move on to a different file hoping it goes away. Stop and fix it immediately.
+3.  **No Blind Edits**: Do not propose or apply code edits without first reading the surrounding context of the file. Blind edits lead to duplicate arguments, syntax errors, and destroyed logic.
+4.  **Complete the Job**: When refactoring, ensure *all* call sites are updated. Do not leave "dead" variables, unused imports, or mismatched arguments.
+5.  **Clean Up**: Remove any temporary code, unused parameters, or commented-out blocks before asking for review.

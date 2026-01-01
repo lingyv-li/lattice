@@ -1,13 +1,11 @@
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
-import { mapExistingGroups } from '../services/ai/shared';
 import { SettingsStorage, AppSettings } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
 import { getUserFriendlyError } from '../utils/errors';
 import { FeatureId } from '../types/features';
-import { isGroupableTab } from '../utils/tabFilter';
 
 const BATCH_SIZE = 10;
 
@@ -45,10 +43,9 @@ export class QueueProcessor {
                     }
 
                     // Reconstruct valid tabs from snapshot (to avoid race conditions)
-                    const snapshotTabs = windowState.snapshotTabs;
-                    const validTabs = snapshotTabs.filter((t: any) => isGroupableTab(t)) as { id: number; title: string; url: string }[];
+                    const batches = windowState.inputSnapshot.getBatches(BATCH_SIZE);
 
-                    if (validTabs.length === 0) {
+                    if (batches.length === 0) {
                         console.log(`[QueueProcessor] No valid ungrouped tabs in window ${windowId}`);
                         await this.state.completeWindow(windowId);
                         continue;
@@ -64,23 +61,17 @@ export class QueueProcessor {
                         await this.state.completeWindow(windowId);
                         continue;
                     }
-
-                    // Reconstruct groups from snapshot
-                    const snapshotGroups = windowState.snapshotGroups;
-                    const groupNameMap = mapExistingGroups(snapshotGroups);
-
                     const virtualGroups = new Map<string, number>();
+
                     let nextVirtualId = -1;
                     let windowProcessingAborted = false;
 
-                    for (let i = 0; i < validTabs.length; i += BATCH_SIZE) {
-                        const batchTabsData = validTabs.slice(i, i + BATCH_SIZE);
+                    for (const batchTabs of batches) {
                         const wrap = { nextVirtualId };
 
                         windowProcessingAborted = await this.processWindowBatch(
                             windowId,
-                            batchTabsData,
-                            groupNameMap,
+                            batchTabs,
                             virtualGroups,
                             wrap,
                             settings
@@ -105,41 +96,32 @@ export class QueueProcessor {
 
     private async processWindowBatch(
         windowId: number,
-        batchTabsData: { id: number; title: string; url: string }[],
-        groupNameMap: Map<string, number>,
+        batchTabs: chrome.tabs.Tab[],
         virtualGroups: Map<string, number>,
         state: { nextVirtualId: number },
         settings: AppSettings
     ): Promise<boolean> {
-        // 1. CHECK SNAPSHOT BEFORE EACH BATCH
-        const [currentTabs, currentGroups] = await Promise.all([
-            chrome.tabs.query({ windowId, groupId: chrome.tabs.TAB_ID_NONE }),
-            chrome.tabGroups.query({ windowId })
-        ]);
-
+        // Check snapshot before each batch (uses centralized function)
         const windowState = this.state.getWindowState(windowId);
-        if (!windowState || !windowState.verifySnapshot(currentTabs, currentGroups)) {
+
+        if (!windowState || !(await windowState.verifySnapshot())) {
             console.log(`[QueueProcessor] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
-            this.state.add(windowId, currentTabs, currentGroups);
+            await this.state.add(windowId);
             return true;
         }
 
-        const windowGroupNameMap = new Map(groupNameMap);
-        for (const [name, id] of virtualGroups) {
-            if (!windowGroupNameMap.has(name)) {
-                windowGroupNameMap.set(name, id);
-            }
-        }
 
         try {
             const provider = await AIService.getProvider(settings);
             console.log(`[QueueProcessor] Prompting AI in window ${windowId}`);
 
-            const results = await provider.generateSuggestions({
-                ungroupedTabs: batchTabsData,
-                existingGroups: windowGroupNameMap,
-                customRules: settings.customGroupingRules
-            });
+            const promptInput = windowState.inputSnapshot.getPromptForBatch(
+                batchTabs,
+                virtualGroups,
+                settings.customGroupingRules
+            );
+
+            const results = await provider.generateSuggestions(promptInput);
 
             console.log(`[QueueProcessor] AI results:`, results.suggestions.map(s => s.groupName));
 
@@ -153,7 +135,7 @@ export class QueueProcessor {
                     // 1. Determine/Create Virtual or Real ID
                     let groupId = suggestion.existingGroupId || virtualGroups.get(suggestion.groupName) || null;
 
-                    if (!groupId && !groupNameMap.has(suggestion.groupName)) {
+                    if (!groupId) {
                         // Assign a virtual ID for consistent cross-batch grouping in this window cycle
                         groupId = state.nextVirtualId--;
                         virtualGroups.set(suggestion.groupName, groupId);
@@ -188,19 +170,6 @@ export class QueueProcessor {
                     suggestion.tabIds.forEach(tid => groupedTabIds.add(tid));
                 } catch (e) {
                     console.error(`[QueueProcessor] Error applying suggestion:`, e);
-                }
-            }
-
-            // 2. Add Negative Results (tabs explicitly not grouped by AI)
-            for (const tab of batchTabsData) {
-                if (!groupedTabIds.has(tab.id)) {
-                    suggestionsToCache.push({
-                        tabId: tab.id,
-                        windowId,
-                        groupName: null,
-                        existingGroupId: null,
-                        timestamp: now
-                    });
                 }
             }
 

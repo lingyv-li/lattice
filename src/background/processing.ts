@@ -1,42 +1,29 @@
-import { generateWindowSnapshot } from '../utils/snapshots';
+import { WindowSnapshot } from '../utils/snapshots';
 import { StateService } from './state';
 
 /**
  * Encapsulates the processing status of a single window.
  */
 class WindowState {
-    public inputSnapshot: string = '';
-    public snapshotTabs: { id: number; title: string; url: string }[] = [];
-    public snapshotGroups: { id: number; title: string }[] = [];
-
     constructor(
         public readonly id: number,
-        public lastPersistentSnapshot: string | null = null
+        public inputSnapshot: WindowSnapshot
     ) { }
 
     /**
-     * Creates a string snapshot of the current state (tabs + groups) in the window.
-     * Captures IDs, URLs, and titles to detect any relevant changes.
+     * Updates the snapshot from pre-fetched data (from fetchWindowSnapshotData).
      */
-    updateSnapshot(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
-        this.snapshotTabs = tabs.map(t => ({
-            id: t.id!,
-            title: t.title || '',
-            url: t.url || ''
-        }));
-        this.snapshotGroups = groups.map(g => ({
-            id: g.id,
-            title: g.title || ''
-        }));
-
-        this.inputSnapshot = generateWindowSnapshot(tabs, groups);
+    update(snapshot: WindowSnapshot) {
+        this.inputSnapshot = snapshot;
     }
 
     /**
-     * Verifies if the current state matches the last snapshot.
+     * Verifies if the current window state matches the stored snapshot.
+     * Uses fetchWindowSnapshotData as the single source of truth.
      */
-    verifySnapshot(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): boolean {
-        return generateWindowSnapshot(tabs, groups) === this.inputSnapshot;
+    async verifySnapshot(): Promise<boolean> {
+        const snapshot = await WindowSnapshot.fetch(this.id);
+        return this.inputSnapshot.equals(snapshot);
     }
 }
 
@@ -78,29 +65,22 @@ export class ProcessingState {
 
     /**
      * Checks if the window state has changed since it was last successfully processed.
+     * Fetches current state internally using the centralized snapshot function.
+     * Always compares against the persisted state in StateService.
      */
-    async isWindowChanged(windowId: number, tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): Promise<boolean> {
-        const currentSnapshot = generateWindowSnapshot(tabs, groups);
-        const state = this.windowStates.get(windowId);
+    async isWindowChanged(windowId: number): Promise<boolean> {
+        const currentSnapshot = await WindowSnapshot.fetch(windowId);
 
-        if (!state) {
-            const lastPersistent = await StateService.getWindowSnapshot(windowId);
-            const isChanged = currentSnapshot !== lastPersistent;
-            if (isChanged) {
-                console.log(`[ProcessingState] Window ${windowId} changed (no in-memory state):`);
-                console.log(`  Previous: ${lastPersistent ?? '(none)'}`);
-                console.log(`  Current:  ${currentSnapshot}`);
-            }
-            return isChanged;
-        }
+        // Always compare against the last persisted snapshot to decide if we need to process
+        const lastPersistent = await StateService.getWindowSnapshot(windowId);
+        const changed = !currentSnapshot.equals(lastPersistent);
 
-        const isChanged = currentSnapshot !== state.lastPersistentSnapshot;
-        if (isChanged) {
+        if (changed) {
             console.log(`[ProcessingState] Window ${windowId} changed:`);
-            console.log(`  Previous: ${state.lastPersistentSnapshot ?? '(none)'}`);
+            console.log(`  Previous: ${lastPersistent ?? '(none)'}`);
             console.log(`  Current:  ${currentSnapshot}`);
         }
-        return isChanged;
+        return changed;
     }
 
     /**
@@ -113,6 +93,13 @@ export class ProcessingState {
         const state = this.windowStates.get(windowId);
         if (state && state.inputSnapshot) {
             await StateService.updateWindowSnapshot(windowId, state.inputSnapshot);
+        }
+
+        // If the window was re-queued while processing (e.g. rapid changes),
+        // do NOT delete the state, so the next processor cycle can find it.
+        if (this.windowQueue.includes(windowId)) {
+            console.log(`[ProcessingState] Window ${windowId} is re-queued, keeping state.`);
+            return;
         }
 
         this.windowStates.delete(windowId);
@@ -129,18 +116,19 @@ export class ProcessingState {
     /**
      * Add a window for processing. If it already exists, move it to the front (Priority).
      * Captures the snapshot at enqueue time to ensure consistency.
+     * Uses centralized fetchWindowSnapshotData to ensure consistent schema.
      */
-    add(windowId: number, tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): boolean {
+    async add(windowId: number): Promise<boolean> {
+        const snapshot = await WindowSnapshot.fetch(windowId);
         const existingIndex = this.windowQueue.indexOf(windowId);
 
         if (!this.windowStates.has(windowId)) {
-            const state = new WindowState(windowId);
-            state.updateSnapshot(tabs, groups);
+            const state = new WindowState(windowId, snapshot);
             this.windowStates.set(windowId, state);
         } else {
             // Update snapshot if re-queued (state already exists)
             const state = this.windowStates.get(windowId)!;
-            state.updateSnapshot(tabs, groups);
+            state.update(snapshot);
         }
 
         if (existingIndex !== -1) {

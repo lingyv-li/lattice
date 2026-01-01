@@ -25,6 +25,7 @@ const mockAlarms = {
 };
 const mockWindows = {
     get: vi.fn(),
+    getAll: vi.fn(),
     WindowType: { NORMAL: 'normal' }
 };
 const mockTabGroups = {
@@ -174,8 +175,8 @@ describe('TabManager', () => {
 
     describe('triggerRecalculation', () => {
         it('should debounce multiple rapid calls', async () => {
-            const mockTab = { id: 200, groupId: -1, url: 'url', title: 'title', status: 'complete' };
-            mockTabs.query.mockResolvedValue([mockTab]);
+            // Mock windows.getAll to return a window
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
 
             // Call multiple times rapidly
             tabManager.triggerRecalculation('Test Call 1');
@@ -183,30 +184,29 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Call 3');
 
             // Before debounce timer fires, no processing should have occurred
-            expect(mockTabs.query).not.toHaveBeenCalled();
+            expect(mockWindows.getAll).not.toHaveBeenCalled();
 
             // Advance past debounce delay (1500ms)
             await vi.advanceTimersByTimeAsync(1600);
 
             // Should only have queried once despite 3 calls
-            expect(mockTabs.query).toHaveBeenCalledTimes(1);
+            expect(mockWindows.getAll).toHaveBeenCalledTimes(1);
         });
 
         it('should add windowId to processing state after debounce', async () => {
-            const mockTab = { id: 200, windowId: 1, groupId: -1, url: 'url', title: 'title', status: 'complete' };
-            mockTabs.query.mockResolvedValue([mockTab]);
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
 
             tabManager.triggerRecalculation('Test Debounce');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockTabs.query).toHaveBeenCalledWith({ windowType: 'normal' });
-            expect(mockTabGroups.query).toHaveBeenCalled();
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
+            expect(mockWindows.getAll).toHaveBeenCalledWith({ windowTypes: ['normal'] });
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 
         it('should filter out already grouped tabs', async () => {
-            // The query itself filters out grouped tabs
-            mockTabs.query.mockResolvedValue([]);
+            // No windows, so nothing to process
+            mockWindows.getAll.mockResolvedValue([]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(false);
 
             tabManager.triggerRecalculation('Test Call Filter');
             await vi.advanceTimersByTimeAsync(1600);
@@ -215,81 +215,60 @@ describe('TabManager', () => {
         });
 
         it('should trigger windows for empty new tabs (filter happens in processor)', async () => {
-            const newTabUrls = [
-                'chrome://newtab/',
-                'chrome://new-tab-page/',
-                'about:blank',
-                'edge://newtab/'
-            ];
+            // Window exists, isWindowChanged returns true
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(true);
 
-            for (const url of newTabUrls) {
-                vi.clearAllMocks();
-                (StateService.getSuggestionCache as any).mockResolvedValue(new Map());
+            tabManager.triggerRecalculation('Test New Tab');
+            await vi.advanceTimersByTimeAsync(1600);
 
-                const mockTab = { id: 300, windowId: 1, groupId: -1, url, title: 'New tab', status: 'complete' };
-                mockTabs.query.mockResolvedValue([mockTab]);
-
-                tabManager.triggerRecalculation('Test New Tab');
-                await vi.advanceTimersByTimeAsync(1600);
-
-                // Now it SHOULD call it, because TabManager is lazy and flags the window
-                expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
-            }
+            // TabManager now just calls add() and lets processor handle filtering
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 
         it('should process window if any ungrouped tabs exist', async () => {
-            const tabs = [
-                { id: 400, windowId: 1, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' },
-                { id: 401, windowId: 1, groupId: -1, url: 'chrome://newtab/', title: 'New tab', status: 'complete' }
-            ];
-            mockTabs.query.mockResolvedValue(tabs);
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(true);
 
             tabManager.triggerRecalculation('Test Mixed');
             await vi.advanceTimersByTimeAsync(1600);
 
-            // TabManager now just sees any ungrouped tab and flags windows
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 
         it('should trigger windows for cached tabs', async () => {
-            const mockTab = { id: 501, windowId: 1, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' };
-            mockTabs.query.mockResolvedValue([mockTab]);
-            // Tab is already in cache
-            (StateService.getSuggestionCache as any).mockResolvedValue(new Map([[501, { tabId: 501 }]]));
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(true);
 
             tabManager.triggerRecalculation('Test Cached');
             await vi.advanceTimersByTimeAsync(1600);
 
-            // Should still flag window for processing
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 
         it('should process window once even with multiple tabs', async () => {
-            const tabs = [
-                { id: 400, windowId: 1, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' },
-                { id: 401, windowId: 1, groupId: -1, url: 'https://google.com', title: 'Google', status: 'complete' }
-            ];
-            mockTabs.query.mockResolvedValue(tabs);
+            mockWindows.getAll.mockResolvedValue([{ id: 1, type: 'normal' }]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(true);
 
             tabManager.triggerRecalculation('Test Multiple');
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).toHaveBeenCalledTimes(1);
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
         });
 
         it('should process multiple windows', async () => {
-            const tabs = [
-                { id: 400, windowId: 1, groupId: -1, url: 'https://example.com', title: 'Example', status: 'complete' },
-                { id: 402, windowId: 2, groupId: -1, url: 'https://google.com', title: 'Google', status: 'complete' }
-            ];
-            mockTabs.query.mockResolvedValue(tabs);
+            mockWindows.getAll.mockResolvedValue([
+                { id: 1, type: 'normal' },
+                { id: 2, type: 'normal' }
+            ]);
+            mockProcessingState.isWindowChanged.mockResolvedValue(true);
 
             tabManager.triggerRecalculation('Test Multiple Windows');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, expect.any(Array), expect.any(Array));
-            expect(mockProcessingState.add).toHaveBeenCalledWith(2, expect.any(Array), expect.any(Array));
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(2);
         });
     });
 });
