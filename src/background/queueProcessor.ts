@@ -183,6 +183,7 @@ export class QueueProcessor {
                         for (const tabId of suggestion.tabIds) {
                             suggestionsToCache.push({
                                 tabId,
+                                windowId,
                                 groupName: suggestion.groupName,
                                 existingGroupId: groupId && groupId > 0 ? groupId : null,
                                 timestamp: now
@@ -202,6 +203,7 @@ export class QueueProcessor {
                 if (!groupedTabIds.has(tab.id)) {
                     suggestionsToCache.push({
                         tabId: tab.id,
+                        windowId,
                         groupName: null,
                         existingGroupId: null,
                         timestamp: now

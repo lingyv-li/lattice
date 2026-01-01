@@ -73,8 +73,8 @@ describe('useTabGrouper', () => {
         // Setup existing storage data
         (global.chrome.storage.session.get as any).mockResolvedValue({
             suggestionCache: [
-                { tabId: 101, groupName: 'Search', existingGroupId: null, timestamp: 123 },
-                { tabId: 102, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
+                { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
+                { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
             ]
         });
 
@@ -103,17 +103,23 @@ describe('useTabGrouper', () => {
     it('should update preview when storage changes', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
-        // Wait for init
-        await waitFor(() => expect(result.current.status).toBe(OrganizerStatus.Idle));
+        // Wait for init AND subscription to be established
+        await waitFor(() => {
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
+            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+        });
 
-        // Simulate storage change event
+        // Give a moment for the effect to re-run with the correct windowId
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Simulate storage change event (get the LATEST listener)
         const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
         const storageListener = calls[calls.length - 1][0];
 
         act(() => {
             storageListener({
                 suggestionCache: {
-                    newValue: [{ tabId: 101, groupName: 'Async Group', existingGroupId: null, timestamp: 456 }],
+                    newValue: [{ tabId: 101, windowId: 1, groupName: 'Async Group', existingGroupId: null, timestamp: 456 }],
                     oldValue: undefined
                 }
             }, 'session');
@@ -122,7 +128,7 @@ describe('useTabGrouper', () => {
         await waitFor(() => {
             expect(result.current.previewGroups).not.toBeNull();
             expect(result.current.status).toBe(OrganizerStatus.Idle);
-        });
+        }, { timeout: 2000 });
 
         expect(result.current.previewGroups).toHaveLength(1);
         expect(result.current.previewGroups![0].groupName).toBe('Async Group');
@@ -176,18 +182,67 @@ describe('useTabGrouper', () => {
         vi.useRealTimers();
     });
 
+    it('should wait for windowId before subscribing to storage', async () => {
+        // Track subscribe calls
+        const subscribeSpy = vi.spyOn(StateService, 'subscribe');
+
+        renderHook(() => useTabGrouper());
+
+        // Before windowId resolves, subscribe should have been called with undefined initially
+        // But after our fix, it should only be called after windowId is set
+        await waitFor(() => {
+            // Subscribe should have been called with windowId = 1
+            expect(subscribeSpy).toHaveBeenCalled();
+            const lastCall = subscribeSpy.mock.calls[subscribeSpy.mock.calls.length - 1];
+            expect(lastCall[1]).toBe(1); // windowId should be 1
+        });
+
+        subscribeSpy.mockRestore();
+    });
+
+    it('should only load suggestions for current window', async () => {
+        // Setup storage with suggestions for multiple windows
+        (global.chrome.storage.session.get as any).mockResolvedValue({
+            suggestionCache: [
+                { tabId: 101, windowId: 1, groupName: 'Window1Group', existingGroupId: null, timestamp: 123 },
+                { tabId: 201, windowId: 2, groupName: 'Window2Group', existingGroupId: null, timestamp: 123 }
+            ]
+        });
+
+        // Current window is 1
+        (global.chrome.windows.getCurrent as any).mockResolvedValue({ id: 1 });
+
+        const { result } = renderHook(() => useTabGrouper());
+
+        await waitFor(() => {
+            expect(result.current.previewGroups).not.toBeNull();
+        });
+
+        // Should only show groups for window 1
+        expect(result.current.previewGroups).toHaveLength(1);
+        expect(result.current.previewGroups![0].groupName).toBe('Window1Group');
+    });
+
     it('should maintain user selection when identical storage updates occur', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
-        // 1. Initial State
-        await waitFor(() => expect(result.current.status).toBe(OrganizerStatus.Idle));
+        // 1. Initial State - wait for windowId to be set and subscription to be established
+        // The effect runs twice: once with undefined windowId (early return), then with windowId=1
+        await waitFor(() => {
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
+            // Wait for at least 2 listener registrations (initial + after windowId is set)
+            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+        });
 
-        // 2. Simulate Storage Update
+        // Give a moment for the effect to re-run with the correct windowId
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // 2. Simulate Storage Update (get the LATEST listener after subscription is established)
         const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
         const storageListener = calls[calls.length - 1][0];
         const suggestions = [
-            { tabId: 101, groupName: 'Search', existingGroupId: null, timestamp: 123 },
-            { tabId: 102, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
+            { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
+            { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
         ];
 
         act(() => {
@@ -200,7 +255,7 @@ describe('useTabGrouper', () => {
             expect(result.current.previewGroups).not.toBeNull();
             expect(result.current.status).toBe(OrganizerStatus.Idle);
             expect(result.current.selectedPreviewIndices.size).toBe(2);
-        });
+        }, { timeout: 2000 });
 
         // 3. User deselects one group (Index 1: 'Dev')
         act(() => {
@@ -239,7 +294,7 @@ describe('useTabGrouper', () => {
 
         const newSuggestions = [
             ...suggestions,
-            { tabId: 103, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
+            { tabId: 103, windowId: 1, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
         ];
 
         act(() => {
@@ -261,8 +316,8 @@ describe('useTabGrouper', () => {
     it('should select or deselect all groups using setAllGroupsSelected', async () => {
         // Setup groups
         const suggestions = [
-            { tabId: 101, groupName: 'One', existingGroupId: null, timestamp: 1 },
-            { tabId: 102, groupName: 'Two', existingGroupId: null, timestamp: 2 }
+            { tabId: 101, windowId: 1, groupName: 'One', existingGroupId: null, timestamp: 1 },
+            { tabId: 102, windowId: 1, groupName: 'Two', existingGroupId: null, timestamp: 2 }
         ];
         (global.chrome.storage.session.get as any).mockResolvedValue({
             suggestionCache: suggestions

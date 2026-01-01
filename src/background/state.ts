@@ -10,9 +10,12 @@ type StateChanges = {
     [K in keyof StorageSchema]?: chrome.storage.StorageChange;
 };
 
+// Nested cache: windowId -> tabId -> cache
+type WindowCache = Map<number, Map<number, TabSuggestionCache>>;
+
 export class StateService {
-    // In-memory cache for speed
-    private static cache: Map<number, TabSuggestionCache> | null = null;
+    // In-memory cache: windowId -> (tabId -> suggestion)
+    private static cache: WindowCache | null = null;
     private static snapshots: Map<number, string> = new Map();
     private static isHydrated = false;
 
@@ -24,10 +27,15 @@ export class StateService {
 
         try {
             const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots']) as Partial<StorageSchema>;
+            this.cache = new Map();
+
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
-                this.cache = new Map(data.suggestionCache.map(s => [s.tabId, s]));
-            } else {
-                this.cache = new Map();
+                for (const s of data.suggestionCache) {
+                    if (!this.cache.has(s.windowId)) {
+                        this.cache.set(s.windowId, new Map());
+                    }
+                    this.cache.get(s.windowId)!.set(s.tabId, s);
+                }
             }
 
             if (data.windowSnapshots) {
@@ -38,72 +46,89 @@ export class StateService {
             this.isHydrated = true;
         } catch (e) {
             console.error("[StateService] Failed to hydrate:", e);
-            // Fallback to empty map if storage fails
             this.cache = new Map();
         }
     }
 
     /**
-     * Get the full suggestion cache
+     * Get the suggestion cache for a specific window.
      */
-    static async getSuggestionCache(): Promise<Map<number, TabSuggestionCache>> {
+    static async getSuggestionCache(windowId: number): Promise<Map<number, TabSuggestionCache>> {
         await this.hydrate();
-        return this.cache || new Map();
+        return this.cache?.get(windowId) || new Map();
+    }
+
+    /**
+     * Get all window IDs that have cached suggestions.
+     */
+    static async getCachedWindowIds(): Promise<number[]> {
+        await this.hydrate();
+        return Array.from(this.cache?.keys() || []);
     }
 
     /**
      * Get a specific suggestion
      */
-    static async getSuggestion(tabId: number): Promise<TabSuggestionCache | undefined> {
+    static async getSuggestion(tabId: number, windowId?: number): Promise<TabSuggestionCache | undefined> {
         await this.hydrate();
-        return this.cache?.get(tabId);
+        if (!this.cache) return undefined;
+
+        if (windowId !== undefined) {
+            return this.cache.get(windowId)?.get(tabId);
+        }
+
+        // Search all windows
+        for (const windowMap of this.cache.values()) {
+            const s = windowMap.get(tabId);
+            if (s) return s;
+        }
+        return undefined;
     }
 
     /**
-     * Set the entire cache map (and persist)
-     */
-    static async setSuggestionCache(newCache: Map<number, TabSuggestionCache>): Promise<void> {
-        this.cache = newCache;
-        this.isHydrated = true;
-        await this.persist();
-    }
-
-    /**
-     * Update or add a single suggestion
-     */
-    static async updateSuggestion(suggestion: TabSuggestionCache): Promise<void> {
-        await this.hydrate();
-        if (!this.cache) this.cache = new Map();
-
-        this.cache.set(suggestion.tabId, suggestion);
-        await this.persist();
-    }
-
-    /**
-     * Update multiple suggestions in batch
+     * Update or add suggestions (must include windowId in each suggestion)
      */
     static async updateSuggestions(suggestions: TabSuggestionCache[]): Promise<void> {
         await this.hydrate();
         if (!this.cache) this.cache = new Map();
 
         for (const suggestion of suggestions) {
-            this.cache.set(suggestion.tabId, suggestion);
+            if (!this.cache.has(suggestion.windowId)) {
+                this.cache.set(suggestion.windowId, new Map());
+            }
+            this.cache.get(suggestion.windowId)!.set(suggestion.tabId, suggestion);
         }
         await this.persist();
     }
 
     /**
-     * Remove a suggestion by tab ID
+     * Remove a suggestion by tab ID (searches all windows)
      */
     static async removeSuggestion(tabId: number): Promise<boolean> {
         await this.hydrate();
         if (!this.cache) return false;
 
-        const deleted = this.cache.delete(tabId);
+        let deleted = false;
+        for (const windowMap of this.cache.values()) {
+            if (windowMap.delete(tabId)) {
+                deleted = true;
+                break;
+            }
+        }
         if (deleted) {
             await this.persist();
         }
         return deleted;
+    }
+
+    /**
+     * Clear all suggestions for a window
+     */
+    static async clearWindowCache(windowId: number): Promise<void> {
+        await this.hydrate();
+        if (this.cache?.delete(windowId)) {
+            await this.persist();
+        }
     }
 
     /**
@@ -145,15 +170,35 @@ export class StateService {
     /**
      * Subscribe to changes in the suggestion cache.
      * Returns a function to unsubscribe.
+     * Callback receives a flattened Map<tabId, cache> for the specified window (or all if not specified).
      */
-    static subscribe(callback: (cache: Map<number, TabSuggestionCache>) => void): () => void {
+    static subscribe(callback: (cache: Map<number, TabSuggestionCache>, windowId?: number) => void, windowId?: number): () => void {
         const handleStorageChange = (changes: StateChanges, areaName: string) => {
             if (areaName === 'session') {
                 if (changes.suggestionCache?.newValue) {
                     const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
-                    this.cache = new Map(rawData.map(s => [s.tabId, s]));
+                    this.cache = new Map();
+                    for (const s of rawData) {
+                        if (!this.cache.has(s.windowId)) {
+                            this.cache.set(s.windowId, new Map());
+                        }
+                        this.cache.get(s.windowId)!.set(s.tabId, s);
+                    }
                     this.isHydrated = true;
-                    callback(this.cache);
+
+                    // Call callback with the relevant window's cache
+                    if (windowId !== undefined) {
+                        callback(this.cache.get(windowId) || new Map(), windowId);
+                    } else {
+                        // Flatten all
+                        const flat = new Map<number, TabSuggestionCache>();
+                        for (const windowMap of this.cache.values()) {
+                            for (const [tabId, s] of windowMap) {
+                                flat.set(tabId, s);
+                            }
+                        }
+                        callback(flat);
+                    }
                 }
                 if (changes.windowSnapshots?.newValue) {
                     const rawData = changes.windowSnapshots.newValue as Record<number, string>;
@@ -174,7 +219,14 @@ export class StateService {
         try {
             const update: Partial<StorageSchema> = {};
             if (this.cache) {
-                update.suggestionCache = Array.from(this.cache.values());
+                // Flatten to array for storage
+                const flat: TabSuggestionCache[] = [];
+                for (const windowMap of this.cache.values()) {
+                    for (const s of windowMap.values()) {
+                        flat.push(s);
+                    }
+                }
+                update.suggestionCache = flat;
             }
             update.windowSnapshots = Object.fromEntries(this.snapshots.entries());
             await chrome.storage.session.set(update);

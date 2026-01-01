@@ -217,23 +217,32 @@ export const useTabGrouper = () => {
         }
     }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]);
 
+    // --- Current Window ID ---
+    const [currentWindowId, setCurrentWindowId] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        chrome.windows.getCurrent().then(win => setCurrentWindowId(win.id));
+    }, []);
+
     // --- Storage Listener for Suggestions ---
     useEffect(() => {
-        const unsubscribe = StateService.subscribe((cache) => {
-            processSuggestions(cache);
-        });
+        if (currentWindowId === undefined) return; // Wait for window ID
 
-        // Initial load from storage via StateService
-        StateService.getSuggestionCache().then(cache => {
+        // Initial load for current window
+        StateService.getSuggestionCache(currentWindowId).then(cache => {
             if (cache.size > 0) {
                 processSuggestions(cache);
             }
         });
 
+        const unsubscribe = StateService.subscribe((cache) => {
+            processSuggestions(cache);
+        }, currentWindowId);
+
         return () => {
             unsubscribe();
         };
-    }, [processSuggestions]);
+    }, [processSuggestions, currentWindowId]);
 
     const applyGroups = async () => {
         if (!previewGroups) return;

@@ -7,6 +7,7 @@ export interface TabGroupSuggestion {
 // Per-tab cached suggestion from background AI processing
 export interface TabSuggestionCache {
     tabId: number;
+    windowId: number;
     groupName: string | null;
     existingGroupId: number | null;
     timestamp: number;

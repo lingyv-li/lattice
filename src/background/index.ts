@@ -34,37 +34,22 @@ const performBadgeUpdate = async () => {
 
     const isProcessing = processingState.isProcessing;
 
-    // We need to calculate group counts PER WINDOW
-    // 1. Fetch all tabs to map tabId -> windowId
-    const allTabs = await chrome.tabs.query({});
-    const tabWindowMap = new Map<number, number>();
-    const windows = new Set<number>();
+    // Get all normal windows
+    const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'] });
 
-    for (const tab of allTabs) {
-        if (tab.id && tab.windowId) {
-            tabWindowMap.set(tab.id, tab.windowId);
-            windows.add(tab.windowId);
-        }
-    }
+    // Count unique NEW groups per window (existingGroupId === null)
+    for (const window of allWindows) {
+        const windowId = window.id!;
+        const windowCache = await StateService.getSuggestionCache(windowId);
+        const newGroupNames = new Set<string>();
 
-    // 2. Count unique groups per window from cache
-    const windowGroupCounts = new Map<number, Set<string>>();
-    const cache = await StateService.getSuggestionCache();
-
-    for (const cached of cache.values()) {
-        const winId = tabWindowMap.get(cached.tabId);
-        if (winId && cached.groupName && cached.existingGroupId === null) {
-            if (!windowGroupCounts.has(winId)) {
-                windowGroupCounts.set(winId, new Set());
+        for (const cached of windowCache.values()) {
+            if (cached.groupName && cached.existingGroupId === null) {
+                newGroupNames.add(cached.groupName);
             }
-            windowGroupCounts.get(winId)!.add(cached.groupName);
         }
-    }
 
-    // 3. Update badge for each window
-    for (const windowId of windows) {
-        const groupCount = windowGroupCounts.get(windowId)?.size || 0;
-        await updateWindowBadge(windowId, isProcessing, groupCount, hasError);
+        await updateWindowBadge(windowId, isProcessing, newGroupNames.size, hasError);
     }
 };
 
@@ -74,9 +59,7 @@ const broadcastProcessingStatus = async (isProcessing: boolean) => {
         isProcessing
     };
 
-    // Update badge on status change
-    await performBadgeUpdate();
-
+    // 1. Notify UI immediately (Priority)
     for (const port of connectedPorts) {
         try {
             port.postMessage(response);
@@ -84,6 +67,9 @@ const broadcastProcessingStatus = async (isProcessing: boolean) => {
             connectedPorts.delete(port);
         }
     }
+
+    // 2. Update badge (Secondary, can be slower)
+    await performBadgeUpdate();
 };
 
 

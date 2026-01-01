@@ -38,7 +38,7 @@ const mockSession = {
         const keyList = Array.isArray(keys) ? keys : [keys];
 
         keyList.forEach(k => {
-            changes[k] = { newValue: undefined }; // Simulate removal
+            changes[k] = { newValue: undefined };
             delete mockStorage[k];
         });
 
@@ -55,82 +55,50 @@ global.chrome = {
     }
 } as any;
 
+const WINDOW_ID = 1;
+
 describe('StateService', () => {
     beforeEach(() => {
-        // Reset state
         vi.clearAllMocks();
-        // Clear mock storage
         for (const key in mockStorage) delete mockStorage[key];
-
-        // Reset private static state of StateService if possible? 
-        // Since it's a static class with private fields, we can't easily reset it without exposing a method.
-        // But we can call clearCache() which should reset it.
     });
 
     it('should start with empty cache', async () => {
-        // Force reset
         await StateService.clearCache();
-        const cache = await StateService.getSuggestionCache();
+        const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(0);
     });
 
     it('should hydrate from storage', async () => {
         const testData: TabSuggestionCache[] = [
-            { tabId: 1, groupName: 'Test', existingGroupId: null, timestamp: 123 }
+            { tabId: 1, windowId: WINDOW_ID, groupName: 'Test', existingGroupId: null, timestamp: 123 }
         ];
         mockStorage['suggestionCache'] = testData;
 
-        // We need to force re-hydration. 
-        // Since we can't access `isHydrated`, we rely on `clearCache` clearing the map, 
-        // but `hydrate` checks `isHydrated`.
-        // Ideally we'd have a `reset` method for testing, or `clearCache` sets `isHydrated = true` with empty map.
-        // Actually `hydrate` is only called if `!isHydrated`.
-        // If we want to test hydration, we must ensure `isHydrated` is false.
-        // But `clearCache` sets it to true.
-        // This makes testing "first load" hard in a static singleton test without isolation.
-        // However, `hydrate()` logic: if storage has data, it uses it.
-
-        // Let's try to simulate a new "session" by hacking the private field if needed, 
-        // or just accept we test behavior.
-
-        // If we manually call hydrate, it might return early.
-        // But for this test file, each test runs in same context? Yes.
-        // We might need to user `vi.spyOn` or just assume `clearCache` works for clearing.
-
-        // Actually, let's modify StateService to allow resetting for tests? 
-        // Or just trust `clearCache`.
-
-        // Wait, if `mockStorage` has data, `hydrate` will read it?
-        // Only if `isHydrated` is false.
-        // But `clearCache` sets `isHydrated = true`.
-        // So we can't easily test "startup hydration" after the first test runs `clearCache`.
-
-        // Workaround: We can't easily reset the private boolean.
-        // Let's rely on `getSuggestionCache` to behave correctly given the *current* state.
-
-        // Actually, we can cast to any to reset private fields for testing
+        // Reset private state for testing
         (StateService as any).isHydrated = false;
         (StateService as any).cache = null;
 
-        const cache = await StateService.getSuggestionCache();
+        const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(1);
         expect(cache.get(1)).toEqual(testData[0]);
         expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots']);
     });
 
-    it('should update and persist suggestion', async () => {
+    it('should update and persist suggestions', async () => {
         await StateService.clearCache();
 
         const suggestion: TabSuggestionCache = {
             tabId: 101,
+            windowId: WINDOW_ID,
             groupName: 'New Group',
             existingGroupId: null,
             timestamp: Date.now()
         };
 
-        await StateService.updateSuggestion(suggestion);
+        await StateService.updateSuggestions([suggestion]);
 
-        const cache = await StateService.getSuggestionCache();
+        const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.get(101)).toEqual(suggestion);
 
         expect(mockSession.set).toHaveBeenCalled();
@@ -142,16 +110,17 @@ describe('StateService', () => {
         await StateService.clearCache();
         const suggestion: TabSuggestionCache = {
             tabId: 202,
+            windowId: WINDOW_ID,
             groupName: 'Delete Me',
             existingGroupId: null,
             timestamp: Date.now()
         };
-        await StateService.updateSuggestion(suggestion);
+        await StateService.updateSuggestions([suggestion]);
 
         const removed = await StateService.removeSuggestion(202);
         expect(removed).toBe(true);
 
-        const cache = await StateService.getSuggestionCache();
+        const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.has(202)).toBe(false);
         expect(mockStorage['suggestionCache']).toHaveLength(0);
     });
@@ -169,13 +138,14 @@ describe('StateService', () => {
 
         const suggestion: TabSuggestionCache = {
             tabId: 303,
+            windowId: WINDOW_ID,
             groupName: 'Listener Test',
             existingGroupId: null,
             timestamp: Date.now()
         };
 
         // Update
-        await StateService.updateSuggestion(suggestion);
+        await StateService.updateSuggestions([suggestion]);
         expect(listener).toHaveBeenCalledTimes(1);
 
         // Remove
@@ -188,7 +158,26 @@ describe('StateService', () => {
 
         // Unsubscribe
         unsubscribe();
-        await StateService.updateSuggestion(suggestion);
+        await StateService.updateSuggestions([suggestion]);
         expect(listener).toHaveBeenCalledTimes(3); // Should not increase
+    });
+
+    it('should get per-window cache', async () => {
+        await StateService.clearCache();
+
+        const suggestions: TabSuggestionCache[] = [
+            { tabId: 1, windowId: 1, groupName: 'A', existingGroupId: null, timestamp: 1 },
+            { tabId: 2, windowId: 2, groupName: 'B', existingGroupId: null, timestamp: 2 }
+        ];
+
+        await StateService.updateSuggestions(suggestions);
+
+        const window1Cache = await StateService.getSuggestionCache(1);
+        expect(window1Cache.size).toBe(1);
+        expect(window1Cache.get(1)?.groupName).toBe('A');
+
+        const window2Cache = await StateService.getSuggestionCache(2);
+        expect(window2Cache.size).toBe(1);
+        expect(window2Cache.get(2)?.groupName).toBe('B');
     });
 });
