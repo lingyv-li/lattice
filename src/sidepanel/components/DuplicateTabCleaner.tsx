@@ -1,12 +1,13 @@
 import { CopyMinus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { useDuplicateCleaner, DuplicateCleanerStatus } from '../../hooks/useDuplicateCleaner';
+import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
+import { OrganizerStatus } from '../../types/organizer';
 import { CleanState } from './CleanState';
 
 export const DuplicateTabCleaner = () => {
     const { status, closedCount, duplicateCount, closeDuplicates } = useDuplicateCleaner();
 
     // Show "clean" state when no duplicates
-    if (duplicateCount === 0 && status !== DuplicateCleanerStatus.Cleaning) {
+    if (duplicateCount === 0 && status !== OrganizerStatus.Applying) {
         return <CleanState icon={CopyMinus} title="Duplicate Cleaner" message="No duplicates!" />;
     }
 
@@ -23,24 +24,24 @@ export const DuplicateTabCleaner = () => {
 
             <button
                 onClick={closeDuplicates}
-                disabled={status === DuplicateCleanerStatus.Cleaning}
+                disabled={status === OrganizerStatus.Applying}
                 className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-[var(--spacing-item-gap)] 
-                    ${status === DuplicateCleanerStatus.Success
+                    ${status === OrganizerStatus.Success
                         ? 'bg-status-success-bg text-status-success-fg'
                         : 'bg-btn-primary-bg hover:bg-btn-primary-hover text-btn-primary-fg shadow-sm'
                     } disabled:opacity-50`}
             >
-                {status === DuplicateCleanerStatus.Cleaning ? (
+                {status === OrganizerStatus.Applying ? (
                     <>
                         <Loader2 className="size-[var(--size-icon-sm)] animate-spin" />
                         <span>Cleaning...</span>
                     </>
-                ) : status === DuplicateCleanerStatus.Success ? (
+                ) : status === OrganizerStatus.Success ? (
                     <>
                         <CheckCircle className="size-[var(--size-icon-sm)]" />
                         <span>{closedCount > 0 ? `Closed ${closedCount} tabs` : 'Cleaned!'}</span>
                     </>
-                ) : status === DuplicateCleanerStatus.Error ? (
+                ) : status === OrganizerStatus.Error ? (
                     <>
                         <AlertCircle className="size-[var(--size-icon-sm)] text-status-error-fg" />
                         <span>Error</span>

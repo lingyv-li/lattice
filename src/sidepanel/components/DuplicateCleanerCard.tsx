@@ -1,5 +1,6 @@
 import { CopyMinus, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { useDuplicateCleaner, DuplicateCleanerStatus } from '../../hooks/useDuplicateCleaner';
+import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
+import { OrganizerStatus } from '../../types/organizer';
 import { SelectionCard } from './SelectionCard';
 
 interface DuplicateCleanerCardProps {
@@ -16,7 +17,7 @@ interface DuplicateCleanerCardProps {
 export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnabled, onAutopilotToggle }: DuplicateCleanerCardProps) => {
     const { status, closedCount, duplicateCount } = data;
 
-    const badge = status === DuplicateCleanerStatus.Success ? (
+    const badge = status === OrganizerStatus.Success ? (
         <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
             Cleaned
         </span>
@@ -38,24 +39,24 @@ export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnab
             icon={CopyMinus}
             description="Close tabs that are exact duplicates of others."
             badge={badge}
-            disabled={status === DuplicateCleanerStatus.Cleaning}
+            disabled={status === OrganizerStatus.Applying}
             autopilot={{
                 enabled: autopilotEnabled,
                 onToggle: onAutopilotToggle
             }}
         >
             {/* Content Area - minimal or just details */}
-            {status === DuplicateCleanerStatus.Cleaning ? (
+            {status === OrganizerStatus.Applying ? (
                 <div className="flex items-center gap-2 text-xs text-muted mt-2">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     <span>Cleaning...</span>
                 </div>
-            ) : status === DuplicateCleanerStatus.Success ? (
+            ) : status === OrganizerStatus.Success ? (
                 <div className="flex items-center gap-2 text-xs text-green-600 mt-2">
                     <CheckCircle className="w-3 h-3" />
                     <span>Closed {closedCount} tabs</span>
                 </div>
-            ) : status === DuplicateCleanerStatus.Error ? (
+            ) : status === OrganizerStatus.Error ? (
                 <div className="flex items-center gap-2 text-xs text-red-600 mt-2">
                     <AlertCircle className="w-3 h-3" />
                     <span>Error cleaning duplicates</span>

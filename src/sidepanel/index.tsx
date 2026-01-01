@@ -14,6 +14,7 @@ import { ErrorStorage } from '../utils/errorStorage';
 import { ToastProvider, useToast } from '../context/ToastContext';
 
 import { FeatureId } from '../types/features';
+import { OrganizerStatus } from '../types/organizer';
 
 // Inner App component that can use the hook
 const InnerApp = () => {
@@ -149,10 +150,8 @@ const InnerApp = () => {
 
     // Derived States uses effective set
     const isProcessing =
-        tabGrouper.status === 'processing' ||
-        tabGrouper.status === 'initializing' ||
-        tabGrouper.isBackgroundProcessing ||
-        duplicateCleaner.status === 'cleaning';
+        tabGrouper.status === OrganizerStatus.Applying ||
+        duplicateCleaner.status === OrganizerStatus.Applying;
 
     const hasWork =
         (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) ||
@@ -160,8 +159,6 @@ const InnerApp = () => {
 
     // Handle Organize Action
     const handleOrganize = async () => {
-        if (isProcessing) return;
-
         // 1. Duplicate Cleaner
         if (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0) {
             duplicateCleaner.closeDuplicates();
@@ -169,9 +166,6 @@ const InnerApp = () => {
 
         // 2. Tab Grouper
         if (effectiveSelectedCards.has(FeatureId.TabGrouper)) {
-            // If processing (foreground or background), do nothing
-            if (tabGrouper.status === 'processing' || tabGrouper.isBackgroundProcessing) return;
-
             if (tabGrouper.previewGroups) {
                 // If already previewing, applying
                 tabGrouper.applyGroups();
@@ -181,13 +175,17 @@ const InnerApp = () => {
 
     // Determine Button Label
     const getButtonLabel = () => {
-        if (isProcessing) return "Processing...";
-
         if (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) {
             return "Apply Changes";
         }
 
-        if (!hasWork) return "No Actions Needed";
+        if (!hasWork) {
+            if (isProcessing) {
+                return "Processing...";
+            } else {
+                return "No Actions Needed";
+            }
+        }
 
         return "Organize";
     };
@@ -247,11 +245,11 @@ const InnerApp = () => {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={handleOrganize}
-                        disabled={isProcessing || !hasWork}
+                        disabled={!hasWork}
                         className={`
                             flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
                             flex items-center justify-center gap-2 transition-all active:scale-[0.98]
-                            ${isProcessing || !hasWork
+                            ${!hasWork
                                 ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
                                 : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
                             }

@@ -13,6 +13,7 @@ interface SelectionCardProps {
         enabled: boolean;
         onToggle: (enabled: boolean) => void;
     };
+    spinIcon?: boolean;
 }
 
 export const SelectionCard: React.FC<SelectionCardProps> = ({
@@ -24,7 +25,8 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     children,
     disabled = false,
     badge,
-    autopilot
+    autopilot,
+    spinIcon = false
 }) => {
     return (
         <div
@@ -55,7 +57,7 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                            <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-500' : 'text-muted'}`} />
+                            <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-500' : 'text-muted'} ${spinIcon ? 'animate-spin' : ''}`} />
                             <h3 className={`font-semibold text-sm ${isSelected ? 'text-purple-600 dark:text-purple-400' : 'text-main'}`}>
                                 {title}
                             </h3>

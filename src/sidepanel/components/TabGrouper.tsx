@@ -1,6 +1,6 @@
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
-import { TabGrouperStatus } from '../../types/tabGrouper';
+import { OrganizerStatus } from '../../types/organizer';
 import { TabGroupPreview } from './TabGroupPreview';
 import { CleanState } from './CleanState';
 
@@ -8,7 +8,6 @@ export const TabGrouper = () => {
     const {
         status,
         error,
-        progress,
         previewGroups,
         selectedPreviewIndices,
         tabDataMap,
@@ -18,11 +17,11 @@ export const TabGrouper = () => {
     } = useTabGrouper();
 
     // Show "clean" state when no ungrouped tabs
-    if (ungroupedCount === 0 && status !== TabGrouperStatus.Processing && status !== TabGrouperStatus.Initializing) {
+    if (ungroupedCount === 0 && status !== OrganizerStatus.Applying) {
         return <CleanState icon={Sparkles} title="AI Tab Grouper" message="All tabs organized!" />;
     }
 
-    const isProcessing = status === TabGrouperStatus.Processing || status === TabGrouperStatus.Initializing || isBackgroundProcessing;
+    const isProcessing = status === OrganizerStatus.Applying || isBackgroundProcessing;
 
     return (
         <div className="p-4 bg-surface-dim rounded-xl border border-border-subtle mb-4">
@@ -57,18 +56,9 @@ export const TabGrouper = () => {
                 <div className="py-4 flex flex-col items-center justify-center text-muted gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
                     <span className="text-xs">
-                        {status === TabGrouperStatus.Initializing ? 'Initializing AI...' :
-                            status === TabGrouperStatus.Processing ? `Analyzing tabs... ${progress ? `(${progress}%)` : ''}` :
-                                'Analyzing tabs in background...'}
+                        {status === OrganizerStatus.Applying ? 'Analyzing tabs...' :
+                            'Analyzing tabs in background...'}
                     </span>
-                    {progress !== null && (
-                        <div className="w-32 h-1 bg-surface-hover rounded-full overflow-hidden mt-1">
-                            <div
-                                className="h-full bg-purple-500 transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
-                    )}
                 </div>
             )}
         </div>

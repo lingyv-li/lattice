@@ -1,6 +1,6 @@
 import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
-import { TabGrouperStatus } from '../../types/tabGrouper';
+import { OrganizerStatus } from '../../types/organizer';
 import { TabGroupPreview } from './TabGroupPreview';
 import { SelectionCard } from './SelectionCard';
 
@@ -17,7 +17,6 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
     const {
         status,
         error,
-        progress,
         previewGroups,
         selectedPreviewIndices,
         tabDataMap,
@@ -55,7 +54,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         );
     }
 
-    const badge = status === TabGrouperStatus.Success ? (
+    const badge = status === OrganizerStatus.Success ? (
         <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
             Done
         </span>
@@ -73,14 +72,27 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         </span>
     );
 
-    const isLoading = status === TabGrouperStatus.Processing || status === TabGrouperStatus.Initializing;
+    const isLoading = status === OrganizerStatus.Applying;
+
+    // Determine card title and processing state
+    let cardTitle = "AI Tab Grouper";
+    let isProcessingState = false;
+
+    if (status === OrganizerStatus.Applying) {
+        cardTitle = "Grouping Tabs...";
+        isProcessingState = true;
+    } else if (isBackgroundProcessing && !previewGroups) {
+        cardTitle = "Analyzing Tabs...";
+        isProcessingState = true;
+    }
 
     return (
         <SelectionCard
             isSelected={isSelected}
             onToggle={onToggle}
-            title="AI Tab Grouper"
-            icon={Sparkles}
+            title={cardTitle}
+            icon={isProcessingState ? Loader2 : Sparkles}
+            spinIcon={isProcessingState}
             description="Automatically organize open tabs into groups."
             badge={badge}
             autopilot={{
@@ -96,14 +108,6 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
                 </div>
             )}
 
-            {/* Background Processing Indicator (when card logic itself isn't 'processing' but background is) */}
-            {isBackgroundProcessing && !isLoading && !previewGroups && (
-                <div className="mb-2 text-xs text-muted flex items-center gap-2">
-                    <Loader2 className="w-3 h-3 animate-spin text-purple-500" />
-                    Analyzing tabs available...
-                </div>
-            )}
-
             {/* Preview UI - shown when groups are generated but not applied yet */}
             {previewGroups && (
                 <div className="mt-2">
@@ -116,6 +120,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
                 </div>
             )}
 
+
             {/* Content when ready/idle */}
             {!previewGroups && !isLoading && (ungroupedCount ?? 0) > 0 && (
                 <div className="mt-2 text-xs text-muted">
@@ -123,15 +128,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
                 </div>
             )}
 
-            {/* Progress Bar (if processing) */}
-            {status === TabGrouperStatus.Processing && progress !== null && (
-                <div className="mt-2 w-full bg-border-subtle rounded-full h-1.5 overflow-hidden">
-                    <div
-                        className="bg-blue-500 h-full transition-all duration-300"
-                        style={{ width: `${progress}%` }}
-                    />
-                </div>
-            )}
+
         </SelectionCard>
     );
 };

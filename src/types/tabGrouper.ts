@@ -18,9 +18,7 @@ export interface TabGroupMessage {
 }
 
 export interface TabGroupResponse {
-    type: 'INITIALIZING' | 'SESSION_CREATED' | 'PROGRESS' | 'COMPLETE' | 'ERROR' | 'PROCESSING_STATUS';
-    value?: number;
-    groups?: (TabGroupSuggestion & { existingGroupId?: number | null })[];
+    type: 'PROCESSING_STATUS';
     isProcessing?: boolean;
     error?: string;
 }
@@ -28,14 +26,4 @@ export interface TabGroupResponse {
 export interface GroupingContext {
     existingGroups: { id: number; title: string }[];
     ungroupedTabs: { id: number; title: string; url: string }[];
-}
-
-
-export enum TabGrouperStatus {
-    Idle = 'idle',
-    Initializing = 'initializing',
-    Processing = 'processing',
-    Reviewing = 'reviewing',
-    Success = 'success',
-    Error = 'error'
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useTabGrouper } from '../useTabGrouper';
-import { TabGrouperStatus } from '../../types/tabGrouper';
+import { OrganizerStatus } from '../../types/organizer';
 import { AIProviderType } from '../../utils/storage';
 import { StateService } from '../../background/state';
 
@@ -66,7 +66,7 @@ describe('useTabGrouper', () => {
         // Tab count should be 2 (from mock)
         // expect(result.current.ungroupedCount).toBe(2); // Handled by waitFor
         // Status should be idle initially (if no cache)
-        expect(result.current.status).toBe(TabGrouperStatus.Idle);
+        expect(result.current.status).toBe(OrganizerStatus.Idle);
     });
 
     it('should load suggestions from storage on mount', async () => {
@@ -87,10 +87,13 @@ describe('useTabGrouper', () => {
 
         // Verify state update (longer timeout or debug)
         await waitFor(() => {
-            if (result.current.status !== TabGrouperStatus.Reviewing) {
-                // console.log("Current status:", result.current.status);
+            // Check that preview groups are populated
+            if (!result.current.previewGroups) {
+                // console.log("Waiting for previewGroups...");
             }
-            expect(result.current.status).toBe(TabGrouperStatus.Reviewing);
+            expect(result.current.previewGroups).not.toBeNull();
+            // Status stays Idle (no specific Reviewing status anymore)
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
         }, { timeout: 2000 });
 
         expect(result.current.previewGroups).toHaveLength(2);
@@ -101,7 +104,7 @@ describe('useTabGrouper', () => {
         const { result } = renderHook(() => useTabGrouper());
 
         // Wait for init
-        await waitFor(() => expect(result.current.status).toBe(TabGrouperStatus.Idle));
+        await waitFor(() => expect(result.current.status).toBe(OrganizerStatus.Idle));
 
         // Simulate storage change event
         const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
@@ -117,7 +120,8 @@ describe('useTabGrouper', () => {
         });
 
         await waitFor(() => {
-            expect(result.current.status).toBe(TabGrouperStatus.Reviewing);
+            expect(result.current.previewGroups).not.toBeNull();
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
         });
 
         expect(result.current.previewGroups).toHaveLength(1);
@@ -176,7 +180,7 @@ describe('useTabGrouper', () => {
         const { result } = renderHook(() => useTabGrouper());
 
         // 1. Initial State
-        await waitFor(() => expect(result.current.status).toBe(TabGrouperStatus.Idle));
+        await waitFor(() => expect(result.current.status).toBe(OrganizerStatus.Idle));
 
         // 2. Simulate Storage Update
         const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
@@ -193,7 +197,8 @@ describe('useTabGrouper', () => {
         });
 
         await waitFor(() => {
-            expect(result.current.status).toBe(TabGrouperStatus.Reviewing);
+            expect(result.current.previewGroups).not.toBeNull();
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
             expect(result.current.selectedPreviewIndices.size).toBe(2);
         });
 
@@ -266,7 +271,8 @@ describe('useTabGrouper', () => {
         const { result: loadedResult } = renderHook(() => useTabGrouper());
 
         await waitFor(() => {
-            expect(loadedResult.current.status).toBe(TabGrouperStatus.Reviewing);
+            expect(loadedResult.current.status).toBe(OrganizerStatus.Idle);
+            expect(loadedResult.current.previewGroups).not.toBeNull();
             expect(loadedResult.current.selectedPreviewIndices.size).toBe(2);
         });
 

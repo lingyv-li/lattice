@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TabGroupResponse, TabGroupSuggestion, TabGrouperStatus, TabSuggestionCache } from '../types/tabGrouper';
+import { TabGroupResponse, TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
+import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
 
@@ -7,9 +8,8 @@ import { StateService } from '../background/state';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
-    const [status, setStatus] = useState<TabGrouperStatus>(TabGrouperStatus.Idle);
+    const [status, setStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
     const [error, setError] = useState<string | null>(null);
-    const [progress, _] = useState<number | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
@@ -22,7 +22,7 @@ export const useTabGrouper = () => {
     // Store current previews in ref to access inside listeners without re-subscribing
     const previewGroupsRef = useRef<typeof previewGroups>(null);
     // Store status in ref to access inside listeners without re-subscribing
-    const statusRef = useRef<TabGrouperStatus>(status);
+    const statusRef = useRef<OrganizerStatus>(status);
 
     // Check settings for enabled state
     useEffect(() => {
@@ -174,7 +174,7 @@ export const useTabGrouper = () => {
         }
 
         const currentStatus = statusRef.current;
-        if (groups.length > 0 && currentStatus !== TabGrouperStatus.Processing && currentStatus !== TabGrouperStatus.Initializing) {
+        if (groups.length > 0 && currentStatus !== OrganizerStatus.Applying) {
             // Smart Selection Preservation:
             // If we have previous groups, try to preserve the selection state for identical groups
             let newSelection = new Set<number>();
@@ -212,10 +212,8 @@ export const useTabGrouper = () => {
 
             setPreviewGroups(groups);
             setSelectedPreviewIndices(newSelection);
-            setStatus(TabGrouperStatus.Reviewing);
         } else if (groups.length === 0) {
             setPreviewGroups(null);
-            if (currentStatus === TabGrouperStatus.Reviewing) setStatus(TabGrouperStatus.Idle);
         }
     }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]);
 
@@ -239,7 +237,7 @@ export const useTabGrouper = () => {
 
     const applyGroups = async () => {
         if (!previewGroups) return;
-        setStatus(TabGrouperStatus.Processing);
+        setStatus(OrganizerStatus.Applying);
 
         try {
             const currentWindow = await chrome.windows.getCurrent();
@@ -261,15 +259,15 @@ export const useTabGrouper = () => {
                     }
                 }
             }
-            setStatus(TabGrouperStatus.Success);
+            setStatus(OrganizerStatus.Success);
             setPreviewGroups(null);
-            setTimeout(() => setStatus(TabGrouperStatus.Idle), 3000);
+            setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
 
             // We do NOT reject unselected groups anymore, per "just unselect" instruction.
             // They remain available for future grouping.
         } catch (err: any) {
             setError(err.message || "Failed to apply groups.");
-            setStatus(TabGrouperStatus.Error);
+            setStatus(OrganizerStatus.Error);
         }
     };
 
@@ -295,7 +293,6 @@ export const useTabGrouper = () => {
     return {
         status,
         error,
-        progress,
         previewGroups,
         setPreviewGroups,
         selectedPreviewIndices,

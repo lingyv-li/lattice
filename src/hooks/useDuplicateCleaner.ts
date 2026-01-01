@@ -1,18 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { findDuplicates, countDuplicates } from '../services/duplicates';
-import { DuplicateCloser } from '../services/duplicates';
-
-
-export enum DuplicateCleanerStatus {
-    Idle = 'idle',
-    Scanning = 'scanning',
-    Cleaning = 'cleaning',
-    Success = 'success',
-    Error = 'error'
-}
+import { findDuplicates, countDuplicates, DuplicateCloser } from '../services/duplicates';
+import { OrganizerStatus } from '../types/organizer';
 
 export const useDuplicateCleaner = () => {
-    const [status, setStatus] = useState<DuplicateCleanerStatus>(DuplicateCleanerStatus.Idle);
+    const [status, setStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
     const [closedCount, setClosedCount] = useState<number>(0);
     const [duplicateCount, setDuplicateCount] = useState<number>(0);
 
@@ -52,30 +43,30 @@ export const useDuplicateCleaner = () => {
     }, [scanDuplicates]);
 
     const closeDuplicates = async () => {
-        setStatus(DuplicateCleanerStatus.Cleaning);
+        setStatus(OrganizerStatus.Applying);
 
         try {
             const result = await DuplicateCloser.closeDuplicates();
 
             if (result.closedCount > 0) {
                 setClosedCount(result.closedCount);
-                setStatus(DuplicateCleanerStatus.Success);
+                setStatus(OrganizerStatus.Success);
             } else {
-                setStatus(DuplicateCleanerStatus.Idle);
+                setStatus(OrganizerStatus.Idle);
             }
 
             // Re-scan immediately to update UI
             await scanDuplicates();
 
             setTimeout(() => {
-                setStatus(DuplicateCleanerStatus.Idle);
+                setStatus(OrganizerStatus.Idle);
                 setClosedCount(0);
             }, 3000);
 
         } catch (err) {
             console.error('Failed to clean duplicates:', err);
-            setStatus(DuplicateCleanerStatus.Error);
-            setTimeout(() => setStatus(DuplicateCleanerStatus.Idle), 3000);
+            setStatus(OrganizerStatus.Error);
+            setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
         }
     };
 
