@@ -37,13 +37,10 @@ export abstract class BaseProvider implements AIProvider {
             .map(t => `- [ID: ${t.id}] Title: ${t.title}, URL: ${t.url}`)
             .join('\n');
 
-        const userPrompt = `
-Existing Groups:
-${currentGroupNames.map(name => `- ${name}`).join('\n')}
-
-Ungrouped Tabs:
-${tabList}
-        `.trim();
+        const userPrompt = (
+            currentGroupNames.length > 0 ?
+                "Existing Groups:\n" + currentGroupNames.map(name => `- ${name}`).join('\n') : "")
+            + `\nUngrouped Tabs:\n${tabList}`;
 
         try {
             const responseText = await this.promptAI(userPrompt, systemPrompt, customRules);

@@ -35,7 +35,32 @@ export const handleAssignment = (
 
 export const cleanAndParseJson = (responseText: string): any => {
     try {
-        const cleanResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        let cleanResponse = responseText.trim();
+
+        // Check for Markdown code blocks first
+        const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/g;
+        const matches = [...cleanResponse.matchAll(jsonBlockRegex)];
+
+        if (matches.length > 0) {
+            // Use the last JSON block if multiple exist (often AI echoes input then gives output)
+            cleanResponse = matches[matches.length - 1][1].trim();
+        } else {
+            // No markdown block? Try to find the JSON structure directly
+            const firstBracket = cleanResponse.indexOf('[');
+            const firstBrace = cleanResponse.indexOf('{');
+            const start = (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) ? firstBracket : firstBrace;
+
+            if (start !== -1) {
+                const lastBracket = cleanResponse.lastIndexOf(']');
+                const lastBrace = cleanResponse.lastIndexOf('}');
+                const end = Math.max(lastBracket, lastBrace);
+
+                if (end !== -1 && end > start) {
+                    cleanResponse = cleanResponse.substring(start, end + 1).trim();
+                }
+            }
+        }
+
         return JSON.parse(cleanResponse);
     } catch (e) {
         console.error("Failed to parse AI JSON response", e);
@@ -60,7 +85,11 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
     - Title Case.
     - Logical and descriptive (avoid generic names like "Work" or "Other").
 
-    Output ONLY a valid JSON array with the following structure:
+    CRITICAL INSTRUCTIONS:
+    - Output ONLY a valid JSON array.
+    - DO NOT echo the user input.
+
+    Expected JSON Structure:
     [{"tabId": 123, "groupName": "🚀Project Alpha"}, {"tabId": 456, "groupName": "Existing Group Name"}]
 
     ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
