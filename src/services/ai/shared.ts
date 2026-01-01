@@ -10,20 +10,29 @@ export const handleAssignment = (
     let targetGroupId: number;
     let updatedNextId = currentNextId;
 
-    if (groupMap.has(groupName)) {
-        targetGroupId = groupMap.get(groupName)!;
-    } else if (groupName && groupName.trim().length > 0) {
+    // 1. Normalize the group name (basic trim only)
+    const normalizedName = groupName ? groupName.trim() : "";
+
+    // 2. Validate
+    if (normalizedName.length === 0) {
+        // Fallback for empty group name
         targetGroupId = updatedNextId--;
-        groupMap.set(groupName, targetGroupId);
     } else {
-        // Fallback for empty group name (shouldn't happen with good AI)
-        targetGroupId = updatedNextId--;
+        // 3. Direct lookup for existing groups
+        if (groupMap.has(normalizedName)) {
+            targetGroupId = groupMap.get(normalizedName)!;
+        } else {
+            // New group
+            targetGroupId = updatedNextId--;
+            // Add to map to ensure consistency for subsequent items in this batch
+            groupMap.set(normalizedName, targetGroupId);
+        }
     }
 
     const key = `group-id-${targetGroupId}`;
     if (!suggestions.has(key)) {
         suggestions.set(key, {
-            groupName: groupName,
+            groupName: normalizedName || "Ungrouped",
             tabIds: [],
             existingGroupId: targetGroupId >= 0 ? targetGroupId : null
         });
@@ -42,22 +51,17 @@ export const cleanAndParseJson = (responseText: string): any => {
         const matches = [...cleanResponse.matchAll(jsonBlockRegex)];
 
         if (matches.length > 0) {
-            // Use the last JSON block if multiple exist (often AI echoes input then gives output)
+            // Use the last JSON block if multiple exist
             cleanResponse = matches[matches.length - 1][1].trim();
         } else {
             // No markdown block? Try to find the JSON structure directly
-            const firstBracket = cleanResponse.indexOf('[');
-            const firstBrace = cleanResponse.indexOf('{');
-            const start = (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) ? firstBracket : firstBrace;
+            // We favor Objects '{}' now, but keep Array '[]' support just in case
+            const start = Math.min(cleanResponse.indexOf('['), cleanResponse.indexOf('{'));
+            const end = Math.max(cleanResponse.lastIndexOf(']'), cleanResponse.lastIndexOf('}'));
 
-            if (start !== -1) {
-                const lastBracket = cleanResponse.lastIndexOf(']');
-                const lastBrace = cleanResponse.lastIndexOf('}');
-                const end = Math.max(lastBracket, lastBrace);
+            if (start !== -1 && end !== -1 && end > start) {
+                cleanResponse = cleanResponse.substring(start, end + 1).trim();
 
-                if (end !== -1 && end > start) {
-                    cleanResponse = cleanResponse.substring(start, end + 1).trim();
-                }
             }
         }
 
@@ -75,22 +79,27 @@ export const constructSystemPrompt = (customRules: string = ""): string => {
     Your task is to assign EACH "Ungrouped Tab" to a group.
 
     Objectives:
-    1. MINIMIZE the total number of groups while MAXIMIZING the logical cohesion within each group.
-    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-    3. Create NEW groups only for tabs that don't fit existing ones. 
-    4. Group multiple related "Ungrouped Tabs" together into new logical clusters.
+    1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
+    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Match the name exactly from the provided list.
+    3. Create NEW groups only for tabs that definitively don't fit existing ones. 
+    4. Avoid single-tab groups unless absolutely necessary.
 
     Naming Standards for NEW groups:
-    - Use 1 concise word if possible.
-    - Title Case.
-    - Logical and descriptive (avoid generic names like "Work" or "Other").
+    - Use 1-2 concise words (Title Case).
+    - Descriptive but broad enough to encompass multiple tabs.
+    - NO generic names like "Other", "Misc", "Tabs".
 
     CRITICAL INSTRUCTIONS:
-    - Output ONLY a valid JSON array.
-    - DO NOT echo the user input.
+    - Output ONLY a valid JSON object.
+    - DO NOT echo the user input or explain your reasoning.
+    - The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
 
     Expected JSON Structure:
-    [{"tabId": 123, "groupName": "🚀Project Alpha"}, {"tabId": 456, "groupName": "Existing Group Name"}]
+    {
+        "🚀Project Alpha": [123, 124, 129],
+        "💡Existing Group Name": [456],
+        "📝Documentation": [789]
+    }
 
     ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
 };

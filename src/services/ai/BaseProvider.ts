@@ -60,6 +60,25 @@ export abstract class BaseProvider implements AIProvider {
                         nextNewGroupId
                     );
                 }
+            } else if (typeof parsed === 'object' && parsed !== null) {
+                // Dictionary format: { "Group Name": [1, 2, 3] }
+                for (const [groupName, tabIds] of Object.entries(parsed)) {
+                    if (Array.isArray(tabIds)) {
+                        for (const tabId of tabIds) {
+                            // Verify tabId exists in the requested tabs
+                            // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
+                            if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+
+                            nextNewGroupId = handleAssignment(
+                                groupName,
+                                Number(tabId),
+                                groupNameMap,
+                                suggestions,
+                                nextNewGroupId
+                            );
+                        }
+                    }
+                }
             }
         } catch (err) {
             const error = err instanceof Error ? err : new Error(String(err));

@@ -78,10 +78,9 @@ describe('LocalProvider', () => {
             ungroupedTabs: tabs
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify([
-            { tabId: 1, groupName: 'Group A' },
-            { tabId: 2, groupName: 'Group A' }
-        ]));
+        mockPrompt.mockResolvedValue(JSON.stringify({
+            "Group A": [1, 2]
+        }));
 
         const result = await provider.generateSuggestions(request);
 

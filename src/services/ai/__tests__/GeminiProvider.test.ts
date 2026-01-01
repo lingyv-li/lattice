@@ -50,10 +50,9 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify([
-                { tabId: 1, groupName: 'Shopping' },
-                { tabId: 2, groupName: 'Shopping' }
-            ])
+            text: JSON.stringify({
+                "Shopping": [1, 2]
+            })
         });
 
         const result = await provider.generateSuggestions(request);
