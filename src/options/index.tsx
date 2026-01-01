@@ -172,6 +172,33 @@ const InnerApp = () => {
                     </div>
                 </div>
 
+                {/* Callout when AI provider not configured */}
+                {settings.aiProvider === AIProviderType.None && (
+                    <div className="mb-6 p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl">
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-bold text-amber-900 dark:text-amber-100 mb-1">🚀 Get Started with AI Tab Grouping</h3>
+                                <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+                                    Choose an AI provider below to enable automatic tab organization.
+                                </p>
+                                <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1.5 ml-4">
+                                    <li className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full"></span>
+                                        <strong>Local AI</strong> - Free, private, runs on your device (Chrome only)
+                                    </li>
+                                    <li className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full"></span>
+                                        <strong>Gemini</strong> - Cloud-based, more powerful, requires API key
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-6">
 
                     <div className="space-y-4">

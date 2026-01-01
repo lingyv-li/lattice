@@ -24,7 +24,14 @@ export const calculateDuplicateCount = async (windowId?: number) => {
     }
 };
 
-export const updateWindowBadge = async (windowId: number, isProcessing: boolean, groupCount: number, hasError: boolean) => {
+export const updateWindowBadge = async (
+    windowId: number,
+    isProcessing: boolean,
+    groupCount: number,
+    hasError: boolean,
+    customText?: string,
+    customColor?: string
+) => {
     // Get active tab for this window to set badge on (closest we can get to per-window badge)
     let activeTabId: number | undefined;
     try {
@@ -36,6 +43,13 @@ export const updateWindowBadge = async (windowId: number, isProcessing: boolean,
     }
 
     if (!activeTabId) return;
+
+    // Custom badge (e.g., configuration warning)
+    if (customText && customColor) {
+        await chrome.action.setBadgeText({ text: customText, tabId: activeTabId });
+        await chrome.action.setBadgeBackgroundColor({ color: customColor, tabId: activeTabId });
+        return;
+    }
 
     if (hasError) {
         await chrome.action.setBadgeText({ text: "ERR", tabId: activeTabId });
