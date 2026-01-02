@@ -83,7 +83,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
     if (status === OrganizerStatus.Applying) {
         cardTitle = "Grouping Tabs...";
         isProcessingState = true;
-    } else if (isBackgroundProcessing && !previewGroups) {
+    } else if (isBackgroundProcessing) {
         cardTitle = "Analyzing Tabs...";
         isProcessingState = true;
     }

@@ -193,11 +193,13 @@ export const InnerApp = () => {
         }
 
         if (!hasWork) {
+            if (tabGrouper.isBackgroundProcessing) {
+                return "Analyzing Tabs...";
+            }
             if (isProcessing) {
                 return "Processing...";
-            } else {
-                return "No Actions Needed";
             }
+            return "No Actions Needed";
         }
 
         return "Organize";

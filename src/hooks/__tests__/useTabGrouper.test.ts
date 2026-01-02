@@ -89,7 +89,7 @@ describe('useTabGrouper', () => {
         // Verify state update (longer timeout or debug)
         await waitFor(() => {
             expect(result.current.previewGroups).not.toBeNull();
-            // Status stays Idle (no specific Reviewing status anymore)
+            // Status should remain Idle or derived from interaction, but Reviewing is gone.
             expect(result.current.status).toBe(OrganizerStatus.Idle);
         }, { timeout: 2000 });
 

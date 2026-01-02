@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TabGroupMessageType, TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
+import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../types/tabGrouper';
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
@@ -9,7 +9,8 @@ import { WindowSnapshot } from '../utils/snapshots';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
-    const [status, setStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
+    // "Interaction Status" tracks explicit user actions (Applying) or results (Success/Error)
+    const [interactionStatus, setInteractionStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
     const [error, setError] = useState<string | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
@@ -22,8 +23,6 @@ export const useTabGrouper = () => {
     const portRef = useRef<chrome.runtime.Port | null>(null);
     // Store current previews in ref to access inside listeners without re-subscribing
     const previewGroupsRef = useRef<typeof previewGroups>(null);
-    // Store status in ref to access inside listeners without re-subscribing
-    const statusRef = useRef<OrganizerStatus>(status);
 
     // Check settings for enabled state
     useEffect(() => {
@@ -44,12 +43,6 @@ export const useTabGrouper = () => {
     useEffect(() => {
         previewGroupsRef.current = previewGroups;
     }, [previewGroups]);
-
-    useEffect(() => {
-        statusRef.current = status;
-    }, [status]);
-
-
 
     // Convert cached suggestions to preview groups
     const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], snap: WindowSnapshot) => {
@@ -159,8 +152,9 @@ export const useTabGrouper = () => {
             return;
         }
 
-        const currentStatus = statusRef.current;
-        if (groups.length > 0 && currentStatus !== OrganizerStatus.Applying) {
+        if (groups.length > 0) {
+            // New suggestions arrived
+
             // Smart Selection Preservation:
             // Logic: Default to selected, unless it matches a group the user previously ignored.
             const newSelection = new Set<number>();
@@ -222,7 +216,8 @@ export const useTabGrouper = () => {
 
     const applyGroups = async () => {
         if (!previewGroups) return;
-        setStatus(OrganizerStatus.Applying);
+        setInteractionStatus(OrganizerStatus.Applying);
+        setError(null);
 
         try {
             const currentWindow = await chrome.windows.getCurrent();
@@ -244,15 +239,15 @@ export const useTabGrouper = () => {
                     }
                 }
             }
-            setStatus(OrganizerStatus.Success);
+            setInteractionStatus(OrganizerStatus.Success);
             setPreviewGroups(null);
-            setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
+            setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 3000);
 
             // We do NOT reject unselected groups anymore, per "just unselect" instruction.
             // They remain available for future grouping.
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : String(err) || "Failed to apply groups.");
-            setStatus(OrganizerStatus.Error);
+            setInteractionStatus(OrganizerStatus.Idle);
         }
     };
 
@@ -268,6 +263,7 @@ export const useTabGrouper = () => {
 
     const regenerateSuggestions = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
+        setError(null);
         portRef.current.postMessage({ type: TabGroupMessageType.RegenerateSuggestions, windowId: currentWindowId });
         setPreviewGroups(null); // Clear optimistic
         setBackgroundProcessing(true); // Show analyzing state immediately
@@ -275,6 +271,7 @@ export const useTabGrouper = () => {
 
     const triggerProcessing = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
+        setError(null);
         portRef.current.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: currentWindowId });
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
@@ -289,7 +286,7 @@ export const useTabGrouper = () => {
     };
 
     return {
-        status,
+        status: interactionStatus,
         error,
         previewGroups,
         setPreviewGroups,
