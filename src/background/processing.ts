@@ -32,20 +32,19 @@ export class ProcessingState {
     private windowStates = new Map<number, WindowState>();
     private _isBusy = false;
     private _lastEmittedState = false;
-    private onStateChange: (isProcessing: boolean) => void;
-
-    constructor(onStateChange: (isProcessing: boolean) => void) {
-        this.onStateChange = onStateChange;
-    }
-
     private updateStatus() {
         const newState = this._isBusy || this.windowQueue.length > 0;
 
         if (newState !== this._lastEmittedState) {
             console.log(`[ProcessingState] Status changed: ${this._lastEmittedState} -> ${newState} (Busy: ${this._isBusy}, Windows: ${this.windowQueue.length})`);
             this._lastEmittedState = newState;
-            this.onStateChange(newState);
         }
+
+        // Sync to persistent storage
+        // Note: We sync the entire queue so any waiting windows are also marked as "processing" from UI perspective
+        StateService.setProcessingWindows([...this.windowQueue]).catch(err => {
+            console.error("[ProcessingState] Failed to sync status to storage", err);
+        });
     }
 
     get isProcessing(): boolean {
@@ -90,14 +89,21 @@ export class ProcessingState {
     async completeWindow(windowId: number) {
         console.log(`[ProcessingState] Window ${windowId} completed`);
 
-        // If the window was re-queued while processing (e.g. rapid changes),
-        // do NOT delete the state, so the next processor cycle can find it.
-        if (this.windowQueue.includes(windowId)) {
-            console.log(`[ProcessingState] Window ${windowId} is re-queued, keeping state.`);
-            return;
+        // Remove from queue now that it's done
+        const index = this.windowQueue.indexOf(windowId);
+        if (index !== -1) {
+            this.windowQueue.splice(index, 1);
         }
 
+        // If the window was re-queued while processing (e.g. rapid changes),
+        // do NOT delete the state, so the next processor cycle can find it.
+        // Wait, if it's in the queue, we just removed it above? 
+        // No, re-queuing would add it back. 
+        // Actually, since we don't clear the queue on acquire anymore, "re-queued" is tricky.
+        // A "re-queue" (add) while busy just ensures it's in the list (which it already is).
+
         this.windowStates.delete(windowId);
+        this.updateStatus();
     }
 
     get size(): number {
@@ -158,8 +164,13 @@ export class ProcessingState {
 
         this._isBusy = true;
 
+        // We keep the items in windowQueue until they are explicitly completed/removed
+        // This allows updateStatus to correctly report them as "processing"
         const workQueue = [...this.windowQueue];
-        this.windowQueue = [];
+
+        // Do NOT clear windowQueue here. 
+        // QueueProcessor will call completeWindow() for each ID as it finishes.
+        // If we clear it here, updateStatus() sees empty queue and sets persistent state to empty.
 
         console.log(`[ProcessingState] Acquired queue: ${workQueue.length} windows`);
         this.updateStatus();

@@ -8,22 +8,17 @@ import { ErrorStorage } from '../utils/errorStorage';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
 import { FeatureId } from '../types/features';
 
-import { TabGroupResponse } from '../types/tabGrouper';
-
 console.log("[Background] Service Worker Initialized");
+StateService.clearProcessingStatus().catch(err => console.error("[Background] Failed to clear processing status", err));
 
 // ===== STATE =====
 // Processing queue managed by ProcessingState
-// This handles status updates internally and fires the callback on change
-const processingState = new ProcessingState(async (isProcessing) => {
-    await broadcastProcessingStatus(isProcessing);
-});
-
-const connectedPorts = new Set<chrome.runtime.Port>();
+// This handles status updates internally and syncs to storage
+const processingState = new ProcessingState();
 
 // ===== BROADCASTS =====
 // Update badge on data change
-StateService.subscribe(async () => {
+StateService.subscribeGlobal(async () => {
     await performBadgeUpdate();
 });
 
@@ -68,25 +63,6 @@ const performBadgeUpdate = async () => {
     }
 };
 
-const broadcastProcessingStatus = async (isProcessing: boolean) => {
-    const response: TabGroupResponse = {
-        type: 'PROCESSING_STATUS',
-        isProcessing
-    };
-
-    // 1. Notify UI immediately (Priority)
-    for (const port of connectedPorts) {
-        try {
-            port.postMessage(response);
-        } catch (e) {
-            connectedPorts.delete(port);
-        }
-    }
-
-    // 2. Update badge (Secondary, can be slower)
-    await performBadgeUpdate();
-};
-
 
 // ===== LOGIC =====
 
@@ -126,19 +102,17 @@ chrome.tabs.onActivated.addListener(async (_activeInfo) => {
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== 'tab-grouper') return;
 
-    connectedPorts.add(port);
-    port.onDisconnect.addListener(() => connectedPorts.delete(port));
-
     port.onMessage.addListener(async (msg) => {
-        if (msg.type === 'SYNC_STATE') {
-            // Send current processing status to UI
-            port.postMessage({
-                type: 'PROCESSING_STATUS',
-                isProcessing: processingState.isProcessing
-            } as TabGroupResponse);
-
+        if (msg.type === 'TRIGGER_PROCESSING') {
             // Trigger proactive check for new tabs
             tabManager.triggerRecalculation('UI Connected');
+        } else if (msg.type === 'REGENERATE_SUGGESTIONS') {
+            if (msg.windowId) {
+                console.log(`[Background] Regenerating suggestions for window ${msg.windowId}`);
+                await StateService.clearWindowCache(msg.windowId);
+                await StateService.clearWindowSnapshot(msg.windowId); // Force re-process
+                tabManager.triggerRecalculation('Regenerate Request');
+            }
         }
     });
 });

@@ -5,6 +5,7 @@ import { WindowSnapshot } from '../utils/snapshots';
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
     windowSnapshots: Record<number, string>;
+    processingWindowIds: number[];
 }
 
 type StateChanges = {
@@ -18,6 +19,7 @@ export class StateService {
     // In-memory cache: windowId -> (tabId -> suggestion)
     private static cache: WindowCache | null = null;
     private static snapshots: Map<number, string> = new Map();
+    private static processingWindows: Set<number> = new Set();
     private static isHydrated = false;
 
     /**
@@ -27,7 +29,7 @@ export class StateService {
         if (this.isHydrated) return;
 
         try {
-            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots']) as Partial<StorageSchema>;
+            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds']) as Partial<StorageSchema>;
             this.cache = new Map();
 
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
@@ -44,6 +46,13 @@ export class StateService {
             } else {
                 this.snapshots = new Map();
             }
+
+            if (data.processingWindowIds && Array.isArray(data.processingWindowIds)) {
+                this.processingWindows = new Set(data.processingWindowIds);
+            } else {
+                this.processingWindows = new Set();
+            }
+
             this.isHydrated = true;
         } catch (e) {
             console.error("[StateService] Failed to hydrate:", e);
@@ -169,46 +178,109 @@ export class StateService {
     }
 
     /**
-     * Subscribe to changes in the suggestion cache.
-     * Returns a function to unsubscribe.
-     * Callback receives a flattened Map<tabId, cache> for the specified window (or all if not specified).
+     * Get the list of currently processing window IDs
      */
-    static subscribe(callback: (cache: Map<number, TabSuggestionCache>, windowId?: number) => void, windowId?: number): () => void {
-        const handleStorageChange = (changes: StateChanges, areaName: string) => {
-            if (areaName === 'session') {
-                if (changes.suggestionCache?.newValue) {
-                    const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
-                    this.cache = new Map();
-                    for (const s of rawData) {
-                        if (!this.cache.has(s.windowId)) {
-                            this.cache.set(s.windowId, new Map());
-                        }
-                        this.cache.get(s.windowId)!.set(s.tabId, s);
-                    }
-                    this.isHydrated = true;
+    static async getProcessingWindows(): Promise<number[]> {
+        await this.hydrate();
+        return Array.from(this.processingWindows);
+    }
 
-                    // Call callback with the relevant window's cache
-                    if (windowId !== undefined) {
-                        callback(this.cache.get(windowId) || new Map(), windowId);
-                    } else {
-                        // Flatten all
-                        const flat = new Map<number, TabSuggestionCache>();
-                        for (const windowMap of this.cache.values()) {
-                            for (const [tabId, s] of windowMap) {
-                                flat.set(tabId, s);
-                            }
-                        }
-                        callback(flat);
+    /**
+     * Set the list of processing windows
+     */
+    static async setProcessingWindows(windowIds: number[]): Promise<void> {
+        await this.hydrate();
+        const newSet = new Set(windowIds);
+
+        // Only persist if changed
+        if (this.processingWindows.size !== newSet.size || !windowIds.every(id => this.processingWindows.has(id))) {
+            this.processingWindows = newSet;
+            await this.persist();
+        }
+    }
+
+    /**
+     * Clear all processing status (e.g. on startup)
+     */
+    static async clearProcessingStatus(): Promise<void> {
+        await this.hydrate();
+        if (this.processingWindows.size > 0) {
+            this.processingWindows.clear();
+            await this.persist();
+        }
+    }
+
+    /**
+     * Subscribe to changes for a specific window.
+     * Returns a function to unsubscribe.
+     * Callback receives:
+     * 1. A Map<tabId, cache> for the specified window.
+     * 2. A boolean indicating if the window is currently processing.
+     */
+    static subscribe(windowId: number, callback: (cache: Map<number, TabSuggestionCache>, isProcessing: boolean) => void): () => void {
+        const handleStorageChange = (changes: StateChanges, areaName: string) => {
+            if (areaName !== 'session') return;
+
+            let shouldNotify = false;
+
+            if (changes.suggestionCache?.newValue) {
+                const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
+                this.cache = new Map();
+                for (const s of rawData) {
+                    if (!this.cache.has(s.windowId)) {
+                        this.cache.set(s.windowId, new Map());
                     }
+                    this.cache.get(s.windowId)!.set(s.tabId, s);
                 }
-                if (changes.windowSnapshots?.newValue) {
-                    const rawData = changes.windowSnapshots.newValue as Record<number, string>;
-                    this.snapshots = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
-                    this.isHydrated = true;
+                this.isHydrated = true;
+                shouldNotify = true;
+            }
+
+            if (changes.windowSnapshots?.newValue) {
+                const rawData = changes.windowSnapshots.newValue as Record<number, string>;
+                this.snapshots = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
+                this.isHydrated = true;
+            }
+
+            if (changes.processingWindowIds?.newValue) {
+                const rawData = changes.processingWindowIds.newValue as number[];
+                const oldRawData = changes.processingWindowIds.oldValue as number[] || [];
+
+                this.processingWindows = new Set(rawData);
+                this.isHydrated = true;
+
+                // Only notify if THIS window's status changed
+                const wasProcessing = oldRawData.includes(windowId);
+                const isProcessing = rawData.includes(windowId);
+
+                console.log(`[StateService] Processing update for window ${windowId}: ${wasProcessing} -> ${isProcessing}`, { rawData, oldRawData });
+
+                if (wasProcessing !== isProcessing) {
+                    shouldNotify = true;
                 }
+            }
+
+            if (shouldNotify) {
+                const isProcessing = this.processingWindows.has(windowId);
+                const windowCache = this.cache?.get(windowId) || new Map();
+                callback(windowCache, isProcessing);
             }
         };
 
+        chrome.storage.onChanged.addListener(handleStorageChange);
+        return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
+
+    /**
+     * Subscribe to ANY changes in the state.
+     * Useful for background processes that need to react to global changes (like badges).
+     */
+    static subscribeGlobal(callback: () => void): () => void {
+        const handleStorageChange = (_changes: StateChanges, areaName: string) => {
+            if (areaName === 'session') {
+                callback();
+            }
+        };
         chrome.storage.onChanged.addListener(handleStorageChange);
         return () => chrome.storage.onChanged.removeListener(handleStorageChange);
     }
@@ -230,6 +302,7 @@ export class StateService {
                 update.suggestionCache = flat;
             }
             update.windowSnapshots = Object.fromEntries(this.snapshots.entries());
+            update.processingWindowIds = Array.from(this.processingWindows);
             await chrome.storage.session.set(update);
         } catch (e) {
             console.error("[StateService] Failed to persist:", e);

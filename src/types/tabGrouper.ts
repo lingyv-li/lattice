@@ -14,14 +14,8 @@ export interface TabSuggestionCache {
 }
 
 export interface TabGroupMessage {
-    type: 'SYNC_STATE';
+    type: 'TRIGGER_PROCESSING' | 'REGENERATE_SUGGESTIONS';
     windowId?: number;
-}
-
-export interface TabGroupResponse {
-    type: 'PROCESSING_STATUS';
-    isProcessing?: boolean;
-    error?: string;
 }
 
 export interface GroupingContext {

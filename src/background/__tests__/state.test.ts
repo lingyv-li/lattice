@@ -82,7 +82,7 @@ describe('StateService', () => {
         const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(1);
         expect(cache.get(1)).toEqual(testData[0]);
-        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots']);
+        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots', 'processingWindowIds']);
     });
 
     it('should update and persist suggestions', async () => {
@@ -134,7 +134,7 @@ describe('StateService', () => {
     it('should notify listeners on update', async () => {
         await StateService.clearCache();
         const listener = vi.fn();
-        const unsubscribe = StateService.subscribe(listener);
+        const unsubscribe = StateService.subscribe(WINDOW_ID, listener);
 
         const suggestion: TabSuggestionCache = {
             tabId: 303,

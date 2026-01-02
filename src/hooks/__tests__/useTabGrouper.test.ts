@@ -134,29 +134,6 @@ describe('useTabGrouper', () => {
         expect(result.current.previewGroups![0].groupName).toBe('Async Group');
     });
 
-    it('should connect port and handle PROCESSING_STATUS', async () => {
-        const { result } = renderHook(() => useTabGrouper());
-
-        // Verify connection
-        expect(global.chrome.runtime.connect).toHaveBeenCalledWith({ name: 'tab-grouper' });
-        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
-        const messageListener = mockPort.onMessage.addListener.mock.calls[0][0];
-
-        // Status: Processing
-        act(() => {
-            messageListener({ type: 'PROCESSING_STATUS', isProcessing: true });
-        });
-
-        expect(result.current.isBackgroundProcessing).toBe(true);
-
-        // Status: Done
-        act(() => {
-            messageListener({ type: 'PROCESSING_STATUS', isProcessing: false });
-        });
-
-        expect(result.current.isBackgroundProcessing).toBe(false);
-    });
-
     it('should attempt reconnect on port disconnect', async () => {
         vi.useFakeTimers();
         renderHook(() => useTabGrouper());
@@ -194,7 +171,7 @@ describe('useTabGrouper', () => {
             // Subscribe should have been called with windowId = 1
             expect(subscribeSpy).toHaveBeenCalled();
             const lastCall = subscribeSpy.mock.calls[subscribeSpy.mock.calls.length - 1];
-            expect(lastCall[1]).toBe(1); // windowId should be 1
+            expect(lastCall[0]).toBe(1); // windowId should be 1
         });
 
         subscribeSpy.mockRestore();

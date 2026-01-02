@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TabGroupResponse, TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
+import { TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
@@ -15,6 +15,7 @@ export const useTabGrouper = () => {
     const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
     const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
     const [isBackgroundProcessing, setBackgroundProcessing] = useState(false);
+    const [currentWindowId, setCurrentWindowId] = useState<number | undefined>(undefined);
     const [aiEnabled, setAiEnabled] = useState(true);
 
     // Store port reference
@@ -111,24 +112,16 @@ export const useTabGrouper = () => {
                     console.log("[useTabGrouper] Port disconnected");
                     isPortConnected = false;
                     portRef.current = null;
-                    setBackgroundProcessing(false); // Assume stopped processing if disconn? Or unknown?
                     // Attempt reconnect
                     reconnectTimeout = setTimeout(connectPort, 2000);
                 });
 
-                port.onMessage.addListener((msg: TabGroupResponse) => {
-                    // We use SYNC_STATE to get the current processing status and trigger a background check.
-                    // Suggestions are read from storage, but we need to know if we are currently processing. 
-                    // However, we MUST handle PROCESSING_STATUS here.
-                    if (msg.type === 'PROCESSING_STATUS') {
-                        setBackgroundProcessing(msg.isProcessing ?? false);
-                    }
-                });
+
 
                 // Request current status and trigger sync
                 chrome.windows.getCurrent().then(win => {
                     if (win.id && portRef.current) {
-                        port.postMessage({ type: 'SYNC_STATE', windowId: win.id });
+                        port.postMessage({ type: 'TRIGGER_PROCESSING', windowId: win.id });
                     }
                 });
 
@@ -203,13 +196,11 @@ export const useTabGrouper = () => {
     }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]);
 
     // --- Current Window ID ---
-    const [currentWindowId, setCurrentWindowId] = useState<number | undefined>(undefined);
-
     useEffect(() => {
         chrome.windows.getCurrent().then(win => setCurrentWindowId(win.id));
     }, []);
 
-    // --- Storage Listener for Suggestions ---
+    // --- Storage Listener for Suggestions & Status ---
     useEffect(() => {
         if (currentWindowId === undefined) return; // Wait for window ID
 
@@ -220,9 +211,17 @@ export const useTabGrouper = () => {
             }
         });
 
-        const unsubscribe = StateService.subscribe((cache) => {
+        // Initial load for status
+        StateService.getProcessingWindows().then(windows => {
+            setBackgroundProcessing(windows.includes(currentWindowId));
+        });
+
+        // Subscribe to Suggestions AND Status
+        const unsubscribe = StateService.subscribe(currentWindowId, (cache, isProcessing) => {
+            console.log(`[useTabGrouper] Received update for window ${currentWindowId}: processing=${isProcessing}, cacheSize=${cache.size}`);
             processSuggestions(cache);
-        }, currentWindowId);
+            setBackgroundProcessing(isProcessing);
+        });
 
         return () => {
             unsubscribe();
@@ -275,6 +274,12 @@ export const useTabGrouper = () => {
         setSelectedPreviewIndices(newSet);
     };
 
+    const regenerateSuggestions = useCallback(() => {
+        if (!portRef.current || !currentWindowId) return;
+        portRef.current.postMessage({ type: 'REGENERATE_SUGGESTIONS', windowId: currentWindowId });
+        setPreviewGroups(null); // Clear optimistic
+    }, [currentWindowId]);
+
     const setAllGroupsSelected = (selected: boolean) => {
         if (!previewGroups) return;
         if (selected) {
@@ -296,6 +301,7 @@ export const useTabGrouper = () => {
         applyGroups,
         toggleGroupSelection,
         setAllGroupsSelected,
+        regenerateSuggestions,
         aiEnabled
     };
 };
