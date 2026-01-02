@@ -1,4 +1,5 @@
 import { Check, Zap } from 'lucide-react';
+import { Children } from 'react';
 
 interface SelectionCardProps {
     isSelected: boolean;
@@ -98,7 +99,7 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
 
             {/* Expandable/Interactive Content Area */}
             {/* We stop propagation here so interacting with inner controls doesn't toggle the card selection unless intended */}
-            {children && (
+            {Children.toArray(children).length > 0 && (
                 <div
                     className={`
                         px-4 pb-4 pt-0 transition-opacity
