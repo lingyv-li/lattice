@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, Sparkles, Copy, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import { AIProviderType, SettingsStorage } from '../../utils/storage';
 import { FeatureId } from '../../types/features';
+import { TabGroupMessageType } from '../../types/tabGrouper';
 import { AIService } from '../../services/ai/AIService';
 import { LocalProvider } from '../../services/ai/LocalProvider';
 
@@ -85,7 +86,7 @@ export const OnboardingModal = ({ isOpen, onComplete }: OnboardingModalProps) =>
                 const port = chrome.runtime.connect({ name: 'tab-grouper' });
                 const win = await chrome.windows.getCurrent();
                 if (win.id) {
-                    port.postMessage({ type: 'SYNC_STATE', windowId: win.id });
+                    port.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: win.id });
                 }
                 port.disconnect();
             } catch (e) {

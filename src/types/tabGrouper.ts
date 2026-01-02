@@ -13,8 +13,13 @@ export interface TabSuggestionCache {
     timestamp: number;
 }
 
+export enum TabGroupMessageType {
+    TriggerProcessing = 'TRIGGER_PROCESSING',
+    RegenerateSuggestions = 'REGENERATE_SUGGESTIONS'
+}
+
 export interface TabGroupMessage {
-    type: 'TRIGGER_PROCESSING' | 'REGENERATE_SUGGESTIONS';
+    type: TabGroupMessageType;
     windowId?: number;
 }
 

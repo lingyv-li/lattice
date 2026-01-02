@@ -2,6 +2,7 @@ import { StateService } from './state';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { TabManager } from './tabManager';
+import { TabGroupMessageType } from '../types/tabGrouper';
 
 import { updateWindowBadge } from '../utils/badge';
 import { ErrorStorage } from '../utils/errorStorage';
@@ -103,10 +104,10 @@ chrome.runtime.onConnect.addListener((port) => {
     if (port.name !== 'tab-grouper') return;
 
     port.onMessage.addListener(async (msg) => {
-        if (msg.type === 'TRIGGER_PROCESSING') {
+        if (msg.type === TabGroupMessageType.TriggerProcessing) {
             // Trigger proactive check for new tabs
             tabManager.triggerRecalculation('UI Connected');
-        } else if (msg.type === 'REGENERATE_SUGGESTIONS') {
+        } else if (msg.type === TabGroupMessageType.RegenerateSuggestions) {
             if (msg.windowId) {
                 console.log(`[Background] Regenerating suggestions for window ${msg.windowId}`);
                 await StateService.clearWindowCache(msg.windowId);

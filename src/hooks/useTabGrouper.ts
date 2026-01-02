@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
+import { TabGroupMessageType, TabGroupSuggestion, TabSuggestionCache } from '../types/tabGrouper';
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
@@ -114,7 +114,7 @@ export const useTabGrouper = () => {
                 // Request current status and trigger sync
                 chrome.windows.getCurrent().then(win => {
                     if (win.id && portRef.current) {
-                        port.postMessage({ type: 'TRIGGER_PROCESSING', windowId: win.id });
+                        port.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: win.id });
                     }
                 });
 
@@ -268,14 +268,14 @@ export const useTabGrouper = () => {
 
     const regenerateSuggestions = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
-        portRef.current.postMessage({ type: 'REGENERATE_SUGGESTIONS', windowId: currentWindowId });
+        portRef.current.postMessage({ type: TabGroupMessageType.RegenerateSuggestions, windowId: currentWindowId });
         setPreviewGroups(null); // Clear optimistic
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
     const triggerProcessing = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
-        portRef.current.postMessage({ type: 'TRIGGER_PROCESSING', windowId: currentWindowId });
+        portRef.current.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: currentWindowId });
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
