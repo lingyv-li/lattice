@@ -90,7 +90,7 @@ export class LocalProvider extends BaseProvider {
             const totalDuration = Date.now() - startTime;
             console.log(`[LocalProvider] CoT complete (took ${totalDuration}ms). Parsing response...`);
 
-            const parts = response.split('@@JSON_START@@');
+            const parts = response.split('@@START@@');
             let jsonPart = response;
             if (parts.length > 1) {
                 console.log(`[LocalProvider] Found JSON marker. Reasoning length: ${parts[0].length} chars.`);

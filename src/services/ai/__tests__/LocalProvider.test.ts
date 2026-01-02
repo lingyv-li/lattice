@@ -77,7 +77,7 @@ describe('LocalProvider', () => {
         };
 
         const responseText = `Here is some reasoning about the tabs...
-@@JSON_START@@
+@@START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
 
         mockPromptResponse(responseText);
@@ -96,7 +96,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
             ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }]
         };
         const responseText = `Reasoning...
-@@JSON_START@@
+@@START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
 
         mockPromptResponse(responseText);
@@ -124,7 +124,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
             customRules: 'Rule B'
         };
         const responseText = `Reasoning...
-@@JSON_START@@
+@@START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         mockPromptResponse(responseText);
 
@@ -152,7 +152,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         };
 
         const responseText = `Reasoning about Tab 1 and Tab 2...
-@@JSON_START@@
+@@START@@
 ${JSON.stringify({ "Group A": [1, 2] })}`;
 
         mockPromptResponse(responseText);

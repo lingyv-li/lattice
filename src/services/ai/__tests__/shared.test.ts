@@ -22,7 +22,7 @@ describe('shared utilities', () => {
             expect(result).toEqual({ "Test Group": [1] });
         });
 
-        it('should prefer earlier JSON object if multiple technically exist but find the structure correctly', () => {
+        it('should preferred earlier JSON object if multiple technically exist but find the structure correctly', () => {
             const input = 'Prefix { "Group": [1] } Suffix';
             const result = cleanAndParseJson(input);
             expect(result).toEqual({ "Group": [1] });
@@ -33,44 +33,58 @@ describe('shared utilities', () => {
             const result = cleanAndParseJson(input);
             expect(result).toEqual({});
         });
+
+        // JSON5 Specific Tests
+        it('should parse JSON with trailing commas', () => {
+            const input = '[{"tabId": 1, "groupName": "Test",}]';
+            const result = cleanAndParseJson(input);
+            expect(result).toEqual([{ tabId: 1, groupName: 'Test' }]);
+        });
+
+        it('should parse JSON with unquoted keys', () => {
+            const input = '[{tabId: 1, groupName: "Test"}]';
+            const result = cleanAndParseJson(input);
+            expect(result).toEqual([{ tabId: 1, groupName: 'Test' }]);
+        });
+
+        it('should parse JSON with comments', () => {
+            const input = `[
+                // This is a comment
+                {"tabId": 1, "groupName": "Test"}
+            ]`;
+            const result = cleanAndParseJson(input);
+            expect(result).toEqual([{ tabId: 1, groupName: 'Test' }]);
+        });
     });
 
     describe('constructSystemPrompt', () => {
         it('should match the golden prompt structure', () => {
             const prompt = constructSystemPrompt();
-            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
 
-I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
 
 Objectives:
-1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-3. Create NEW groups only for tabs that definitively don't fit existing ones. 
-4. Avoid single-tab groups unless absolutely necessary.
+- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Do NOT create a new group if an existing one is suitable.
+- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
-Naming Standards for NEW groups:
-- Use 1-2 concise words (Title Case).
-- Descriptive but broad enough to encompass multiple tabs.
-- NO generic names like "Other", "Misc", "Tabs".
+OUTPUT FORMAT:
+- Output ONLY a valid JSON array of objects.
+- Each object must have "tabId" (number) and "groupName" (string).
 
-
-CRITICAL INSTRUCTIONS:
-- Output ONLY a valid JSON object.
-- Assign EACH "Ungrouped Tab" to a group.
-- DO NOT echo the user input or explain your reasoning.
-- The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
-
-Expected JSON Structure:
-{
-    "...": [123, 124, 129],
-    "...": [456]
-}
+Example:
+[
+  {"tabId": 101, "groupName": "Group A"},
+  {"tabId": 102, "groupName": "Group A"},
+  {"tabId": 103, "groupName": "Group B"}
+]
 
 IMPORTANT:
-- Assign each tab ID to EXACTLY ONE group.
-- Do not duplicate tab IDs across groups.
-
-`;
+- Return exactly ONE object for EVERY tab ID in the input.
+- Do NOT skip any tabs.
+- "groupName" must be a string. "tabId" must be a number.`;
             expect(prompt).toBe(expected);
         });
 
@@ -85,88 +99,116 @@ IMPORTANT:
         it('should match the golden prompt structure for readability', () => {
             const prompt = constructSystemPrompt("", true);
 
-            // Reconstructing the expected string here to serve as a "Golden Test"
-            // This ensures the prompt remains readable and follows the expected structure.
-            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+            // Golden test - ensure prompt structure stays consistent
+            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
 
-I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
 
 Objectives:
-1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-3. Create NEW groups only for tabs that definitively don't fit existing ones. 
-4. Avoid single-tab groups unless absolutely necessary.
+- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Do NOT create a new group if an existing one is suitable.
+- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
-Naming Standards for NEW groups:
-- Use 1-2 concise words (Title Case).
-- Descriptive but broad enough to encompass multiple tabs.
-- NO generic names like "Other", "Misc", "Tabs".
+You MUST output a JSON list of assignments.
 
-Step 1: Reasoning
-For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
-Format:
-[Tab ID]: [Concise Content Analysis]
+Step 1: Briefly annotate and expand on each tab (a few words per tab).
+Step 2: Identify common themes. List top themes and proposed group names.
+Step 3: Output the JSON array wrapped in a markdown code block.
 
-Step 2: JSON Output
-Based on the reasoning above, group the tabs.
-Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
+Format: List of objects with "tabId" and "groupName".
 
-Expected JSON Structure:
-@@JSON_START@@
-{
-    "...": [123, 124, 129],
-    "...": [456]
-}
+<example>
+INPUT:
+Existing Groups:
+- "🛒Shopping"
+Ungrouped Tabs:
+- [ID: 101] "React hooks guide"
+- [ID: 102] "Amazon.com: headphones"
+- [ID: 103] "TypeScript handbook"
+
+OUTPUT:
+Step 1: Annotations
+- 101: React JavaScript coding (Dev).
+- 102: Shopping for headphones.
+- 103: TypeScript JavaScript coding guide (Dev).
+
+Step 2: Themes
+- 🛒Shopping (Existing)
+- ⚛️React (New)
+
+Step 3: JSON
+\`\`\`json
+[
+  {"tabId": 101, "groupName": "⚛️React"},
+  {"tabId": 102, "groupName": "🛒Shopping"},
+  {"tabId": 103, "groupName": "⚛️React"}
+]
+\`\`\`
+</example>
 
 IMPORTANT:
-- Assign each tab ID to EXACTLY ONE group.
-- Do not duplicate tab IDs across groups.
+- Return exactly ONE object for EVERY tab ID in the input.
+- Do NOT skip any tabs.
+- "groupName" must be a string. "tabId" must be a number.`;
 
-`;
-
-            // Normalizing whitespace for comparison to avoid brittleness with minor spacing changes
-            // but keeping the test expectation string readable above.
             expect(prompt).toBe(expected);
         });
 
         it('should match the golden prompt structure with custom rules', () => {
             const prompt = constructSystemPrompt("Rule 1: Be cool.\nRule 2: Have fun.", true);
 
-            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
 
-I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
 
 Objectives:
-1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-3. Create NEW groups only for tabs that definitively don't fit existing ones. 
-4. Avoid single-tab groups unless absolutely necessary.
+- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Do NOT create a new group if an existing one is suitable.
+- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
-Naming Standards for NEW groups:
-- Use 1-2 concise words (Title Case).
-- Descriptive but broad enough to encompass multiple tabs.
-- NO generic names like "Other", "Misc", "Tabs".
+You MUST output a JSON list of assignments.
 
-Step 1: Reasoning
-For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
-Format:
-[Tab ID]: [Concise Content Analysis]
+Step 1: Briefly annotate and expand on each tab (a few words per tab).
+Step 2: Identify common themes. List top themes and proposed group names.
+Step 3: Output the JSON array wrapped in a markdown code block.
 
-Step 2: JSON Output
-Based on the reasoning above, group the tabs.
-Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
+Format: List of objects with "tabId" and "groupName".
 
-Expected JSON Structure:
-@@JSON_START@@
-{
-    "...": [123, 124, 129],
-    "...": [456]
-}
+<example>
+INPUT:
+Existing Groups:
+- "🛒Shopping"
+Ungrouped Tabs:
+- [ID: 101] "React hooks guide"
+- [ID: 102] "Amazon.com: headphones"
+- [ID: 103] "TypeScript handbook"
+
+OUTPUT:
+Step 1: Annotations
+- 101: React JavaScript coding (Dev).
+- 102: Shopping for headphones.
+- 103: TypeScript JavaScript coding guide (Dev).
+
+Step 2: Themes
+- 🛒Shopping (Existing)
+- ⚛️React (New)
+
+Step 3: JSON
+\`\`\`json
+[
+  {"tabId": 101, "groupName": "⚛️React"},
+  {"tabId": 102, "groupName": "🛒Shopping"},
+  {"tabId": 103, "groupName": "⚛️React"}
+]
+\`\`\`
+</example>
 
 IMPORTANT:
-- Assign each tab ID to EXACTLY ONE group.
-- Do not duplicate tab IDs across groups.
-
+- Return exactly ONE object for EVERY tab ID in the input.
+- Do NOT skip any tabs.
+- "groupName" must be a string. "tabId" must be a number.
 
 Additional Rules:
 Rule 1: Be cool.

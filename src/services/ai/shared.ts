@@ -1,4 +1,5 @@
 import { TabGroupSuggestion } from '../../types/tabGrouper';
+import JSON5 from 'json5';
 
 export const handleAssignment = (
     groupName: string,
@@ -56,8 +57,17 @@ export const cleanAndParseJson = (responseText: string): any => {
         } else {
             // No markdown block? Try to find the JSON structure directly
             // We favor Objects '{}' now, but keep Array '[]' support just in case
-            const start = Math.min(cleanResponse.indexOf('['), cleanResponse.indexOf('{'));
-            const end = Math.max(cleanResponse.lastIndexOf(']'), cleanResponse.lastIndexOf('}'));
+            const firstBracket = cleanResponse.indexOf('[');
+            const firstBrace = cleanResponse.indexOf('{');
+            let start = -1;
+            if (firstBracket !== -1 && firstBrace !== -1) start = Math.min(firstBracket, firstBrace);
+            else if (firstBracket !== -1) start = firstBracket;
+            else if (firstBrace !== -1) start = firstBrace;
+
+            const lastBracket = cleanResponse.lastIndexOf(']');
+            const lastBrace = cleanResponse.lastIndexOf('}');
+            let end = -1;
+            end = Math.max(lastBracket, lastBrace);
 
             if (start !== -1 && end !== -1 && end > start) {
                 cleanResponse = cleanResponse.substring(start, end + 1).trim();
@@ -65,73 +75,102 @@ export const cleanAndParseJson = (responseText: string): any => {
             }
         }
 
-        return JSON.parse(cleanResponse);
+        return JSON5.parse(cleanResponse);
     } catch (e) {
         console.error("Failed to parse AI JSON response", e);
         return {};
     }
 };
 
-const PROMPT_INTRO = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+// =============================================================================
+// PROMPT COMPONENTS
+// =============================================================================
 
-I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".`;
+const ROLE = `You are a Tab Organizer that groups browser tabs into logical categories.`;
 
-const COMMON_OBJECTIVES = `Objectives:
-1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-3. Create NEW groups only for tabs that definitively don't fit existing ones. 
-4. Avoid single-tab groups unless absolutely necessary.
+const TASK = `I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.`;
 
-Naming Standards for NEW groups:
-- Use 1-2 concise words (Title Case).
-- Descriptive but broad enough to encompass multiple tabs.
-- NO generic names like "Other", "Misc", "Tabs".`;
+const OBJECTIVES = `Objectives:
+- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Do NOT create a new group if an existing one is suitable.
+- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".`;
 
-const COMMON_CONSTRAINTS = `IMPORTANT:
-- Assign each tab ID to EXACTLY ONE group.
-- Do not duplicate tab IDs across groups.`;
+// --- Non-CoT (direct JSON output) ---
+const INSTRUCTIONS = `OUTPUT FORMAT:
+- Output ONLY a valid JSON array of objects.
+- Each object must have "tabId" (number) and "groupName" (string).
 
-const INSTRUCTIONS = `
-CRITICAL INSTRUCTIONS:
-- Output ONLY a valid JSON object.
-- Assign EACH "Ungrouped Tab" to a group.
-- DO NOT echo the user input or explain your reasoning.
-- The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
+Example:
+[
+  {"tabId": 101, "groupName": "Group A"},
+  {"tabId": 102, "groupName": "Group A"},
+  {"tabId": 103, "groupName": "Group B"}
+]`;
 
-Expected JSON Structure:
-{
-    "...": [123, 124, 129],
-    "...": [456]
-}`;
+// --- CoT (reasoning + JSON) ---
+const COT_INSTRUCTIONS = `You MUST output a JSON list of assignments.
 
-const COT_INSTRUCTIONS = `Step 1: Reasoning
-For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
-Format:
-[Tab ID]: [Concise Content Analysis]
+Step 1: Briefly annotate and expand on each tab (a few words per tab).
+Step 2: Identify common themes. List top themes and proposed group names.
+Step 3: Output the JSON array wrapped in a markdown code block.
 
-Step 2: JSON Output
-Based on the reasoning above, group the tabs.
-Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
+Format: List of objects with "tabId" and "groupName".
 
-Expected JSON Structure:
-@@JSON_START@@
-{
-    "...": [123, 124, 129],
-    "...": [456]
-}`;
+<example>
+INPUT:
+Existing Groups:
+- "🛒Shopping"
+Ungrouped Tabs:
+- [ID: 101] "React hooks guide"
+- [ID: 102] "Amazon.com: headphones"
+- [ID: 103] "TypeScript handbook"
+
+OUTPUT:
+Step 1: Annotations
+- 101: React JavaScript coding (Dev).
+- 102: Shopping for headphones.
+- 103: TypeScript JavaScript coding guide (Dev).
+
+Step 2: Themes
+- 🛒Shopping (Existing)
+- ⚛️React (New)
+
+Step 3: JSON
+\`\`\`json
+[
+  {"tabId": 101, "groupName": "⚛️React"},
+  {"tabId": 102, "groupName": "🛒Shopping"},
+  {"tabId": 103, "groupName": "⚛️React"}
+]
+\`\`\`
+</example>`;
+
+const CONSTRAINTS = `IMPORTANT:
+- Return exactly ONE object for EVERY tab ID in the input.
+- Do NOT skip any tabs.
+- "groupName" must be a string. "tabId" must be a number.`;
+
+// =============================================================================
+// PROMPT CONSTRUCTION
+// =============================================================================
 
 export const constructSystemPrompt = (customRules: string = "", isCoT: boolean = false): string => {
     const coreInstructions = isCoT ? COT_INSTRUCTIONS : INSTRUCTIONS;
 
-    return `${PROMPT_INTRO}
+    const parts = [
+        ROLE,
+        TASK,
+        OBJECTIVES,
+        coreInstructions,
+        CONSTRAINTS
+    ];
 
-${COMMON_OBJECTIVES}
+    if (customRules.trim().length > 0) {
+        parts.push(`Additional Rules:\n${customRules}`);
+    }
 
-${coreInstructions}
-
-${COMMON_CONSTRAINTS}
-
-${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
+    return parts.join('\n\n');
 };
 
 
