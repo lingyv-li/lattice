@@ -16,7 +16,7 @@ describe('badge utils', () => {
                 setBadgeText: setBadgeTextMock,
                 setBadgeBackgroundColor: setBadgeBgMock
             }
-        } as any;
+        } as unknown as typeof chrome;
     });
 
     describe('calculateDuplicateCount', () => {
@@ -66,6 +66,7 @@ describe('badge utils', () => {
             // processing=false, groupCount=2, duplicateCount=1 => Total 3
             await updateWindowBadge(123, false, 2, false);
 
+            expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "3", tabId: 99 });
             expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#22C55E", tabId: 99 });
         });

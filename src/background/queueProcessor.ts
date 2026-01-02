@@ -59,7 +59,7 @@ export class QueueProcessor {
                             await this.state.completeWindow(windowId);
                             continue;
                         }
-                    } catch (e) {
+                    } catch {
                         await this.state.completeWindow(windowId);
                         continue;
                     }
@@ -93,7 +93,7 @@ export class QueueProcessor {
                     // Clean up abort controller
                     this.windowAbortControllers.delete(windowId);
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("[QueueProcessor] Global processing error", err);
             }
         }
@@ -193,7 +193,7 @@ export class QueueProcessor {
                 await StateService.updateSuggestions(suggestionsToCache);
             }
 
-        } catch (e: any) {
+        } catch (e: unknown) {
             // Don't show error if user hasn't configured an AI provider yet
             if (settings.aiProvider !== AIProviderType.None) {
                 const errorMsg = getUserFriendlyError(e);

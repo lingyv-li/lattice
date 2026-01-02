@@ -3,13 +3,13 @@
  * the function until after `wait` milliseconds have elapsed since
  * the last time the debounced function was invoked.
  */
-export function debounce<T extends (...args: any[]) => any>(
-    func: T,
+export function debounce<A extends unknown[], R>(
+    func: (...args: A) => R,
     wait: number
-): (...args: Parameters<T>) => void {
+): (...args: A) => void {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    return (...args: Parameters<T>) => {
+    return (...args: A) => {
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
         }

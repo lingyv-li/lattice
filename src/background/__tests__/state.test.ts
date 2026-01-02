@@ -2,18 +2,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StateService } from '../state';
 import { TabSuggestionCache } from '../../types/tabGrouper';
+import { WindowSnapshot } from '../../utils/snapshots';
 
 // Mock chrome.storage.session
-const mockStorage: Record<string, any> = {};
+const mockStorage: Record<string, unknown> = {};
 
 // Mock listeners
-const listeners: Set<Function> = new Set();
+const listeners: Set<(changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void> = new Set();
 const mockOnChanged = {
     addListener: vi.fn((cb) => listeners.add(cb)),
     removeListener: vi.fn((cb) => listeners.delete(cb))
 };
 
-const notifyListeners = (changes: any) => {
+const notifyListeners = (changes: Record<string, chrome.storage.StorageChange>) => {
     listeners.forEach(cb => cb(changes, 'session'));
 };
 
@@ -22,10 +23,15 @@ const mockSession = {
         if (typeof keys === 'string') {
             return Promise.resolve({ [keys]: mockStorage[keys] });
         }
+        if (Array.isArray(keys)) {
+            const res: Record<string, unknown> = {};
+            keys.forEach(k => { res[k] = mockStorage[k]; });
+            return Promise.resolve(res);
+        }
         return Promise.resolve(mockStorage);
     }),
-    set: vi.fn((items: Record<string, any>) => {
-        const changes: any = {};
+    set: vi.fn((items: Record<string, unknown>) => {
+        const changes: Record<string, chrome.storage.StorageChange> = {};
         for (const [key, value] of Object.entries(items)) {
             changes[key] = { newValue: value };
         }
@@ -34,7 +40,7 @@ const mockSession = {
         return Promise.resolve();
     }),
     remove: vi.fn((keys: string | string[]) => {
-        const changes: any = {};
+        const changes: Record<string, chrome.storage.StorageChange> = {};
         const keyList = Array.isArray(keys) ? keys : [keys];
 
         keyList.forEach(k => {
@@ -53,7 +59,7 @@ global.chrome = {
         session: mockSession,
         onChanged: mockOnChanged
     }
-} as any;
+} as unknown as typeof chrome;
 
 const WINDOW_ID = 1;
 
@@ -76,8 +82,10 @@ describe('StateService', () => {
         mockStorage['suggestionCache'] = testData;
 
         // Reset private state for testing
-        (StateService as any).isHydrated = false;
-        (StateService as any).cache = null;
+        // @ts-expect-error - Accessing private property
+        StateService.isHydrated = false;
+        // @ts-expect-error - Accessing private property
+        StateService.cache = null;
 
         const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(1);
@@ -103,6 +111,7 @@ describe('StateService', () => {
 
         expect(mockSession.set).toHaveBeenCalled();
         expect(mockStorage['suggestionCache']).toHaveLength(1);
+        // @ts-expect-error - Accessing mock storage with dynamic keys
         expect(mockStorage['suggestionCache'][0]).toEqual(suggestion);
     });
 
@@ -184,15 +193,16 @@ describe('StateService', () => {
     it('should store and retrieve window snapshots', async () => {
         await StateService.clearCache();
         const windowId = 123;
-        const snapshot = 'tab1:url1|tab2:url2';
+        const fingerprint = 'tab1:url1|tab2:url2';
 
-        await StateService.updateWindowSnapshot(windowId, { fingerprint: snapshot } as any);
+        await StateService.updateWindowSnapshot(windowId, { fingerprint } as WindowSnapshot);
 
         const retrieved = await StateService.getWindowSnapshot(windowId);
-        expect(retrieved).toBe(snapshot);
+        expect(retrieved).toBe(fingerprint);
 
         // Verify persistence
-        expect(mockStorage['windowSnapshots'][windowId]).toBe(snapshot);
+        // @ts-expect-error - Accessing mock storage with dynamic keys
+        expect(mockStorage['windowSnapshots'][windowId]).toBe(fingerprint);
     });
 
     it('should hydrate snapshots from storage', async () => {
@@ -204,8 +214,10 @@ describe('StateService', () => {
         };
 
         // Reset private state for testing
-        (StateService as any).isHydrated = false;
-        (StateService as any).snapshots = new Map();
+        // @ts-expect-error - Accessing private property
+        StateService.isHydrated = false;
+        // @ts-expect-error - Accessing private property
+        StateService.snapshots = new Map();
 
         const retrieved = await StateService.getWindowSnapshot(windowId);
         expect(retrieved).toBe(snapshot);
@@ -213,11 +225,12 @@ describe('StateService', () => {
 
     it('should handle snapshot updates gracefully', async () => {
         const windowId = 999;
-        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v1' } as any);
+        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v1' } as WindowSnapshot);
         expect(await StateService.getWindowSnapshot(windowId)).toBe('v1');
 
-        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v2' } as any);
+        await StateService.updateWindowSnapshot(windowId, { fingerprint: 'v2' } as WindowSnapshot);
         expect(await StateService.getWindowSnapshot(windowId)).toBe('v2');
+        // @ts-expect-error - Accessing mock storage with dynamic keys
         expect(mockStorage['windowSnapshots'][windowId]).toBe('v2');
     });
 });

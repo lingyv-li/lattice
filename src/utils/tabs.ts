@@ -42,9 +42,10 @@ export const applyTabGroup = async (
                 groupId: existingGroupId
             });
             return existingGroupId;
-        } catch (e: any) {
+        } catch (e: unknown) {
             // Check for specific error message regarding missing group
-            if (e.message && e.message.includes("No group with id")) {
+            const message = e instanceof Error ? e.message : String(e);
+            if (message.includes("No group with id")) {
                 // Fallback: Create new group in specified window
                 const groupId = await chrome.tabs.group({
                     tabIds: tabIdsToGroup,

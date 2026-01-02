@@ -1,12 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QueueProcessor } from '../queueProcessor';
 import { StateService } from '../state';
 import { AIService } from '../../services/ai/AIService';
-import { SettingsStorage } from '../../utils/storage';
+import { AIProvider } from '../../services/ai/types';
+import { TabSuggestionCache } from '../../types/tabGrouper';
+import { SettingsStorage, AppSettings } from '../../utils/storage';
 import { applyTabGroup } from '../../utils/tabs';
 import { FeatureId } from '../../types/features';
 import { WindowSnapshot } from '../../utils/snapshots';
 import { MockWindowSnapshot } from './testUtils';
+import { ProcessingState } from '../processing';
 
 // Mock dependencies
 vi.mock('../processing');
@@ -42,12 +46,24 @@ global.chrome = {
     tabs: mockTabs,
     windows: mockWindows,
     tabGroups: mockTabGroups,
-} as any;
+} as unknown as typeof chrome;
 
 describe('QueueProcessor', () => {
     let processor: QueueProcessor;
-    let mockWindowState: any;
-    let mockState: any;
+    let mockWindowState: {
+        updateFromSnapshot: Mock;
+        verifySnapshot: Mock;
+        lastPersistentSnapshot: WindowSnapshot | null;
+        inputSnapshot: WindowSnapshot;
+    };
+    let mockState: {
+        hasItems: boolean;
+        getWindowState: Mock;
+        completeWindow: Mock;
+        acquireQueue: Mock;
+        add: Mock;
+        isWindowChanged: Mock;
+    };
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -76,7 +92,7 @@ describe('QueueProcessor', () => {
                 .mockReturnValue(false)    // Subsequent checks: false
         });
 
-        processor = new QueueProcessor(mockState);
+        processor = new QueueProcessor(mockState as unknown as ProcessingState);
 
         // Default happy path mocks
         mockSettings({
@@ -84,29 +100,30 @@ describe('QueueProcessor', () => {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
                 [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
             }
-        });
-        mockState.acquireQueue.mockReturnValue([1]);
+        } as AppSettings);
+        vi.mocked(mockState.acquireQueue).mockReturnValue([1]);
         const testTabs = [
             { id: 101, windowId: 1, url: 'http://example.com', title: 'Example' },
             { id: 102, windowId: 1, url: 'http://example.com', title: 'Example' }
-        ];
-        (chrome.tabs.query as any) = vi.fn().mockResolvedValue(testTabs);
-        (chrome.tabGroups.query as any) = vi.fn().mockResolvedValue([]);
+        ] as chrome.tabs.Tab[];
+
+        vi.mocked(mockTabs.query).mockResolvedValue(testTabs);
+        vi.mocked(mockTabGroups.query).mockResolvedValue([]);
 
         // Mock snapshot return
-        vi.mocked(WindowSnapshot.fetch).mockResolvedValue(new MockWindowSnapshot(testTabs as unknown as chrome.tabs.Tab[], []));
+        vi.mocked(WindowSnapshot.fetch).mockResolvedValue(new MockWindowSnapshot(testTabs, []) as unknown as WindowSnapshot);
         // Ensure input snapshot matches
-        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs as unknown as chrome.tabs.Tab[], []);
+        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs, []);
 
         // Feed AI from snapshot - ensure inputSnapshot has data
-        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs as unknown as chrome.tabs.Tab[], []);
+        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs, []);
 
-        mockTabs.get.mockImplementation((id) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' }));
-        mockWindows.get.mockResolvedValue({ id: 1, type: 'normal' });
-        mockTabGroups.query.mockResolvedValue([]);
+        vi.mocked(mockTabs.get).mockImplementation((id: number) => Promise.resolve({ id, windowId: 1, url: 'http://example.com', title: 'Example' } as chrome.tabs.Tab));
+        vi.mocked(mockWindows.get).mockResolvedValue({ id: 1, type: 'normal' } as chrome.windows.Window);
+        vi.mocked(mockTabGroups.query).mockResolvedValue([]);
         mockStateServiceCache(new Map());
-        (StateService.getWindowSnapshot as any).mockResolvedValue(undefined);
-        (StateService.updateWindowSnapshot as any).mockResolvedValue(undefined);
+        vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
+        vi.mocked(StateService.updateWindowSnapshot).mockResolvedValue(undefined);
 
         // Mock AI Service with Provider
         const mockProvider = {
@@ -118,15 +135,15 @@ describe('QueueProcessor', () => {
                 errors: []
             })
         };
-        (AIService.getProvider as any).mockResolvedValue(mockProvider);
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
     });
 
-    const mockSettings = (settings: any) => {
-        (SettingsStorage.get as any).mockResolvedValue(settings);
+    const mockSettings = (settings: AppSettings) => {
+        vi.mocked(SettingsStorage.get).mockResolvedValue(settings);
     };
 
-    const mockStateServiceCache = (cache: Map<any, any>) => {
-        (StateService.getSuggestionCache as any).mockResolvedValue(cache);
+    const mockStateServiceCache = (cache: Map<number, TabSuggestionCache>) => {
+        vi.mocked(StateService.getSuggestionCache).mockResolvedValue(cache);
     };
 
     it('should cache suggestions when autopilot is OFF', async () => {
@@ -134,12 +151,12 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: false }
             }
-        });
+        } as AppSettings);
 
         await processor.process();
 
         // AI called
-        const provider = await AIService.getProvider({} as any);
+        const provider = await AIService.getProvider({} as AppSettings);
         expect(provider.generateSuggestions).toHaveBeenCalled();
 
         // Should NOT apply group
@@ -161,12 +178,12 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
             }
-        });
+        } as AppSettings);
 
         await processor.process();
 
         // AI called
-        const provider = await AIService.getProvider({} as any);
+        const provider = await AIService.getProvider({} as AppSettings);
         expect(provider.generateSuggestions).toHaveBeenCalled();
 
         // Should apply group
@@ -179,16 +196,16 @@ describe('QueueProcessor', () => {
     });
 
     it('should handle window closed error gracefully', async () => {
-        mockWindows.get.mockRejectedValue(new Error("Window closed"));
+        vi.mocked(mockWindows.get).mockRejectedValue(new Error("Window closed"));
         await processor.process();
         expect(AIService.getProvider).not.toHaveBeenCalled();
 
     });
 
     it('should skip non-normal windows', async () => {
-        mockWindows.get.mockResolvedValue({ id: 1, type: 'popup' });
+        vi.mocked(mockWindows.get).mockResolvedValue({ id: 1, type: 'popup' } as chrome.windows.Window);
         await processor.process();
-        const provider = await AIService.getProvider({} as any);
+        const provider = await AIService.getProvider({} as AppSettings);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
 
     });
@@ -198,7 +215,7 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: false, autopilot: false }
             }
-        });
+        } as AppSettings);
 
         await processor.process();
 
@@ -211,14 +228,14 @@ describe('QueueProcessor', () => {
 
     it('should abort if snapshot verification fails', async () => {
         // Mock snapshot mismatch - return a snapshot with different fingerprint
-        const diffTabs = [{ id: 999, url: 'http://diff.com', title: 'Diff' }] as any;
-        vi.mocked(WindowSnapshot.fetch).mockResolvedValue(new MockWindowSnapshot(diffTabs, []));
+        const diffTabs = [{ id: 999, url: 'http://diff.com', title: 'Diff' }] as unknown as chrome.tabs.Tab[];
+        vi.mocked(WindowSnapshot.fetch).mockResolvedValue(new MockWindowSnapshot(diffTabs, []) as unknown as WindowSnapshot);
         // Since we are using the mockWindowState, we must explicitly tell it to fail verification
-        mockWindowState.verifySnapshot.mockResolvedValue(false);
+        vi.mocked(mockWindowState.verifySnapshot).mockResolvedValue(false);
 
         await processor.process();
 
-        const provider = await AIService.getProvider({} as any);
+        const provider = await AIService.getProvider({} as AppSettings);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
 
         // add() is now called with just windowId (fetches data internally)
@@ -231,16 +248,16 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: false }
             }
-        });
+        } as AppSettings);
 
         // Setup: 2 tabs in batch
         const testTabs = [
             { id: 101, windowId: 1, url: 'http://a.com', title: 'A' },
             { id: 102, windowId: 1, url: 'http://b.com', title: 'B' }
-        ];
-        (chrome.tabs.query as any).mockResolvedValue(testTabs);
+        ] as chrome.tabs.Tab[];
+        vi.mocked(mockTabs.query).mockResolvedValue(testTabs);
         // Ensure snapshot has these tabs
-        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs as unknown as chrome.tabs.Tab[], []);
+        mockWindowState.inputSnapshot = new MockWindowSnapshot(testTabs, []);
 
         // AI only returns group for tab 101. Tab 102 is missing.
         const mockProvider = {
@@ -252,13 +269,13 @@ describe('QueueProcessor', () => {
                 errors: []
             })
         };
-        (AIService.getProvider as any).mockResolvedValue(mockProvider);
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
 
         await processor.process();
 
         // Expect updateSuggestions to be called ONLY with tab 101
         expect(StateService.updateSuggestions).toHaveBeenCalledTimes(1);
-        const calls = (StateService.updateSuggestions as any).mock.calls[0][0];
+        const calls = vi.mocked(StateService.updateSuggestions).mock.calls[0][0];
 
         // Should have 1 entry
         expect(calls).toHaveLength(1);
@@ -266,13 +283,13 @@ describe('QueueProcessor', () => {
         expect(calls[0].groupName).toBe('Group A');
 
         // Should NOT have tab 102
-        const tab102 = calls.find((s: any) => s.tabId === 102);
+        const tab102 = calls.find((s) => s.tabId === 102);
         expect(tab102).toBeUndefined();
     });
 
     it('should handle failed queue acquisition', async () => {
         // Mock acquireQueue to return empty array (busy or empty)
-        mockState.acquireQueue.mockReturnValue([]);
+        vi.mocked(mockState.acquireQueue).mockReturnValue([]);
 
         await processor.process();
 
@@ -287,10 +304,10 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
             }
-        });
+        } as AppSettings);
 
         // Mock applyTabGroup to throw an error
-        (applyTabGroup as any).mockRejectedValue(new Error('Failed to apply group'));
+        vi.mocked(applyTabGroup).mockRejectedValue(new Error('Failed to apply group'));
 
         await processor.process();
 
@@ -305,7 +322,7 @@ describe('QueueProcessor', () => {
             id: 'mock',
             generateSuggestions: vi.fn().mockRejectedValue(new Error('AI service failed'))
         };
-        (AIService.getProvider as any).mockResolvedValue(mockProvider);
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
 
         await processor.process();
 
@@ -319,10 +336,10 @@ describe('QueueProcessor', () => {
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
             }
-        });
+        } as AppSettings);
 
         // Mock applyTabGroup to return a new group ID
-        (applyTabGroup as any).mockResolvedValue(123);
+        vi.mocked(applyTabGroup).mockResolvedValue(123);
 
         await processor.process();
 
@@ -333,7 +350,7 @@ describe('QueueProcessor', () => {
 
     it('should handle missing window state gracefully', async () => {
         // Mock getWindowState to return null
-        mockState.getWindowState.mockReturnValue(null);
+        vi.mocked(mockState.getWindowState).mockReturnValue(null);
 
         await processor.process();
 

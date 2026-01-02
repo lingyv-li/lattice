@@ -22,6 +22,7 @@ export const useDuplicateCleaner = () => {
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         scanDuplicates();
 
         const handleTabUpdate = (_tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo, _tab: chrome.tabs.Tab) => {
@@ -63,7 +64,7 @@ export const useDuplicateCleaner = () => {
                 setClosedCount(0);
             }, 3000);
 
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Failed to clean duplicates:', err);
             setStatus(OrganizerStatus.Error);
             setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);

@@ -31,7 +31,7 @@ describe('TabGrouperCard', () => {
             <TabGrouperCard
                 isSelected={true}
                 onToggle={vi.fn()}
-                data={mockData as any}
+                data={mockData as unknown as Parameters<typeof TabGrouperCard>[0]['data']}
                 autopilotEnabled={false}
                 onAutopilotToggle={vi.fn()}
             />
@@ -53,7 +53,7 @@ describe('TabGrouperCard', () => {
             <TabGrouperCard
                 isSelected={true}
                 onToggle={vi.fn()}
-                data={previewData as any}
+                data={previewData as unknown as Parameters<typeof TabGrouperCard>[0]['data']}
                 autopilotEnabled={false}
                 onAutopilotToggle={vi.fn()}
             />
@@ -76,7 +76,7 @@ describe('TabGrouperCard', () => {
             <TabGrouperCard
                 isSelected={true}
                 onToggle={vi.fn()}
-                data={processingData as any}
+                data={processingData as unknown as Parameters<typeof TabGrouperCard>[0]['data']}
                 autopilotEnabled={false}
                 onAutopilotToggle={vi.fn()}
             />

@@ -17,7 +17,7 @@ global.chrome = {
     tabs: mockTabs,
     tabGroups: mockTabGroups,
     windows: mockWindows,
-} as any;
+} as unknown as typeof chrome;
 
 describe('applyTabGroup', () => {
     beforeEach(() => {

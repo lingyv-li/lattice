@@ -6,26 +6,28 @@ import { AIProviderType } from '../../utils/storage';
 import { StateService } from '../../background/state';
 
 // --- Mocks ---
-
-// --- Mocks ---
 // Mocks are handled in setupTests.ts
 
 // Helper: Setup default mock returns
 const setupMocks = () => {
     // Default: 1 window, 2 tabs
-    (global.chrome.windows.getCurrent as any).mockResolvedValue({ id: 1 });
-    (global.chrome.tabs.query as any).mockResolvedValue([
+    // @ts-expect-error - overload issue
+    vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({ id: 1 } as chrome.windows.Window);
+    // @ts-expect-error - overload issue
+    vi.mocked(global.chrome.tabs.query).mockResolvedValue([
         { id: 101, title: 'Google', url: 'https://google.com', groupId: -1 },
         { id: 102, title: 'GitHub', url: 'https://github.com', groupId: -1 }
-    ]);
+    ] as chrome.tabs.Tab[]);
 
     // Storage: Empty default
-    (global.chrome.storage.session.get as any).mockResolvedValue({});
+    // @ts-expect-error - overload issue
+    vi.mocked(global.chrome.storage.session.get).mockResolvedValue({});
 
     // Storage Sync for settings (needed for AI enabled check)
-    (global.chrome.storage.sync.get as any).mockImplementation((defaults: any, callback: any) => {
+    vi.mocked(global.chrome.storage.sync.get).mockImplementation((defaults: unknown, callback: unknown) => {
         // Return defaults (Local provider)
-        callback({ ...defaults, aiProvider: AIProviderType.Local });
+        if (typeof callback === 'function') callback({ ...(defaults as object), aiProvider: AIProviderType.Local });
+        return Promise.resolve({ ...(defaults as object), aiProvider: AIProviderType.Local });
     });
 
     // Runtime: Mock Port
@@ -36,10 +38,7 @@ const setupMocks = () => {
         postMessage: vi.fn(),
         disconnect: vi.fn()
     };
-    (global.chrome.runtime.connect as any).mockReturnValue(mockPort);
-
-    // Mock Timer for reconnect
-    // vi.useFakeTimers(); // Removed to avoid waitFor conflicts
+    vi.mocked(global.chrome.runtime.connect).mockReturnValue(mockPort as unknown as chrome.runtime.Port);
 };
 
 
@@ -47,8 +46,10 @@ describe('useTabGrouper', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         setupMocks();
-        (StateService as any).isHydrated = false;
-        (StateService as any).cache = null;
+        // @ts-expect-error - Stubbing private property
+        StateService.isHydrated = false;
+        // @ts-expect-error - Stubbing private property
+        StateService.cache = null;
     });
 
     afterEach(() => {
@@ -70,7 +71,8 @@ describe('useTabGrouper', () => {
 
     it('should load suggestions from storage on mount', async () => {
         // Setup existing storage data
-        (global.chrome.storage.session.get as any).mockResolvedValue({
+        // @ts-expect-error - overload issue
+        vi.mocked(global.chrome.storage.session.get).mockResolvedValue({
             suggestionCache: [
                 { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
                 { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
@@ -86,10 +88,6 @@ describe('useTabGrouper', () => {
 
         // Verify state update (longer timeout or debug)
         await waitFor(() => {
-            // Check that preview groups are populated
-            if (!result.current.previewGroups) {
-                // console.log("Waiting for previewGroups...");
-            }
             expect(result.current.previewGroups).not.toBeNull();
             // Status stays Idle (no specific Reviewing status anymore)
             expect(result.current.status).toBe(OrganizerStatus.Idle);
@@ -105,14 +103,14 @@ describe('useTabGrouper', () => {
         // Wait for init AND subscription to be established
         await waitFor(() => {
             expect(result.current.status).toBe(OrganizerStatus.Idle);
-            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+            expect(vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls.length).toBeGreaterThanOrEqual(1);
         });
 
         // Give a moment for the effect to re-run with the correct windowId
         await new Promise(resolve => setTimeout(resolve, 50));
 
         // Simulate storage change event (get the LATEST listener)
-        const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
+        const calls = vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls;
         const storageListener = calls[calls.length - 1][0];
 
         act(() => {
@@ -134,15 +132,15 @@ describe('useTabGrouper', () => {
     });
 
     it('should attempt reconnect on port disconnect', async () => {
-        vi.useFakeTimers();
+        // vi.useFakeTimers();
         renderHook(() => useTabGrouper());
 
-        // ... (rest of test)
+        // Wait for initial connection
+        await waitFor(() => {
+            expect(global.chrome.runtime.connect).toHaveBeenCalled();
+        });
 
-        // Teardown at end of test or use try/finally, but vitest usually resets if configured. 
-        // Better to put in afterEach of describe block if used often, but here just local.
-
-        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+        const mockPort = vi.mocked(global.chrome.runtime.connect).mock.results[0].value;
         const disconnectListener = mockPort.onDisconnect.addListener.mock.calls[0][0];
 
         // Trigger disconnect
@@ -150,8 +148,8 @@ describe('useTabGrouper', () => {
             disconnectListener();
         });
 
-        // Fast forward timer (reconnect delay)
-        vi.advanceTimersByTime(2000);
+        // Wait for reconnect delay
+        await new Promise(resolve => setTimeout(resolve, 2100));
 
         // Should have connected again
         expect(global.chrome.runtime.connect).toHaveBeenCalledTimes(2);
@@ -178,7 +176,8 @@ describe('useTabGrouper', () => {
 
     it('should only load suggestions for current window', async () => {
         // Setup storage with suggestions for multiple windows
-        (global.chrome.storage.session.get as any).mockResolvedValue({
+        // @ts-expect-error - overload issue
+        vi.mocked(global.chrome.storage.session.get).mockResolvedValue({
             suggestionCache: [
                 { tabId: 101, windowId: 1, groupName: 'Window1Group', existingGroupId: null, timestamp: 123 },
                 { tabId: 201, windowId: 2, groupName: 'Window2Group', existingGroupId: null, timestamp: 123 }
@@ -186,7 +185,8 @@ describe('useTabGrouper', () => {
         });
 
         // Current window is 1
-        (global.chrome.windows.getCurrent as any).mockResolvedValue({ id: 1 });
+        // @ts-expect-error - overload issue
+        vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({ id: 1 } as chrome.windows.Window);
 
         const { result } = renderHook(() => useTabGrouper());
 
@@ -205,13 +205,13 @@ describe('useTabGrouper', () => {
         // 1. Initial wait
         await waitFor(() => {
             expect(result.current.status).toBe(OrganizerStatus.Idle);
-            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+            expect(vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls.length).toBeGreaterThanOrEqual(1);
         });
         await new Promise(resolve => setTimeout(resolve, 50));
 
         // Helper to get fresh listener
-        const fireUpdate = (newVal: any) => {
-            const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
+        const fireUpdate = (newVal: unknown) => {
+            const calls = vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls;
             const listener = calls[calls.length - 1][0];
             act(() => {
                 listener({
@@ -255,12 +255,12 @@ describe('useTabGrouper', () => {
 
         await waitFor(() => {
             expect(result.current.status).toBe(OrganizerStatus.Idle);
-            expect((global.chrome.storage.onChanged.addListener as any).mock.calls.length).toBeGreaterThanOrEqual(1);
+            expect(vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls.length).toBeGreaterThanOrEqual(1);
         });
         await new Promise(resolve => setTimeout(resolve, 50));
 
-        const fireUpdate = (newVal: any) => {
-            const calls = (global.chrome.storage.onChanged.addListener as any).mock.calls;
+        const fireUpdate = (newVal: unknown) => {
+            const calls = vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls;
             const listener = calls[calls.length - 1][0];
             act(() => {
                 listener({
@@ -295,11 +295,12 @@ describe('useTabGrouper', () => {
             { tabId: 103, windowId: 1, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
         ];
 
-        (global.chrome.tabs.query as any).mockResolvedValue([
+        // @ts-expect-error - overload issue
+        vi.mocked(global.chrome.tabs.query).mockResolvedValue([
             { id: 101, title: 'Google', url: 'https://google.com', groupId: -1 },
             { id: 102, title: 'GitHub', url: 'https://github.com', groupId: -1 },
             { id: 103, title: 'New Tab', url: 'https://new.com', groupId: -1 }
-        ]);
+        ] as chrome.tabs.Tab[]);
 
         fireUpdate(newSuggestions);
 
@@ -319,7 +320,8 @@ describe('useTabGrouper', () => {
             { tabId: 101, windowId: 1, groupName: 'One', existingGroupId: null, timestamp: 1 },
             { tabId: 102, windowId: 1, groupName: 'Two', existingGroupId: null, timestamp: 2 }
         ];
-        (global.chrome.storage.session.get as any).mockResolvedValue({
+        // @ts-expect-error - overload issue
+        vi.mocked(global.chrome.storage.session.get).mockResolvedValue({
             suggestionCache: suggestions
         });
 
@@ -352,7 +354,7 @@ describe('useTabGrouper', () => {
             expect(result.current.snapshot).not.toBeNull();
         });
 
-        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+        const mockPort = vi.mocked(global.chrome.runtime.connect).mock.results[0].value;
         mockPort.postMessage.mockClear(); // Clear initial TRIGGER_PROCESSING call
 
         act(() => {
@@ -378,7 +380,7 @@ describe('useTabGrouper', () => {
             expect(result.current.snapshot).not.toBeNull();
         });
 
-        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+        const mockPort = vi.mocked(global.chrome.runtime.connect).mock.results[0].value;
         mockPort.postMessage.mockClear(); // Clear initial TRIGGER_PROCESSING call
 
         act(() => {

@@ -9,7 +9,7 @@ const mockTabs = {
 
 global.chrome = {
     tabs: mockTabs,
-} as any;
+} as unknown as typeof chrome;
 
 describe('DuplicateCloser', () => {
     beforeEach(() => {

@@ -43,7 +43,7 @@ export const handleAssignment = (
     return updatedNextId;
 };
 
-export const cleanAndParseJson = (responseText: string): any => {
+export const cleanAndParseJson = (responseText: string): unknown => {
     try {
         let cleanResponse = responseText.trim();
 

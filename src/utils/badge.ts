@@ -18,7 +18,7 @@ export const calculateDuplicateCount = async (windowId?: number) => {
             urlMap.set(normalizedUrl, count + 1);
         }
         return duplicateCount;
-    } catch (e) {
+    } catch (e: unknown) {
         console.error("[Badge] Failed to calculate duplicates:", e);
         return 0;
     }
@@ -37,7 +37,7 @@ export const updateWindowBadge = async (
     try {
         const [activeTab] = await chrome.tabs.query({ windowId, active: true });
         activeTabId = activeTab?.id;
-    } catch (e) {
+    } catch {
         // Window might be closed
         return;
     }

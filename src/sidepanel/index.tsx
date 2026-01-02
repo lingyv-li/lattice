@@ -12,13 +12,14 @@ import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
 import { SettingsStorage, FeatureSettings } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
-import { ToastProvider, useToast } from '../context/ToastContext';
+import { ToastProvider } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 
 import { FeatureId } from '../types/features';
 import { OrganizerStatus } from '../types/organizer';
 
 // Inner App component that can use the hook
-const InnerApp = () => {
+export const InnerApp = () => {
     const { showToast } = useToast();
     // Unified Feature State
     const [features, setFeatures] = useState<Record<FeatureId, FeatureSettings>>({
@@ -281,7 +282,7 @@ const InnerApp = () => {
     );
 };
 
-const App = () => (
+export const App = () => (
     <ToastProvider>
         <InnerApp />
     </ToastProvider>

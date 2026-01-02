@@ -6,15 +6,13 @@ const mockGet = vi.fn();
 const mockSet = vi.fn();
 
 global.chrome = {
-    // @ts-ignore
     storage: {
-        // @ts-ignore
         sync: {
             get: mockGet,
             set: mockSet
         }
     }
-} as any;
+} as unknown as typeof chrome;
 
 describe('SettingsStorage', () => {
     beforeEach(() => {
@@ -23,7 +21,7 @@ describe('SettingsStorage', () => {
 
     it('should return default rules when custom rules are empty and resolveDefaults is true (default)', async () => {
         // Mock empty storage (so it uses DEFAULT_SETTINGS which now has empty string)
-        mockGet.mockImplementation((_keys, callback) => {
+        mockGet.mockImplementation((_keys, callback: (items: Record<string, unknown>) => void) => {
             callback({});
         });
 
@@ -32,7 +30,7 @@ describe('SettingsStorage', () => {
     });
 
     it('should return default rules when custom rules are explicitly empty string and resolveDefaults is true', async () => {
-        mockGet.mockImplementation((_keys, callback) => {
+        mockGet.mockImplementation((_keys, callback: (items: Record<string, unknown>) => void) => {
             callback({ customGroupingRules: "" });
         });
 
@@ -41,7 +39,7 @@ describe('SettingsStorage', () => {
     });
 
     it('should return empty string when custom rules are empty and resolveDefaults is false', async () => {
-        mockGet.mockImplementation((_keys, callback) => {
+        mockGet.mockImplementation((_keys, callback: (items: Record<string, unknown>) => void) => {
             callback({});
         });
 
@@ -51,7 +49,7 @@ describe('SettingsStorage', () => {
 
     it('should return custom rules when they exist, regardless of resolveDefaults', async () => {
         const customRules = "My Context Rule";
-        mockGet.mockImplementation((_keys, callback) => {
+        mockGet.mockImplementation((_keys, callback: (items: Record<string, unknown>) => void) => {
             callback({ customGroupingRules: customRules });
         });
 

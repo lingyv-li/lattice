@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -9,7 +9,8 @@ import { AIService } from '../services/ai/AIService';
 import { LocalProvider } from '../services/ai/LocalProvider';
 import { ModelInfo } from '../services/ai/types';
 import './index.css';
-import { ToastProvider, useToast } from '../context/ToastContext';
+import { ToastProvider } from '../context/ToastContext';
+import { useToast } from '../hooks/useToast';
 
 const cn = (...inputs: (string | undefined | null | false)[]) => {
     return twMerge(clsx(inputs));
@@ -57,7 +58,7 @@ const sortModels = (models: ModelInfo[]) => {
     });
 };
 
-const InnerApp = () => {
+export const InnerApp = () => {
     const { showToast } = useToast();
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
     const [loading, setLoading] = useState(true);
@@ -71,17 +72,7 @@ const InnerApp = () => {
     const [downloadProgress, setDownloadProgress] = useState<{ loaded: number, total: number } | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
-    useEffect(() => {
-        SettingsStorage.get(false).then((s) => {
-            setSettings(s);
-            setLoading(false);
-            if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
-                fetchModels(s.geminiApiKey);
-            }
-        });
-    }, []);
-
-    const fetchModels = async (key: string) => {
+    const fetchModels = useCallback(async (key: string) => {
         if (!key) return;
         setLoadingModels(true);
         try {
@@ -93,7 +84,17 @@ const InnerApp = () => {
         } finally {
             setLoadingModels(false);
         }
-    };
+    }, [showToast]);
+
+    useEffect(() => {
+        SettingsStorage.get(false).then((s) => {
+            setSettings(s);
+            setLoading(false);
+            if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
+                fetchModels(s.geminiApiKey);
+            }
+        });
+    }, [fetchModels]);
 
     const handleSave = async () => {
         await SettingsStorage.set(settings);
@@ -130,9 +131,10 @@ const InnerApp = () => {
                 });
                 setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
                 showToast("Local model initialized successfully", 'success');
-            } catch (e: any) {
+            } catch (e: unknown) {
                 console.error("Failed to initialize local model", e);
-                setDownloadError(e.message || "Failed to load local AI model");
+                const msg = e instanceof Error ? e.message : String(e);
+                setDownloadError(msg || "Failed to load local AI model");
                 showToast("Failed to load local AI model", 'error');
                 // Don't switch provider if failed
             } finally {
@@ -379,7 +381,7 @@ const InnerApp = () => {
     );
 };
 
-const App = () => (
+export const App = () => (
     <ToastProvider>
         <InnerApp />
     </ToastProvider>

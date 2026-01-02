@@ -86,6 +86,7 @@ export const useTabGrouper = () => {
 
     useEffect(() => {
         // Initial scan
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         scanUngrouped();
 
         // --- Port Connection (Transient Status & Progress) ---
@@ -162,7 +163,7 @@ export const useTabGrouper = () => {
         if (groups.length > 0 && currentStatus !== OrganizerStatus.Applying) {
             // Smart Selection Preservation:
             // Logic: Default to selected, unless it matches a group the user previously ignored.
-            let newSelection = new Set<number>();
+            const newSelection = new Set<number>();
             const unselectedSignatures = new Set<string>();
 
             if (currentGroups) {
@@ -249,8 +250,8 @@ export const useTabGrouper = () => {
 
             // We do NOT reject unselected groups anymore, per "just unselect" instruction.
             // They remain available for future grouping.
-        } catch (err: any) {
-            setError(err.message || "Failed to apply groups.");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err) || "Failed to apply groups.");
             setStatus(OrganizerStatus.Error);
         }
     };

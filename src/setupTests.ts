@@ -24,6 +24,8 @@ const chromeMock = {
         query: vi.fn().mockResolvedValue([]),
     },
     windows: {
+        get: vi.fn(),
+        getAll: vi.fn(),
         getCurrent: vi.fn().mockResolvedValue({ id: 1 })
     },
     runtime: {
@@ -87,18 +89,18 @@ const chromeMock = {
     }
 };
 
-// @ts-ignore
-global.chrome = chromeMock;
+
+global.chrome = chromeMock as unknown as typeof chrome;
 
 // Mock LanguageModel
-// @ts-ignore
+
 global.window = global.window || {};
-// @ts-ignore
+
 global.window.LanguageModel = {
     create: vi.fn().mockResolvedValue({
         prompt: vi.fn(),
         destroy: vi.fn()
     })
 };
-// @ts-ignore
+
 global.self = global.window;

@@ -1,8 +1,8 @@
 
-export const getUserFriendlyError = (error: any): string => {
+export const getUserFriendlyError = (error: unknown): string => {
     if (!error) return "An unknown error occurred";
 
-    const message = error.message || error.toString();
+    const message = error instanceof Error ? error.message : String(error);
 
     // More actionable error messages
     if (message === "AI Provider is disabled.") {

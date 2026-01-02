@@ -1,33 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { useState, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-
-// Define toast types
-export type ToastType = 'success' | 'error' | 'info';
-
-export interface Toast {
-    id: string;
-    message: string;
-    type: ToastType;
-    duration?: number;
-}
-
-interface ToastContextType {
-    showToast: (message: string, type: ToastType, duration?: number) => void;
-    removeToast: (id: string) => void;
-}
-
-const ToastContext = createContext<ToastContextType | undefined>(undefined);
-
-export const useToast = () => {
-    const context = useContext(ToastContext);
-    if (!context) {
-        throw new Error('useToast must be used within a ToastProvider');
-    }
-    return context;
-};
+import { Toast, ToastType } from '../types/toast';
+import { ToastContext } from './ToastContextInstance';
 
 interface ToastProviderProps {
     children: ReactNode;
@@ -80,7 +57,6 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
                         toast.type === 'success' && "bg-green-500/10 border-green-500/20 text-green-600 dark:text-green-400",
                         toast.type === 'error' && "bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400",
                         toast.type === 'info' && "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400",
-                        // Fallback for default surface colors if needed, but the typed colors are better
                     )}
                 >
                     <div className="shrink-0 mt-0.5">
