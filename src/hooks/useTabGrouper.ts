@@ -277,6 +277,13 @@ export const useTabGrouper = () => {
         if (!portRef.current || !currentWindowId) return;
         portRef.current.postMessage({ type: 'REGENERATE_SUGGESTIONS', windowId: currentWindowId });
         setPreviewGroups(null); // Clear optimistic
+        setBackgroundProcessing(true); // Show analyzing state immediately
+    }, [currentWindowId]);
+
+    const triggerProcessing = useCallback(() => {
+        if (!portRef.current || !currentWindowId) return;
+        portRef.current.postMessage({ type: 'TRIGGER_PROCESSING', windowId: currentWindowId });
+        setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
     const setAllGroupsSelected = (selected: boolean) => {
@@ -301,6 +308,7 @@ export const useTabGrouper = () => {
         toggleGroupSelection,
         setAllGroupsSelected,
         regenerateSuggestions,
+        triggerProcessing,
         aiEnabled
     };
 };

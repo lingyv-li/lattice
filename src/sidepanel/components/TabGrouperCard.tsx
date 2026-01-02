@@ -1,4 +1,4 @@
-import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2, Play } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { OrganizerStatus } from '../../types/organizer';
 import { TabGroupPreview } from './TabGroupPreview';
@@ -23,7 +23,9 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         ungroupedCount,
         isBackgroundProcessing,
         toggleGroupSelection,
-        aiEnabled
+        aiEnabled,
+        regenerateSuggestions,
+        triggerProcessing
     } = data;
 
     // AI Disabled State
@@ -116,6 +118,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
                         selectedPreviewIndices={selectedPreviewIndices}
                         tabDataMap={tabDataMap}
                         onToggleSelection={toggleGroupSelection}
+                        onRegenerate={regenerateSuggestions}
                     />
                 </div>
             )}
@@ -123,8 +126,23 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
 
             {/* Content when ready/idle */}
             {!previewGroups && !isLoading && (ungroupedCount ?? 0) > 0 && (
-                <div className="mt-2 text-xs text-muted">
-                    Ready to organize {ungroupedCount} tabs.
+                <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="text-xs text-muted">
+                        Ready to organize {ungroupedCount} tabs.
+                    </div>
+                    {!isBackgroundProcessing && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                triggerProcessing();
+                            }}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
+                            title="Start analyzing tabs"
+                        >
+                            <Play className="w-3 h-3 fill-current" />
+                            Analyze
+                        </button>
+                    )}
                 </div>
             )}
 

@@ -344,4 +344,51 @@ describe('useTabGrouper', () => {
         });
         expect(loadedResult.current.selectedPreviewIndices.size).toBe(2);
     });
+
+    it('should trigger regeneration and optimistically update state', async () => {
+        const { result } = renderHook(() => useTabGrouper());
+
+        await waitFor(() => {
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
+        });
+
+        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+
+        act(() => {
+            result.current.regenerateSuggestions();
+        });
+
+        // Verify message was sent
+        expect(mockPort.postMessage).toHaveBeenCalledWith({
+            type: 'REGENERATE_SUGGESTIONS',
+            windowId: 1
+        });
+
+        // Verify optimistic updates
+        expect(result.current.previewGroups).toBeNull();
+        expect(result.current.isBackgroundProcessing).toBe(true);
+    });
+
+    it('should trigger processing and optimistically update state', async () => {
+        const { result } = renderHook(() => useTabGrouper());
+
+        await waitFor(() => {
+            expect(result.current.status).toBe(OrganizerStatus.Idle);
+        });
+
+        const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+
+        act(() => {
+            result.current.triggerProcessing();
+        });
+
+        // Verify message was sent
+        expect(mockPort.postMessage).toHaveBeenCalledWith({
+            type: 'TRIGGER_PROCESSING',
+            windowId: 1
+        });
+
+        // Verify optimistic updates
+        expect(result.current.isBackgroundProcessing).toBe(true);
+    });
 });

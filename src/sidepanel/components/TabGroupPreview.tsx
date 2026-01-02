@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, RotateCcw } from 'lucide-react';
 import { TabGroupSuggestion } from '../../hooks/useTabGrouper';
 
 interface TabGroupPreviewProps {
@@ -6,17 +6,32 @@ interface TabGroupPreviewProps {
     selectedPreviewIndices: Set<number>;
     tabDataMap: Map<number, { title: string, url: string }>;
     onToggleSelection: (idx: number) => void;
+    onRegenerate: () => void;
 }
 
 export const TabGroupPreview = ({
     previewGroups,
     selectedPreviewIndices,
     tabDataMap,
-    onToggleSelection
+    onToggleSelection,
+    onRegenerate
 }: TabGroupPreviewProps) => {
     return (
         <div className="mb-4 space-y-3">
-            <h4 className="text-xs font-bold text-muted uppercase">Preview Suggestions</h4>
+            <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Preview Suggestions</h4>
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRegenerate();
+                    }}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-muted hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
+                    title="Regenerate suggestions"
+                >
+                    <RotateCcw className="w-3 h-3" />
+                    Regenerate
+                </button>
+            </div>
             {previewGroups.map((group, idx) => (
                 <div
                     key={idx}
