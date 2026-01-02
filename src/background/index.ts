@@ -12,6 +12,15 @@ import { FeatureId } from '../types/features';
 console.log("[Background] Service Worker Initialized");
 StateService.clearProcessingStatus().catch(err => console.error("[Background] Failed to clear processing status", err));
 
+chrome.runtime.onInstalled.addListener(async (details) => {
+    if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
+        const settings = await SettingsStorage.get();
+        if (!settings.hasCompletedOnboarding) {
+            chrome.tabs.create({ url: chrome.runtime.getURL('src/welcome/index.html') });
+        }
+    }
+});
+
 // ===== STATE =====
 // Processing queue managed by ProcessingState
 // This handles status updates internally and syncs to storage

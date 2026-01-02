@@ -5,7 +5,6 @@ import './index.css';
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { OnboardingModal } from './components/OnboardingModal';
 import { Loader2 } from 'lucide-react';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
@@ -45,11 +44,23 @@ export const InnerApp = () => {
 
     // Check if user has completed onboarding
     useEffect(() => {
+        // Initial check
         SettingsStorage.get().then(settings => {
             if (!settings.hasCompletedOnboarding) {
                 setShowOnboarding(true);
             }
         });
+
+        // Subscribe to changes (e.g. from Welcome page)
+        const unsubscribe = SettingsStorage.subscribe((changes) => {
+            if (changes.hasCompletedOnboarding) {
+                if (changes.hasCompletedOnboarding.newValue === true) {
+                    setShowOnboarding(false);
+                }
+            }
+        });
+
+        return () => unsubscribe();
     }, []);
 
     // Listen for background errors via storage
@@ -205,6 +216,26 @@ export const InnerApp = () => {
         return "Organize";
     };
 
+    if (showOnboarding) {
+        return (
+            <div className="h-screen w-full bg-surface flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center mb-6 shadow-lg">
+                    <img src="/icon-backgroundless.svg" className="w-10 h-10" alt="Logo" />
+                </div>
+                <h1 className="text-2xl font-bold text-main mb-2">Welcome to Lattice</h1>
+                <p className="text-muted mb-8 max-w-[280px]">
+                    To get started, we need to set up your AI preferences.
+                </p>
+                <button
+                    onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('src/welcome/index.html') })}
+                    className="w-full max-w-[280px] py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                >
+                    Start Setup
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
             {/* Header */}
@@ -260,18 +291,7 @@ export const InnerApp = () => {
                     {getButtonLabel()}
                 </button>
             </div>
-            <OnboardingModal
-                isOpen={showOnboarding}
-                onComplete={() => {
-                    setShowOnboarding(false);
-                    // Reload settings after onboarding
-                    SettingsStorage.get().then(settings => {
-                        if (settings.features) {
-                            setFeatures(settings.features);
-                        }
-                    });
-                }}
-            />
+
             <ConfirmationModal
                 isOpen={modalConfig.isOpen}
                 onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}

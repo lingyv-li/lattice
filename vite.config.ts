@@ -32,6 +32,7 @@ export default defineConfig({
                 background: resolve(__dirname, 'src/background/index.ts'),
                 sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
                 options: resolve(__dirname, 'src/options/index.html'),
+                welcome: resolve(__dirname, 'src/welcome/index.html'),
             },
             output: {
                 entryFileNames: '[name]/index.js',
