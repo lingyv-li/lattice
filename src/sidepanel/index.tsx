@@ -20,7 +20,6 @@ import { OrganizerStatus } from '../types/organizer';
 // Inner App component that can use the hook
 const InnerApp = () => {
     const { showToast } = useToast();
-    const [modelInfo, _] = useState<string>("");
     // Unified Feature State
     const [features, setFeatures] = useState<Record<FeatureId, FeatureSettings>>({
         [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
@@ -206,72 +205,57 @@ const InnerApp = () => {
     return (
         <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
             {/* Header */}
-            <div className="p-4 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
+            <div className="px-4 py-2 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
                 <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
-                        <img src="/icon-backgroundless.svg" className="w-5 h-5" alt="Logo" />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-sm leading-tight text-main">Lattice</h1>
-                        <p className="text-[10px] text-muted font-medium">AI Tab Manager</p>
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
+                        <img src="/icon-backgroundless.svg" className="w-4 h-4" alt="Logo" />
                     </div>
                 </div>
                 <button
                     onClick={() => chrome.runtime.openOptionsPage()}
-                    className="p-2 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer"
-                    title="Settings"
+                    className="flex items-center gap-2 p-2 px-3 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer"
+                    title="Options"
                 >
                     <Settings className="w-4 h-4" />
+                    <span className="text-sm font-medium">Options</span>
                 </button>
             </div>
 
             {/* Dashboard Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
-                {/* Section: Organization */}
-                <div className="space-y-3">
-                    <h2 className="text-xs font-bold text-muted uppercase tracking-wider px-1">Tab Organization</h2>
-                    <TabGrouperCard
-                        isSelected={effectiveSelectedCards.has(FeatureId.TabGrouper)}
-                        onToggle={() => toggleCard(FeatureId.TabGrouper)}
-                        data={tabGrouper}
-                        autopilotEnabled={!!features[FeatureId.TabGrouper]?.autopilot}
-                        onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.TabGrouper, enabled)}
-                    />
-                    <DuplicateCleanerCard
-                        isSelected={effectiveSelectedCards.has(FeatureId.DuplicateCleaner)}
-                        onToggle={() => toggleCard(FeatureId.DuplicateCleaner)}
-                        data={duplicateCleaner}
-                        autopilotEnabled={!!features[FeatureId.DuplicateCleaner]?.autopilot}
-                        onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.DuplicateCleaner, enabled)}
-                    />
-                </div>
-
-                <div className="text-center py-6 opacity-40">
-                    <p className="text-[10px] text-muted">
-                        {modelInfo}
-                    </p>
-                </div>
+            <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
+                <TabGrouperCard
+                    isSelected={effectiveSelectedCards.has(FeatureId.TabGrouper)}
+                    onToggle={() => toggleCard(FeatureId.TabGrouper)}
+                    data={tabGrouper}
+                    autopilotEnabled={!!features[FeatureId.TabGrouper]?.autopilot}
+                    onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.TabGrouper, enabled)}
+                />
+                <DuplicateCleanerCard
+                    isSelected={effectiveSelectedCards.has(FeatureId.DuplicateCleaner)}
+                    onToggle={() => toggleCard(FeatureId.DuplicateCleaner)}
+                    data={duplicateCleaner}
+                    autopilotEnabled={!!features[FeatureId.DuplicateCleaner]?.autopilot}
+                    onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.DuplicateCleaner, enabled)}
+                />
             </div>
 
-            {/* Main Action Button - Floating Bottom */}
+            {/* Action Bar - Floating Bottom */}
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={handleOrganize}
-                        disabled={!hasWork}
-                        className={`
-                            flex-1 py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
-                            flex items-center justify-center gap-2 transition-all active:scale-[0.98]
-                            ${!hasWork
-                                ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
-                            }
-                        `}
-                    >
-                        {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                        {getButtonLabel()}
-                    </button>
-                </div>
+                <button
+                    onClick={handleOrganize}
+                    disabled={!hasWork}
+                    className={`
+                        w-full py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
+                        flex items-center justify-center gap-2 transition-all active:scale-[0.98]
+                        ${!hasWork
+                            ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
+                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
+                        }
+                    `}
+                >
+                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {getButtonLabel()}
+                </button>
             </div>
             <OnboardingModal
                 isOpen={showOnboarding}
@@ -293,7 +277,7 @@ const InnerApp = () => {
                 description={modalConfig.description}
                 confirmLabel="Enable"
             />
-        </div>
+        </div >
     );
 };
 
