@@ -18,7 +18,6 @@ export abstract class BaseProvider implements AIProvider {
     protected abstract promptAI(
         userPrompt: string,
         systemPrompt: string,
-        customRules?: string,
         signal?: AbortSignal
     ): Promise<string>;
 
@@ -52,7 +51,7 @@ export abstract class BaseProvider implements AIProvider {
             + `\nUngrouped Tabs:\n${tabList}`;
 
         try {
-            const responseText = await this.promptAI(userPrompt, systemPrompt, customRules, signal);
+            const responseText = await this.promptAI(userPrompt, systemPrompt, signal);
             console.log(`[${this.id}] [${new Date().toISOString()}] Parsing AI response`);
             const parsed = cleanAndParseJson(responseText);
 

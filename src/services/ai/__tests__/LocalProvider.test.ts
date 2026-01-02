@@ -4,17 +4,36 @@ import { LocalProvider } from '../LocalProvider';
 import { GroupingRequest } from '../types';
 
 // Mock specific logic for this test file
-const mockPrompt = vi.fn();
+const mockPromptStreaming = vi.fn();
 const mockCreate = vi.fn();
 const mockDestroy = vi.fn();
+const mockClone = vi.fn();
 const mockAvailability = vi.fn();
+
+// Helper to simulate accumulated streaming
+function mockStreamResponse(text: string) {
+    const half = Math.floor(text.length / 2);
+    const part1 = text.substring(0, half);
+
+    const mockReader = {
+        read: vi.fn()
+            .mockResolvedValueOnce({ done: false, value: part1 })
+            .mockResolvedValueOnce({ done: false, value: text }) // Accumulation
+            .mockResolvedValueOnce({ done: true, value: undefined }),
+        releaseLock: vi.fn()
+    };
+
+    mockPromptStreaming.mockReturnValue({
+        getReader: () => mockReader
+    });
+}
 
 describe('LocalProvider', () => {
     let provider: LocalProvider;
 
     beforeEach(() => {
-        vi.clearAllMocks();
         LocalProvider.reset();
+        vi.clearAllMocks();
         provider = new LocalProvider();
 
         const mockLanguageModel = {
@@ -26,12 +45,21 @@ describe('LocalProvider', () => {
         vi.stubGlobal('LanguageModel', mockLanguageModel);
 
         mockCreate.mockResolvedValue({
-            prompt: mockPrompt,
-            destroy: mockDestroy
+            // Base session needs simple prompt support if used? 
+            // Actually getSession uses cachedSession.clone(), only clone needs promptStreaming.
+            // But ensureBaseSession creates base session. Does it call prompt? No.
+            destroy: mockDestroy,
+            clone: mockClone
         });
 
         // Default availability - User code expects 'available'
         mockAvailability.mockResolvedValue('available');
+
+        // Mock clone to return a new session-like object with streaming support
+        mockClone.mockResolvedValue({
+            promptStreaming: mockPromptStreaming,
+            destroy: mockDestroy
+        });
     });
 
     describe('checkAvailability', () => {
@@ -61,16 +89,43 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }]
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify([
-            { tabId: 1, groupName: 'Group 1' }
-        ]));
+        const responseText = `Here is some reasoning about the tabs...
+@@JSON_START@@
+${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
+
+        mockStreamResponse(responseText);
 
         await provider.generateSuggestions(request);
 
-        expect(mockCreate).toHaveBeenCalledTimes(1);
+        expect(mockCreate).toHaveBeenCalledTimes(1); // One base session created
+        expect(mockClone).toHaveBeenCalledTimes(1); // One clone created for request
+        expect(mockPromptStreaming).toHaveBeenCalledTimes(1); // Single-turn CoT prompt
+        expect(mockDestroy).toHaveBeenCalledTimes(1); // Clone destroyed after use
     });
 
-    it('should re-initialize session if customRules change', async () => {
+    it('should reuse cached session if prompts match', async () => {
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }]
+        };
+        const responseText = `Reasoning...
+@@JSON_START@@
+${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
+
+        mockStreamResponse(responseText);
+
+        // First call
+        await provider.generateSuggestions(request);
+        // Second call
+        await provider.generateSuggestions(request);
+
+        expect(mockCreate).toHaveBeenCalledTimes(1); // Created only once
+        expect(mockClone).toHaveBeenCalledTimes(2); // Cloned twice (once per request)
+        expect(mockDestroy).toHaveBeenCalledTimes(2); // Clones destroyed twice
+        expect(mockPromptStreaming).toHaveBeenCalledTimes(2); // 1 prompt per request
+    });
+
+    it('should re-initialize session if rules change', async () => {
         const requestA: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }],
@@ -81,15 +136,22 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 2, title: 'Tab', url: 'http://example.com' }],
             customRules: 'Rule B'
         };
-        mockPrompt.mockResolvedValue(JSON.stringify([
-            { tabId: 1, groupName: 'G' }
-        ]));
+        const responseText = `Reasoning...
+@@JSON_START@@
+${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
+        mockStreamResponse(responseText);
 
+        // Call A
         await provider.generateSuggestions(requestA);
+        // Call B
         await provider.generateSuggestions(requestB);
 
-        expect(mockDestroy).toHaveBeenCalledTimes(1); // Old session destroyed
-        expect(mockCreate).toHaveBeenCalledTimes(2); // New session created
+        // Call A: Create(1) -> Clone(1) -> Destroy(1)
+        // Call B: Destroy Base A -> Create(2) -> Clone(2) -> Destroy(2)
+
+        expect(mockCreate).toHaveBeenCalledTimes(2);
+        expect(mockClone).toHaveBeenCalledTimes(2);
+        expect(mockDestroy).toHaveBeenCalledTimes(3); // Clone A + Base A + Clone B
     });
 
     it('should process all tabs in a single batch prompt', async () => {
@@ -102,14 +164,16 @@ describe('LocalProvider', () => {
             ungroupedTabs: tabs
         };
 
-        mockPrompt.mockResolvedValue(JSON.stringify({
-            "Group A": [1, 2]
-        }));
+        const responseText = `Reasoning about Tab 1 and Tab 2...
+@@JSON_START@@
+${JSON.stringify({ "Group A": [1, 2] })}`;
+
+        mockStreamResponse(responseText);
 
         const result = await provider.generateSuggestions(request);
 
-        // Should call prompt only once (batch mode, both tabs fit in one batch)
-        expect(mockPrompt).toHaveBeenCalledTimes(1);
+        // 1 prompt per request (Merged CoT)
+        expect(mockPromptStreaming).toHaveBeenCalledTimes(1);
         // Both tabs should be grouped
         expect(result.suggestions).toHaveLength(1);
         expect(result.suggestions[0].tabIds).toContain(1);
@@ -140,7 +204,7 @@ describe('LocalProvider', () => {
         expect(mockCreate).toHaveBeenCalledTimes(1);
         const createArgs = mockCreate.mock.calls[0][0];
         expect(createArgs).toHaveProperty('monitor');
-        expect(createArgs.initialPrompts).toBeUndefined(); // ensureLocalSession shouldn't be called here directly for prompts
+        expect(createArgs.initialPrompts).toBeUndefined(); // ensureBaseSession shouldn't be called
         expect(mockDestroy).toHaveBeenCalledTimes(1); // destroy called immediately after download check
     });
 });
