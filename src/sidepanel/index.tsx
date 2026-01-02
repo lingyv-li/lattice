@@ -1,15 +1,17 @@
 import { useMemo, useEffect, useState, StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
-import { Settings } from 'lucide-react';
 import './index.css';
+
 import { TabGrouperCard } from './components/TabGrouperCard';
 import { DuplicateCleanerCard } from './components/DuplicateCleanerCard';
 import { ConfirmationModal } from './components/ConfirmationModal';
-import { Loader2 } from 'lucide-react';
+import { Header } from './components/Header';
+import { FloatingAction } from './components/FloatingAction';
 
 import { useTabGrouper } from '../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../hooks/useDuplicateCleaner';
-import { SettingsStorage, FeatureSettings } from '../utils/storage';
+import { useFeatureSettings } from './hooks/useFeatureSettings';
+import { SettingsStorage } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { ToastProvider } from '../context/ToastContext';
 import { useToast } from '../hooks/useToast';
@@ -20,11 +22,7 @@ import { OrganizerStatus } from '../types/organizer';
 // Inner App component that can use the hook
 export const InnerApp = () => {
     const { showToast } = useToast();
-    // Unified Feature State
-    const [features, setFeatures] = useState<Record<FeatureId, FeatureSettings>>({
-        [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
-        [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
-    });
+    const { features, updateFeature } = useFeatureSettings();
 
     // Modal State
     const [modalConfig, setModalConfig] = useState<{
@@ -85,47 +83,6 @@ export const InnerApp = () => {
     const tabGrouper = useTabGrouper();
     const duplicateCleaner = useDuplicateCleaner();
 
-
-    // Load persisted selection
-    useEffect(() => {
-        SettingsStorage.get().then(settings => {
-            if (settings.features) {
-                setFeatures(settings.features);
-            }
-        });
-    }, []);
-
-    // Persist selection changes
-    useEffect(() => {
-        SettingsStorage.set({ features });
-    }, [features]);
-
-    const updateFeature = (id: FeatureId, updates: Partial<FeatureSettings>) => {
-        setFeatures(prev => {
-            const current = prev[id];
-            // Safety check
-            if (!current) return prev;
-
-            const next = { ...current, ...updates };
-
-            // ENFORCE RULE: If enabled becomes false, autopilot must be false
-            if (updates.enabled === false) {
-                next.autopilot = false;
-            }
-
-            // Allow autopilot update only if enabled is true (or becoming true)
-            if (updates.autopilot === true && !next.enabled) {
-                // If trying to enable autopilot but feature is disabled, ignore or auto-enable?
-                // Plan said: "If enabled becomes false, autopilot must be false".
-                // Let's strictly enforce: Autopilot cannot be true if enabled is false.
-                next.enabled = true; // Auto-enable feature if autopilot is turned on? 
-                // OR prevent it. Let's just follow the 'uncheck' rule for now.
-            }
-
-            return { ...prev, [id]: next };
-        });
-    };
-
     const toggleAutopilot = (cardId: FeatureId, checked: boolean) => {
         if (checked) {
             // User is turning ON autopilot -> Warn them
@@ -149,8 +106,6 @@ export const InnerApp = () => {
         }
     };
 
-
-
     // Declarative Selection State:
     const effectiveSelectedCards = useMemo(() => {
         const set = new Set<FeatureId>();
@@ -173,13 +128,14 @@ export const InnerApp = () => {
     };
 
     // Derived States uses effective set
-    const isProcessing =
+    const isApplying =
         tabGrouper.status === OrganizerStatus.Applying ||
         duplicateCleaner.status === OrganizerStatus.Applying;
 
-    const hasWork =
-        (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) ||
-        (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0);
+    const isActionable = !isApplying && (
+        (effectiveSelectedCards.has(FeatureId.TabGrouper) && (tabGrouper.previewGroups?.length || 0) > 0) ||
+        (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0)
+    );
 
     // Handle Organize Action
     const handleOrganize = async () => {
@@ -199,18 +155,14 @@ export const InnerApp = () => {
 
     // Determine Button Label
     const getButtonLabel = () => {
-        if (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) {
-            return "Apply Changes";
+        if (!isActionable) {
+            if (isApplying) return "Processing...";
+            if (tabGrouper.isBackgroundProcessing) return "Analyzing Tabs...";
+            return "No Actions Needed";
         }
 
-        if (!hasWork) {
-            if (tabGrouper.isBackgroundProcessing) {
-                return "Analyzing Tabs...";
-            }
-            if (isProcessing) {
-                return "Processing...";
-            }
-            return "No Actions Needed";
+        if (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) {
+            return "Apply Changes";
         }
 
         return "Organize";
@@ -238,22 +190,7 @@ export const InnerApp = () => {
 
     return (
         <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
-            {/* Header */}
-            <div className="px-4 py-2 border-b border-border-subtle flex items-center justify-between bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-                <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white shadow-sm">
-                        <img src="/icon-backgroundless.svg" className="w-4 h-4" alt="Logo" />
-                    </div>
-                </div>
-                <button
-                    onClick={() => chrome.runtime.openOptionsPage()}
-                    className="flex items-center gap-2 p-2 px-3 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer"
-                    title="Options"
-                >
-                    <Settings className="w-4 h-4" />
-                    <span className="text-sm font-medium">Options</span>
-                </button>
-            </div>
+            <Header />
 
             {/* Dashboard Content */}
             <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
@@ -273,24 +210,12 @@ export const InnerApp = () => {
                 />
             </div>
 
-            {/* Action Bar - Floating Bottom */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-surface/90 backdrop-blur-md border-t border-border-subtle">
-                <button
-                    onClick={handleOrganize}
-                    disabled={!hasWork}
-                    className={`
-                        w-full py-3 px-4 rounded-xl font-bold uppercase tracking-wide text-sm shadow-lg
-                        flex items-center justify-center gap-2 transition-all active:scale-[0.98]
-                        ${!hasWork
-                            ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
-                            : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
-                        }
-                    `}
-                >
-                    {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {getButtonLabel()}
-                </button>
-            </div>
+            <FloatingAction
+                hasWork={!!isActionable}
+                isProcessing={isApplying}
+                buttonLabel={getButtonLabel()}
+                onOrganize={handleOrganize}
+            />
 
             <ConfirmationModal
                 isOpen={modalConfig.isOpen}
