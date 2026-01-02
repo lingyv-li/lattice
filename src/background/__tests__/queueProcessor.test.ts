@@ -65,7 +65,6 @@ describe('QueueProcessor', () => {
             getWindowState: vi.fn().mockReturnValue(mockWindowState),
             completeWindow: vi.fn(),
             acquireQueue: vi.fn(),
-            release: vi.fn(),
             add: vi.fn(),
             isWindowChanged: vi.fn(),
         };
@@ -154,7 +153,7 @@ describe('QueueProcessor', () => {
         ]));
 
         // Should release lock
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should apply groups immediately when autopilot is ON', async () => {
@@ -176,14 +175,14 @@ describe('QueueProcessor', () => {
         // Should NOT cache suggestion (except maybe negative results? logic says only skipped if applied)
         expect(StateService.updateSuggestions).not.toHaveBeenCalled();
 
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should handle window closed error gracefully', async () => {
         mockWindows.get.mockRejectedValue(new Error("Window closed"));
         await processor.process();
         expect(AIService.getProvider).not.toHaveBeenCalled();
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should skip non-normal windows', async () => {
@@ -191,7 +190,7 @@ describe('QueueProcessor', () => {
         await processor.process();
         const provider = await AIService.getProvider({} as any);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should clear queue and release if Tab Grouper is disabled', async () => {
@@ -207,7 +206,7 @@ describe('QueueProcessor', () => {
         expect(AIService.getProvider).not.toHaveBeenCalled();
 
         // Should release lock
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should abort if snapshot verification fails', async () => {
@@ -221,9 +220,9 @@ describe('QueueProcessor', () => {
 
         const provider = await AIService.getProvider({} as any);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
-        expect(mockState.release).toHaveBeenCalled();
+
         // add() is now called with just windowId (fetches data internally)
-        expect(mockState.add).toHaveBeenCalledWith(1);
+        expect(mockState.add).toHaveBeenCalledWith(1, true);
         expect(mockState.completeWindow).not.toHaveBeenCalled();
     });
 
@@ -280,7 +279,7 @@ describe('QueueProcessor', () => {
         // Should not call AI
         expect(AIService.getProvider).not.toHaveBeenCalled();
         // Should not release (already released by acquireQueue failure)
-        expect(mockState.release).not.toHaveBeenCalled();
+
     });
 
     it('should handle errors when applying suggestions in autopilot mode', async () => {
@@ -296,7 +295,7 @@ describe('QueueProcessor', () => {
         await processor.process();
 
         // Should still complete processing
-        expect(mockState.release).toHaveBeenCalled();
+
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
@@ -311,7 +310,7 @@ describe('QueueProcessor', () => {
         await processor.process();
 
         // Should store error
-        expect(mockState.release).toHaveBeenCalled();
+
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
@@ -329,7 +328,7 @@ describe('QueueProcessor', () => {
 
         // Should apply group and get back the new group ID
         expect(applyTabGroup).toHaveBeenCalledWith([101, 102], 'AI Group', null, 1);
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should handle missing window state gracefully', async () => {
@@ -340,7 +339,7 @@ describe('QueueProcessor', () => {
 
         // Should complete the window and continue
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
     it('should handle windows with no ungrouped tabs', async () => {
@@ -352,7 +351,7 @@ describe('QueueProcessor', () => {
         // Should complete the window without calling AI
         expect(AIService.getProvider).not.toHaveBeenCalled();
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
-        expect(mockState.release).toHaveBeenCalled();
+
     });
 
 });

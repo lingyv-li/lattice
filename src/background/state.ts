@@ -253,8 +253,6 @@ export class StateService {
                 const wasProcessing = oldRawData.includes(windowId);
                 const isProcessing = rawData.includes(windowId);
 
-                console.log(`[StateService] Processing update for window ${windowId}: ${wasProcessing} -> ${isProcessing}`, { rawData, oldRawData });
-
                 if (wasProcessing !== isProcessing) {
                     shouldNotify = true;
                 }

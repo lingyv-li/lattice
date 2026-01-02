@@ -22,7 +22,6 @@ export class QueueProcessor {
             const settings = await SettingsStorage.get();
             if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Tab Grouper feature is disabled, stopping.`);
-                this.state.release();
                 return;
             }
 
@@ -96,8 +95,6 @@ export class QueueProcessor {
                 }
             } catch (err: any) {
                 console.error("[QueueProcessor] Global processing error", err);
-            } finally {
-                this.state.release();
             }
         }
     }
@@ -120,7 +117,7 @@ export class QueueProcessor {
                 controller.abort();
                 this.windowAbortControllers.delete(windowId);
             }
-            await this.state.add(windowId);
+            await this.state.add(windowId, true);
             return { aborted: true };
         }
 

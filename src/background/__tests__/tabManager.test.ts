@@ -200,7 +200,7 @@ describe('TabManager', () => {
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockWindows.getAll).toHaveBeenCalledWith({ windowTypes: ['normal'] });
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
         });
 
         it('should filter out already grouped tabs', async () => {
@@ -223,7 +223,7 @@ describe('TabManager', () => {
             await vi.advanceTimersByTimeAsync(1600);
 
             // TabManager now just calls add() and lets processor handle filtering
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
         });
 
         it('should process window if any ungrouped tabs exist', async () => {
@@ -233,7 +233,7 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Mixed');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
         });
 
         it('should trigger windows for cached tabs', async () => {
@@ -243,7 +243,7 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Cached');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
         });
 
         it('should process window once even with multiple tabs', async () => {
@@ -254,7 +254,7 @@ describe('TabManager', () => {
             await vi.advanceTimersByTimeAsync(1600);
 
             expect(mockProcessingState.add).toHaveBeenCalledTimes(1);
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
         });
 
         it('should process multiple windows', async () => {
@@ -267,8 +267,8 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Multiple Windows');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1);
-            expect(mockProcessingState.add).toHaveBeenCalledWith(2);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
+            expect(mockProcessingState.add).toHaveBeenCalledWith(2, false);
         });
     });
 });

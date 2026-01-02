@@ -44,7 +44,7 @@ export class TabManager {
 
             // Queue for processing - QueueProcessor handles the "no ungrouped tabs" case
             console.log(`[TabManager] Window ${windowId} has changes, queuing.`);
-            await this.processingState.add(windowId);
+            await this.processingState.add(windowId, false);
         }
 
         // Process immediately if we have windows queued in ProcessingState

@@ -29,30 +29,33 @@ class WindowState {
 
 export class ProcessingState {
     private windowQueue: number[] = []; // Ordered unique window IDs (front = priority)
+    private activeWindows: Set<number> = new Set();
     private windowStates = new Map<number, WindowState>();
-    private _isBusy = false;
     private _lastEmittedState = false;
-    private updateStatus() {
-        const newState = this._isBusy || this.windowQueue.length > 0;
 
-        if (newState !== this._lastEmittedState) {
-            console.log(`[ProcessingState] Status changed: ${this._lastEmittedState} -> ${newState} (Busy: ${this._isBusy}, Windows: ${this.windowQueue.length})`);
-            this._lastEmittedState = newState;
+    private updateStatus() {
+        // Status is valid if we have queued items OR active items
+        const isProcessing = this.windowQueue.length > 0 || this.activeWindows.size > 0;
+
+        if (isProcessing !== this._lastEmittedState) {
+            console.log(`[ProcessingState] Status changed: ${this._lastEmittedState} -> ${isProcessing} (Active: ${this.activeWindows.size}, Queued: ${this.windowQueue.length})`);
+            this._lastEmittedState = isProcessing;
         }
 
-        // Sync to persistent storage
-        // Note: We sync the entire queue so any waiting windows are also marked as "processing" from UI perspective
-        StateService.setProcessingWindows([...this.windowQueue]).catch(err => {
+        // Sync all relevant windows (Active + Queued) to storage
+        // This ensures the UI spinner stays active for windows currently being processed
+        const allIds = new Set([...this.activeWindows, ...this.windowQueue]);
+        StateService.setProcessingWindows(Array.from(allIds)).catch(err => {
             console.error("[ProcessingState] Failed to sync status to storage", err);
         });
     }
 
     get isProcessing(): boolean {
-        return this._isBusy || this.windowQueue.length > 0;
+        return this.windowQueue.length > 0 || this.activeWindows.size > 0;
     }
 
     get isBusy(): boolean {
-        return this._isBusy;
+        return this.activeWindows.size > 0;
     }
 
     /**
@@ -89,25 +92,20 @@ export class ProcessingState {
     async completeWindow(windowId: number) {
         console.log(`[ProcessingState] Window ${windowId} completed`);
 
-        // Remove from queue now that it's done
-        const index = this.windowQueue.indexOf(windowId);
-        if (index !== -1) {
-            this.windowQueue.splice(index, 1);
+        this.activeWindows.delete(windowId);
+
+        // If the window is still in the queue (re-queued), keep the state
+        if (this.windowQueue.includes(windowId)) {
+            console.log(`[ProcessingState] Window ${windowId} is queued again, keeping state.`);
+        } else {
+            this.windowStates.delete(windowId);
         }
 
-        // If the window was re-queued while processing (e.g. rapid changes),
-        // do NOT delete the state, so the next processor cycle can find it.
-        // Wait, if it's in the queue, we just removed it above? 
-        // No, re-queuing would add it back. 
-        // Actually, since we don't clear the queue on acquire anymore, "re-queued" is tricky.
-        // A "re-queue" (add) while busy just ensures it's in the list (which it already is).
-
-        this.windowStates.delete(windowId);
         this.updateStatus();
     }
 
     get size(): number {
-        return this.windowQueue.length;
+        return this.windowQueue.length + this.activeWindows.size;
     }
 
     get hasItems(): boolean {
@@ -119,7 +117,7 @@ export class ProcessingState {
      * Captures the snapshot at enqueue time to ensure consistency.
      * Uses centralized fetchWindowSnapshotData to ensure consistent schema.
      */
-    async add(windowId: number): Promise<boolean> {
+    async add(windowId: number, highPriority: boolean = true): Promise<boolean> {
         const snapshot = await WindowSnapshot.fetch(windowId);
         const existingIndex = this.windowQueue.indexOf(windowId);
 
@@ -137,16 +135,21 @@ export class ProcessingState {
         await StateService.updateWindowSnapshot(windowId, snapshot);
 
         if (existingIndex !== -1) {
-            // Priority: Move to front if already exists
-            if (existingIndex > 0) {
+            // If already queued, only move to front if high priority
+            if (highPriority && existingIndex > 0) {
                 this.windowQueue.splice(existingIndex, 1);
                 this.windowQueue.unshift(windowId);
             }
             return false;
         }
 
-        // New window: Prepend for priority
-        this.windowQueue.unshift(windowId);
+        // New window: Queue based on priority
+        if (highPriority) {
+            this.windowQueue.unshift(windowId); // Front (High Priority)
+        } else {
+            this.windowQueue.push(windowId); // Back (Low Priority)
+        }
+
         this.updateStatus();
         return true;
     }
@@ -160,33 +163,33 @@ export class ProcessingState {
 
     // Lock and get all window IDs in priority order
     acquireQueue(): number[] {
-        if (this._isBusy) return [];
+        if (this.windowQueue.length === 0) return [];
 
-        this._isBusy = true;
-
-        // We keep the items in windowQueue until they are explicitly completed/removed
-        // This allows updateStatus to correctly report them as "processing"
+        // Move from queue to active
         const workQueue = [...this.windowQueue];
-
-        // Do NOT clear windowQueue here. 
-        // QueueProcessor will call completeWindow() for each ID as it finishes.
-        // If we clear it here, updateStatus() sees empty queue and sets persistent state to empty.
+        for (const id of workQueue) {
+            this.activeWindows.add(id);
+        }
+        this.windowQueue = [];
 
         console.log(`[ProcessingState] Acquired queue: ${workQueue.length} windows`);
         this.updateStatus();
         return workQueue;
     }
 
-    release() {
-        console.log(`[ProcessingState] Releasing lock`);
-        this._isBusy = false;
-        this.updateStatus();
-    }
-
     remove(windowId: number): boolean {
+        let changed = false;
         const index = this.windowQueue.indexOf(windowId);
         if (index !== -1) {
             this.windowQueue.splice(index, 1);
+            changed = true;
+        }
+        if (this.activeWindows.has(windowId)) {
+            this.activeWindows.delete(windowId);
+            changed = true;
+        }
+
+        if (changed) {
             this.updateStatus();
             return true;
         }
@@ -195,8 +198,9 @@ export class ProcessingState {
 
     clear() {
         this.windowQueue = [];
+        this.activeWindows.clear();
         this.windowStates.clear();
-        this._isBusy = false;
+        this._lastEmittedState = false;
         this.updateStatus();
     }
 }

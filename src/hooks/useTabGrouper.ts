@@ -218,7 +218,6 @@ export const useTabGrouper = () => {
 
         // Subscribe to Suggestions AND Status
         const unsubscribe = StateService.subscribe(currentWindowId, (cache, isProcessing) => {
-            console.log(`[useTabGrouper] Received update for window ${currentWindowId}: processing=${isProcessing}, cacheSize=${cache.size}`);
             processSuggestions(cache);
             setBackgroundProcessing(isProcessing);
         });

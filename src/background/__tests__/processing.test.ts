@@ -47,19 +47,22 @@ describe('ProcessingState', () => {
     it('should handle priority (move to front) when adding existing window', async () => {
         const state = new ProcessingState();
 
-        await state.add(10);
-        await state.add(20);
-        expect(state.acquireQueue()).toEqual([20, 10]); // LIFO-ish (prepend)
+        await state.add(10, true);
+        await state.add(20, true);
+        // Queue is [20, 10] (LIFO due to unshift for high priority)
+        expect(state.acquireQueue()).toEqual([20, 10]);
 
-        state.release();
-        await state.add(10);
-        await state.add(20);
-        await state.add(30);
-        // Queue is [30, 20, 10]
+        await state.add(10, false);
+        await state.add(20, false);
+        await state.add(30, false);
+        // Queue is [10, 20, 30] (FIFO for low priority)
+        expect(state.acquireQueue()).toEqual([10, 20, 30]);
 
-        // Re-add 10 -> should move to front
-        await state.add(10);
-        expect(state.acquireQueue()).toEqual([10, 30, 20]);
+        // Mixed priorities
+        await state.add(10, false); // Low
+        await state.add(20, true);  // High
+        // 20 should be first, 10 second
+        expect(state.acquireQueue()).toEqual([20, 10]);
     });
 
     it('should not sync if status does not change', async () => {
@@ -83,7 +86,7 @@ describe('ProcessingState', () => {
 
         const windowIds = state.acquireQueue();
         expect(windowIds).toEqual([20, 10]);
-        expect(state.size).toBe(0);
+        expect(state.size).toBe(2);
         expect(state.isBusy).toBe(true);
         // Should sync empty queue potentially, or kept busy? 
         // acquireQueue clears windowQueue locally but sets _isBusy. 
@@ -114,7 +117,7 @@ describe('ProcessingState', () => {
         // However, let's fix the test compilation first.
     });
 
-    it('should return empty if acquireQueue called while busy', async () => {
+    it('should return pending items if acquireQueue called while busy', async () => {
         const state = new ProcessingState();
 
         await state.add(10);
@@ -122,18 +125,19 @@ describe('ProcessingState', () => {
 
         await state.add(20);
         const ids = state.acquireQueue();
-        expect(ids).toEqual([]);
-        expect(state.size).toBe(1);
+        // Since we allow concurrent processing (QueueProcessor manages flow), we expect [20]
+        expect(ids).toEqual([20]);
+        expect(state.size).toBe(2); // 10 active + 20 active
     });
 
-    it('should update status when released', async () => {
+    it('should update status when completed', async () => {
         const state = new ProcessingState();
 
         await state.add(10);
         state.acquireQueue();
         vi.mocked(StateService.setProcessingWindows).mockClear();
 
-        state.release();
+        await state.completeWindow(10);
         expect(state.isProcessing).toBe(false);
         // Should sync empty
         expect(StateService.setProcessingWindows).toHaveBeenCalledWith([]);
@@ -270,7 +274,7 @@ describe('ProcessingState', () => {
 
             // 3. Re-queue(10)
             await state.add(10);
-            expect(state.size).toBe(1); // Back in queue
+            expect(state.size).toBe(2); // 1 active + 1 queued
 
             // 4. Complete(10) - simulating completion of FIRST add
             await state.completeWindow(10);
