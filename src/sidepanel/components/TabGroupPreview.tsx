@@ -1,10 +1,11 @@
 import { Check, RotateCcw } from 'lucide-react';
 import { TabGroupSuggestion } from '../../hooks/useTabGrouper';
+import { WindowSnapshot } from '../../utils/snapshots';
 
 interface TabGroupPreviewProps {
     previewGroups: (TabGroupSuggestion & { existingGroupId?: number | null })[];
     selectedPreviewIndices: Set<number>;
-    tabDataMap: Map<number, { title: string, url: string }>;
+    snapshot: WindowSnapshot;
     onToggleSelection: (idx: number) => void;
     onRegenerate: () => void;
 }
@@ -12,7 +13,7 @@ interface TabGroupPreviewProps {
 export const TabGroupPreview = ({
     previewGroups,
     selectedPreviewIndices,
-    tabDataMap,
+    snapshot,
     onToggleSelection,
     onRegenerate
 }: TabGroupPreviewProps) => {
@@ -62,7 +63,7 @@ export const TabGroupPreview = ({
                             </div>
                             <div className="pl-2 border-l-2 border-border-subtle text-xs text-muted space-y-1">
                                 {group.tabIds.map(tid => {
-                                    const t = tabDataMap.get(tid);
+                                    const t = snapshot.getTabData(tid);
                                     return t ? (
                                         <div key={tid} className="line-clamp-1 opacity-80">• {t.title}</div>
                                     ) : null;

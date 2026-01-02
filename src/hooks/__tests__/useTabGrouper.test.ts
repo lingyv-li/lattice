@@ -60,11 +60,10 @@ describe('useTabGrouper', () => {
 
         // Initial scan should happen
         await waitFor(() => {
-            expect(result.current.ungroupedCount).toBe(2);
+            expect(result.current.snapshot?.tabCount).toBe(2);
         });
 
         // Tab count should be 2 (from mock)
-        // expect(result.current.ungroupedCount).toBe(2); // Handled by waitFor
         // Status should be idle initially (if no cache)
         expect(result.current.status).toBe(OrganizerStatus.Idle);
     });
@@ -348,11 +347,13 @@ describe('useTabGrouper', () => {
     it('should trigger regeneration and optimistically update state', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
+        // Wait for full init (snapshot indicates window ID is resolved)
         await waitFor(() => {
-            expect(result.current.status).toBe(OrganizerStatus.Idle);
+            expect(result.current.snapshot).not.toBeNull();
         });
 
         const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+        mockPort.postMessage.mockClear(); // Clear initial TRIGGER_PROCESSING call
 
         act(() => {
             result.current.regenerateSuggestions();
@@ -372,11 +373,13 @@ describe('useTabGrouper', () => {
     it('should trigger processing and optimistically update state', async () => {
         const { result } = renderHook(() => useTabGrouper());
 
+        // Wait for full init (snapshot indicates window ID is resolved)
         await waitFor(() => {
-            expect(result.current.status).toBe(OrganizerStatus.Idle);
+            expect(result.current.snapshot).not.toBeNull();
         });
 
         const mockPort = (global.chrome.runtime.connect as any).mock.results[0].value;
+        mockPort.postMessage.mockClear(); // Clear initial TRIGGER_PROCESSING call
 
         act(() => {
             result.current.triggerProcessing();

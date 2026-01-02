@@ -1,4 +1,4 @@
-import { Sparkles, AlertCircle, Loader2, Play } from 'lucide-react';
+import { Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { OrganizerStatus } from '../../types/organizer';
 import { TabGroupPreview } from './TabGroupPreview';
@@ -19,14 +19,14 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         error,
         previewGroups,
         selectedPreviewIndices,
-        tabDataMap,
-        ungroupedCount,
+        snapshot,
         isBackgroundProcessing,
         toggleGroupSelection,
         aiEnabled,
         regenerateSuggestions,
-        triggerProcessing
     } = data;
+
+    const ungroupedCount = snapshot?.tabCount ?? 0;
 
     // AI Disabled State
     if (!aiEnabled) {
@@ -64,7 +64,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         <span className="text-xs font-medium text-purple-600 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
             Review
         </span>
-    ) : (ungroupedCount ?? 0) > 0 ? (
+    ) : ungroupedCount > 0 ? (
         <span className="text-xs font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
             {ungroupedCount} ungrouped
         </span>
@@ -111,12 +111,12 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
             )}
 
             {/* Preview UI - shown when groups are generated but not applied yet */}
-            {previewGroups && (
+            {previewGroups && snapshot && (
                 <div className="mt-2">
                     <TabGroupPreview
                         previewGroups={previewGroups}
                         selectedPreviewIndices={selectedPreviewIndices}
-                        tabDataMap={tabDataMap}
+                        snapshot={snapshot}
                         onToggleSelection={toggleGroupSelection}
                         onRegenerate={regenerateSuggestions}
                     />
@@ -125,24 +125,11 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
 
 
             {/* Content when ready/idle */}
-            {!previewGroups && !isLoading && (ungroupedCount ?? 0) > 0 && (
+            {!previewGroups && !isLoading && ungroupedCount > 0 && (
                 <div className="mt-2 flex items-center justify-between gap-2">
                     <div className="text-xs text-muted">
                         Ready to organize {ungroupedCount} tabs.
                     </div>
-                    {!isBackgroundProcessing && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                triggerProcessing();
-                            }}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-muted hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200"
-                            title="Start analyzing tabs"
-                        >
-                            <Play className="w-3 h-3 fill-current" />
-                            Analyze
-                        </button>
-                    )}
                 </div>
             )}
 

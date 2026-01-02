@@ -4,13 +4,18 @@ import { TabGrouperCard } from '../TabGrouperCard';
 import { OrganizerStatus } from '../../../types/organizer';
 
 describe('TabGrouperCard', () => {
+    const mockSnapshot = {
+        tabCount: 5,
+        hasTab: () => true,
+        getTabData: () => ({ id: 1, title: 'Test Tab', url: 'https://test.com' }),
+    };
+
     const mockData = {
         status: OrganizerStatus.Idle,
         error: null,
         previewGroups: null,
         selectedPreviewIndices: new Set<number>(),
-        tabDataMap: new Map(),
-        ungroupedCount: 5,
+        snapshot: mockSnapshot,
         isBackgroundProcessing: false,
         toggleGroupSelection: vi.fn(),
         setAllGroupsSelected: vi.fn(),
@@ -21,7 +26,7 @@ describe('TabGrouperCard', () => {
         setPreviewGroups: vi.fn(),
     };
 
-    it('should render Analyze button when idle with ungrouped tabs', () => {
+    it('should show ungrouped count badge when idle with ungrouped tabs', () => {
         render(
             <TabGrouperCard
                 isSelected={true}
@@ -32,11 +37,10 @@ describe('TabGrouperCard', () => {
             />
         );
 
-        const analyzeBtn = screen.getByRole('button', { name: /analyze/i });
-        expect(analyzeBtn).toBeInTheDocument();
-
-        fireEvent.click(analyzeBtn);
-        expect(mockData.triggerProcessing).toHaveBeenCalled();
+        // Should show the ungrouped badge
+        expect(screen.getByText(/5 ungrouped/i)).toBeInTheDocument();
+        // Should show the ready message
+        expect(screen.getByText(/Ready to organize 5 tabs/i)).toBeInTheDocument();
     });
 
     it('should render Regenerate button when previewing groups', () => {
@@ -62,7 +66,7 @@ describe('TabGrouperCard', () => {
         expect(mockData.regenerateSuggestions).toHaveBeenCalled();
     });
 
-    it('should show "Analyzing..." state and hide buttons when processing', () => {
+    it('should show "Analyzing..." state when processing', () => {
         const processingData = {
             ...mockData,
             isBackgroundProcessing: true
@@ -79,7 +83,5 @@ describe('TabGrouperCard', () => {
         );
 
         expect(screen.getByText(/Analyzing Tabs\.\.\./i)).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /analyze/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /regenerate/i })).not.toBeInTheDocument();
     });
 });

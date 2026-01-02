@@ -5,6 +5,7 @@ import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
+import { WindowSnapshot } from '../utils/snapshots';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -12,8 +13,7 @@ export const useTabGrouper = () => {
     const [error, setError] = useState<string | null>(null);
     const [previewGroups, setPreviewGroups] = useState<(TabGroupSuggestion & { existingGroupId?: number | null })[] | null>(null);
     const [selectedPreviewIndices, setSelectedPreviewIndices] = useState<Set<number>>(new Set());
-    const [tabDataMap, setTabDataMap] = useState<Map<number, { title: string, url: string }>>(new Map());
-    const [ungroupedCount, setUngroupedCount] = useState<number | null>(null);
+    const [snapshot, setSnapshot] = useState<WindowSnapshot | null>(null);
     const [isBackgroundProcessing, setBackgroundProcessing] = useState(false);
     const [currentWindowId, setCurrentWindowId] = useState<number | undefined>(undefined);
     const [aiEnabled, setAiEnabled] = useState(true);
@@ -52,12 +52,12 @@ export const useTabGrouper = () => {
 
 
     // Convert cached suggestions to preview groups
-    const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], tabMap: Map<number, { title: string, url: string }>) => {
+    const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], snap: WindowSnapshot) => {
         const groupMap = new Map<string, TabGroupSuggestion & { existingGroupId?: number | null }>();
 
         for (const cached of cache) {
-            // Only include if tab still exists in our map and has a group name
-            if (!tabMap.has(cached.tabId) || !cached.groupName) continue;
+            // Only include if tab still exists in our snapshot and has a group name
+            if (!snap.hasTab(cached.tabId) || !cached.groupName) continue;
 
             const key = cached.existingGroupId
                 ? `existing-${cached.existingGroupId}`
@@ -77,19 +77,11 @@ export const useTabGrouper = () => {
         return Array.from(groupMap.values());
     }, []);
 
-    // Scan ungrouped tabs and update tab data map
+    // Scan ungrouped tabs and update snapshot
     const scanUngrouped = useCallback(async () => {
-        const tabs = await chrome.tabs.query({ currentWindow: true });
-        const ungrouped = tabs.filter(t => t.groupId === chrome.tabs.TAB_ID_NONE);
-        setUngroupedCount(ungrouped.length);
-
-        const map = new Map<number, { title: string, url: string }>();
-        ungrouped.forEach(t => {
-            if (t.id) map.set(t.id, { title: t.title || '', url: t.url || '' });
-        });
-        setTabDataMap(map);
-
-        return map;
+        const snap = await WindowSnapshot.fetch(chrome.windows.WINDOW_ID_CURRENT);
+        setSnapshot(snap);
+        return snap;
     }, []);
 
     useEffect(() => {
@@ -152,11 +144,11 @@ export const useTabGrouper = () => {
     // Process suggestions and update state
     const processSuggestions = useCallback(async (cache: Map<number, TabSuggestionCache>) => {
         const newValue = Array.from(cache.values());
-        const map = await scanUngrouped();
+        const snap = await scanUngrouped();
 
         let groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
         if (newValue && Array.isArray(newValue) && newValue.length > 0) {
-            groups = convertCacheToGroups(newValue, map);
+            groups = convertCacheToGroups(newValue, snap);
         }
 
         // Check if groups actually changed to prevent resetting selection
@@ -239,7 +231,7 @@ export const useTabGrouper = () => {
 
                 const group = previewGroups[i];
                 if (group.tabIds.length > 0) {
-                    const validTabIds = group.tabIds.filter(id => tabDataMap.has(id));
+                    const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
 
                     if (validTabIds.length > 0) {
                         await applyTabGroup(
@@ -301,8 +293,7 @@ export const useTabGrouper = () => {
         previewGroups,
         setPreviewGroups,
         selectedPreviewIndices,
-        tabDataMap,
-        ungroupedCount,
+        snapshot,
         isBackgroundProcessing,
         applyGroups,
         toggleGroupSelection,

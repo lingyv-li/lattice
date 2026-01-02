@@ -67,6 +67,28 @@ export class WindowSnapshot {
     }
 
     /**
+     * Returns the number of ungrouped tabs in this snapshot.
+     */
+    get tabCount(): number {
+        return this.tabs.length;
+    }
+
+    /**
+     * Checks if a tab with the given ID exists in this snapshot.
+     */
+    hasTab(tabId: number): boolean {
+        return this.tabs.some(t => t.id === tabId);
+    }
+
+    /**
+     * Gets a tab by ID.
+     * Returns undefined if the tab is not found.
+     */
+    getTabData(tabId: number): chrome.tabs.Tab | undefined {
+        return this.tabs.find(t => t.id === tabId);
+    }
+
+    /**
      * Splits the groupable tabs into batches of the specified size.
      */
     getBatches(batchSize: number): chrome.tabs.Tab[][] {
