@@ -2,7 +2,6 @@
 
 This directory is versions controlled using `jj` (Jujutsu).
 - **Commit**: `jj commit -m "message"`
-- **Push**: `jj git push`
 
 
 ## Development Workflow

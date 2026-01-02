@@ -33,3 +33,6 @@ tsconfig.tsbuildinfo
 
 # Test coverage
 coverage
+
+# Workspaces
+.workspaces/
