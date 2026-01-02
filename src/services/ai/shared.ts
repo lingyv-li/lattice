@@ -72,59 +72,69 @@ export const cleanAndParseJson = (responseText: string): any => {
     }
 };
 
-const COMMON_OBJECTIVES = `Objectives:
-    1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
-    2. STRICTLY PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
-    3. Create NEW groups only for tabs that definitively don't fit existing ones. 
-    4. Avoid single-tab groups unless absolutely necessary.
+const PROMPT_INTRO = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
 
-    Naming Standards for NEW groups:
-    - Use 1-2 concise words (Title Case).
-    - Descriptive but broad enough to encompass multiple tabs.
-    - NO generic names like "Other", "Misc", "Tabs".`;
+I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".`;
+
+const COMMON_OBJECTIVES = `Objectives:
+1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
+2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
+3. Create NEW groups only for tabs that definitively don't fit existing ones. 
+4. Avoid single-tab groups unless absolutely necessary.
+
+Naming Standards for NEW groups:
+- Use 1-2 concise words (Title Case).
+- Descriptive but broad enough to encompass multiple tabs.
+- NO generic names like "Other", "Misc", "Tabs".`;
 
 const COMMON_CONSTRAINTS = `IMPORTANT:
-    - Assign each tab ID to EXACTLY ONE group.
-    - Do not duplicate tab IDs across groups.`;
+- Assign each tab ID to EXACTLY ONE group.
+- Do not duplicate tab IDs across groups.`;
 
-export const constructSystemPrompt = (customRules: string = ""): string => {
-    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+const INSTRUCTIONS = `
+CRITICAL INSTRUCTIONS:
+- Output ONLY a valid JSON object.
+- Assign EACH "Ungrouped Tab" to a group.
+- DO NOT echo the user input or explain your reasoning.
+- The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
 
-    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
-    Your task is to assign EACH "Ungrouped Tab" to a group.
+Expected JSON Structure:
+{
+    "...": [123, 124, 129],
+    "...": [456]
+}`;
 
-    ${COMMON_OBJECTIVES}
+const COT_INSTRUCTIONS = `Step 1: Reasoning
+For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
+Format:
+[Tab ID]: [Concise Content Analysis]
 
-    CRITICAL INSTRUCTIONS:
-    - Output ONLY a valid JSON object.
-    ${COMMON_CONSTRAINTS}
-    - DO NOT echo the user input or explain your reasoning.
-    - The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
+Step 2: JSON Output
+Based on the reasoning above, group the tabs.
+Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
 
-    Expected JSON Structure:
-    {
-        "...": [123, 124, 129],
-        "...": [456]
-    }
+Expected JSON Structure:
+@@JSON_START@@
+{
+    "...": [123, 124, 129],
+    "...": [456]
+}`;
 
-    ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
+export const constructSystemPrompt = (customRules: string = "", isCoT: boolean = false): string => {
+    const coreInstructions = isCoT ? COT_INSTRUCTIONS : INSTRUCTIONS;
+
+    return `${PROMPT_INTRO}
+
+${COMMON_OBJECTIVES}
+
+${coreInstructions}
+
+${COMMON_CONSTRAINTS}
+
+${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
 };
 
-export const constructCoTSystemPrompt = (customRules: string = ""): string => {
-    return `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
 
-    I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
-
-    Process:
-    1.  **Analyze**: First, think through the relationships between the tabs. Identify key themes and how they relate to existing groups or new potential groups.
-    2.  **Assign**: Then, definitively assign EACH "Ungrouped Tab" to a group.
-
-    ${COMMON_OBJECTIVES}
-
-    ${COMMON_CONSTRAINTS}
-
-    ${customRules.trim().length > 0 ? `\nAdditional Rules:\n${customRules}` : ''}`;
-};
 
 export const mapExistingGroups = (groups: { id: number, title?: string }[]): Map<string, number> => {
     const map = new Map<string, number>();

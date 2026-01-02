@@ -36,16 +36,143 @@ describe('shared utilities', () => {
     });
 
     describe('constructSystemPrompt', () => {
+        it('should match the golden prompt structure', () => {
+            const prompt = constructSystemPrompt();
+            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
+I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+
+Objectives:
+1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
+2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
+3. Create NEW groups only for tabs that definitively don't fit existing ones. 
+4. Avoid single-tab groups unless absolutely necessary.
+
+Naming Standards for NEW groups:
+- Use 1-2 concise words (Title Case).
+- Descriptive but broad enough to encompass multiple tabs.
+- NO generic names like "Other", "Misc", "Tabs".
+
+
+CRITICAL INSTRUCTIONS:
+- Output ONLY a valid JSON object.
+- Assign EACH "Ungrouped Tab" to a group.
+- DO NOT echo the user input or explain your reasoning.
+- The JSON Keys are the Group Names, and the Values are Arrays of Tab IDs.
+
+Expected JSON Structure:
+{
+    "...": [123, 124, 129],
+    "...": [456]
+}
+
+IMPORTANT:
+- Assign each tab ID to EXACTLY ONE group.
+- Do not duplicate tab IDs across groups.
+
+`;
+            expect(prompt).toBe(expected);
+        });
+
         it('should include custom rules if provided', () => {
             const prompt = constructSystemPrompt('Custom Rule 1');
             expect(prompt).toContain('Additional Rules:');
             expect(prompt).toContain('Custom Rule 1');
         });
+    });
 
-        it('should request JSON object format', () => {
-            const prompt = constructSystemPrompt();
-            expect(prompt).toContain('valid JSON object');
-            expect(prompt).toContain('JSON Keys are the Group Names');
+    describe('constructSystemPrompt (CoT)', () => {
+        it('should match the golden prompt structure for readability', () => {
+            const prompt = constructSystemPrompt("", true);
+
+            // Reconstructing the expected string here to serve as a "Golden Test"
+            // This ensures the prompt remains readable and follows the expected structure.
+            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
+I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+
+Objectives:
+1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
+2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
+3. Create NEW groups only for tabs that definitively don't fit existing ones. 
+4. Avoid single-tab groups unless absolutely necessary.
+
+Naming Standards for NEW groups:
+- Use 1-2 concise words (Title Case).
+- Descriptive but broad enough to encompass multiple tabs.
+- NO generic names like "Other", "Misc", "Tabs".
+
+Step 1: Reasoning
+For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
+Format:
+[Tab ID]: [Concise Content Analysis]
+
+Step 2: JSON Output
+Based on the reasoning above, group the tabs.
+Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
+
+Expected JSON Structure:
+@@JSON_START@@
+{
+    "...": [123, 124, 129],
+    "...": [456]
+}
+
+IMPORTANT:
+- Assign each tab ID to EXACTLY ONE group.
+- Do not duplicate tab IDs across groups.
+
+`;
+
+            // Normalizing whitespace for comparison to avoid brittleness with minor spacing changes
+            // but keeping the test expectation string readable above.
+            expect(prompt).toBe(expected);
+        });
+
+        it('should match the golden prompt structure with custom rules', () => {
+            const prompt = constructSystemPrompt("Rule 1: Be cool.\nRule 2: Have fun.", true);
+
+            const expected = `You are an Expert Tab Organizer. Your goal is to help users maintain a clean workspace by clustering related tabs into cohesive, logically named groups.
+
+I will provide a list of "Existing Groups" and a list of "Ungrouped Tabs".
+
+Objectives:
+1. Aggressively merge similar topics. Avoid creating multiple small groups for the same subject (e.g., merge "Tech" and "Technology").
+2. PREFER "Existing Groups" if a tab fits one. Use the EXACT name provided.
+3. Create NEW groups only for tabs that definitively don't fit existing ones. 
+4. Avoid single-tab groups unless absolutely necessary.
+
+Naming Standards for NEW groups:
+- Use 1-2 concise words (Title Case).
+- Descriptive but broad enough to encompass multiple tabs.
+- NO generic names like "Other", "Misc", "Tabs".
+
+Step 1: Reasoning
+For EACH tab, provide a concise explanation (a few words) about its content. You must process every tab in order.
+Format:
+[Tab ID]: [Concise Content Analysis]
+
+Step 2: JSON Output
+Based on the reasoning above, group the tabs.
+Assign tabs to groups in a valid JSON object preceded by "@@JSON_START@@".
+
+Expected JSON Structure:
+@@JSON_START@@
+{
+    "...": [123, 124, 129],
+    "...": [456]
+}
+
+IMPORTANT:
+- Assign each tab ID to EXACTLY ONE group.
+- Do not duplicate tab IDs across groups.
+
+
+Additional Rules:
+Rule 1: Be cool.
+Rule 2: Have fun.`;
+
+            expect(prompt).toBe(expected);
         });
     });
 

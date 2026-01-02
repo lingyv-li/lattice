@@ -1,5 +1,5 @@
 import { BaseProvider } from './BaseProvider';
-import { constructCoTSystemPrompt } from './shared';
+import { constructSystemPrompt } from './shared';
 
 export class LocalProvider extends BaseProvider {
     id = 'local';
@@ -31,7 +31,7 @@ export class LocalProvider extends BaseProvider {
     }
 
     protected getSystemPrompt(customRules?: string): string {
-        return constructCoTSystemPrompt(customRules);
+        return constructSystemPrompt(customRules, true);
     }
 
     private async getSession(systemPrompt: string, signal?: AbortSignal): Promise<LanguageModel> {
@@ -54,21 +54,7 @@ export class LocalProvider extends BaseProvider {
             expectedInputs: [{ type: 'text', languages: ['en'] }],
             initialPrompts: [{
                 role: "system",
-                content: systemPrompt + `
-
-For each tab, very briefly list the keywords and area up to 5 to 10 per tab. Then produce the final quoted group names following user's instructions. Do NOT repeat the input.
-
-Then assign tabs to groups by outputting the result as ONLY a valid JSON object PRECEDED by the marker "@@JSON_START@@".
-
-EXAMPLE FORMAT:
-Tabs:
-- 123: Keyword 1, Keyword 2, Keyword 3
-- 456: Keyword 4, Keyword 5, Keyword 6
-
-Groups: "Group Name 1", "Group Name 2"
-
-@@JSON_START@@
-{ "Group Name 1": [123, 456], "Group Name 2": [789] }`
+                content: systemPrompt
             }],
             signal
         });

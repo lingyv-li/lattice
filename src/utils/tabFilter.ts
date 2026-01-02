@@ -19,13 +19,13 @@ export const isGroupableTab = (tab: chrome.tabs.Tab): boolean => {
         return false;
     }
 
-    // Skip tabs that are still loading to ensure titles are accurate
-    if (tab.status === 'loading') { // Using string literal as enum depends on runtime chrome
+    // Skip empty new tab pages - they have no meaningful content to group
+    if (isEmptyNewTab(tab.url)) {
         return false;
     }
 
-    // Skip empty new tab pages - they have no meaningful content to group
-    if (isEmptyNewTab(tab.url)) {
+    // Skip tabs that are still actively loading to ensure titles are accurate
+    if (tab.status === 'loading' && !tab.frozen) { // Using string literal as enum depends on runtime chrome
         return false;
     }
 

@@ -4,28 +4,15 @@ import { LocalProvider } from '../LocalProvider';
 import { GroupingRequest } from '../types';
 
 // Mock specific logic for this test file
-const mockPromptStreaming = vi.fn();
+const mockPrompt = vi.fn();
 const mockCreate = vi.fn();
 const mockDestroy = vi.fn();
 const mockClone = vi.fn();
 const mockAvailability = vi.fn();
 
-// Helper to simulate accumulated streaming
-function mockStreamResponse(text: string) {
-    const half = Math.floor(text.length / 2);
-    const part1 = text.substring(0, half);
-
-    const mockReader = {
-        read: vi.fn()
-            .mockResolvedValueOnce({ done: false, value: part1 })
-            .mockResolvedValueOnce({ done: false, value: text }) // Accumulation
-            .mockResolvedValueOnce({ done: true, value: undefined }),
-        releaseLock: vi.fn()
-    };
-
-    mockPromptStreaming.mockReturnValue({
-        getReader: () => mockReader
-    });
+// Helper to simulate simple prompt response
+function mockPromptResponse(text: string) {
+    mockPrompt.mockResolvedValue(text);
 }
 
 describe('LocalProvider', () => {
@@ -57,7 +44,7 @@ describe('LocalProvider', () => {
 
         // Mock clone to return a new session-like object with streaming support
         mockClone.mockResolvedValue({
-            promptStreaming: mockPromptStreaming,
+            prompt: mockPrompt,
             destroy: mockDestroy
         });
     });
@@ -93,13 +80,13 @@ describe('LocalProvider', () => {
 @@JSON_START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
 
-        mockStreamResponse(responseText);
+        mockPromptResponse(responseText);
 
         await provider.generateSuggestions(request);
 
         expect(mockCreate).toHaveBeenCalledTimes(1); // One base session created
         expect(mockClone).toHaveBeenCalledTimes(1); // One clone created for request
-        expect(mockPromptStreaming).toHaveBeenCalledTimes(1); // Single-turn CoT prompt
+        expect(mockPrompt).toHaveBeenCalledTimes(1); // Single-turn CoT prompt
         expect(mockDestroy).toHaveBeenCalledTimes(1); // Clone destroyed after use
     });
 
@@ -112,7 +99,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
 @@JSON_START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
 
-        mockStreamResponse(responseText);
+        mockPromptResponse(responseText);
 
         // First call
         await provider.generateSuggestions(request);
@@ -122,7 +109,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         expect(mockCreate).toHaveBeenCalledTimes(1); // Created only once
         expect(mockClone).toHaveBeenCalledTimes(2); // Cloned twice (once per request)
         expect(mockDestroy).toHaveBeenCalledTimes(2); // Clones destroyed twice
-        expect(mockPromptStreaming).toHaveBeenCalledTimes(2); // 1 prompt per request
+        expect(mockPrompt).toHaveBeenCalledTimes(2); // 1 prompt per request
     });
 
     it('should re-initialize session if rules change', async () => {
@@ -139,7 +126,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         const responseText = `Reasoning...
 @@JSON_START@@
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
-        mockStreamResponse(responseText);
+        mockPromptResponse(responseText);
 
         // Call A
         await provider.generateSuggestions(requestA);
@@ -168,12 +155,12 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
 @@JSON_START@@
 ${JSON.stringify({ "Group A": [1, 2] })}`;
 
-        mockStreamResponse(responseText);
+        mockPromptResponse(responseText);
 
         const result = await provider.generateSuggestions(request);
 
         // 1 prompt per request (Merged CoT)
-        expect(mockPromptStreaming).toHaveBeenCalledTimes(1);
+        expect(mockPrompt).toHaveBeenCalledTimes(1);
         // Both tabs should be grouped
         expect(result.suggestions).toHaveLength(1);
         expect(result.suggestions[0].tabIds).toContain(1);
