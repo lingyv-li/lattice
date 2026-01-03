@@ -166,7 +166,7 @@ export const Dashboard = () => {
     if (showOnboarding) {
         return (
             <div className="h-screen w-full bg-surface flex flex-col items-center justify-center p-6 text-center">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center mb-6 shadow-lg">
+                <div className="w-16 h-16 rounded-full bg-gradient-brand flex items-center justify-center mb-6 shadow-lg">
                     <img src="/icon-backgroundless.svg" className="w-10 h-10" alt="Logo" />
                 </div>
                 <h1 className="text-2xl font-bold text-main mb-2">Welcome to Lattice</h1>
@@ -175,7 +175,7 @@ export const Dashboard = () => {
                 </p>
                 <button
                     onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('src/welcome/index.html') })}
-                    className="w-full max-w-[280px] py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all"
+                    className="w-full max-w-[280px] py-3 bg-gradient-brand text-inverted font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all"
                 >
                     Start Setup
                 </button>

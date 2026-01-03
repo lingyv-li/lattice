@@ -173,7 +173,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
             {/* Header */}
             <div className="p-8 border-b border-border-subtle flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-gradient-brand flex items-center justify-center">
                         <img src="/icon-backgroundless.svg" className="w-7 h-7" alt="Logo" />
                     </div>
                     <div>
@@ -188,8 +188,8 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                 {step === OnboardingStep.Welcome && (
                     <div className="space-y-8">
                         <div className="text-center space-y-4">
-                            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
-                                <Sparkles className="w-12 h-12 text-white" />
+                            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-brand flex items-center justify-center shadow-lg hover:scale-105 transition-transform">
+                                <Sparkles className="w-12 h-12 text-inverted" />
                             </div>
                             <h3 className="text-3xl font-bold text-main">AI-Powered Tab Management</h3>
                             <p className="text-muted text-base leading-relaxed max-w-md mx-auto">
@@ -199,9 +199,9 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="p-6 bg-surface-dim rounded-xl border border-border-subtle hover:border-purple-500/30 transition-colors">
+                            <div className="p-6 bg-surface-dim rounded-xl border border-border-subtle hover:border-brand-cloud/30 transition-colors">
                                 <div className="flex items-start gap-4">
-                                    <Sparkles className="w-6 h-6 text-purple-500 flex-shrink-0 mt-0.5" />
+                                    <Sparkles className="w-6 h-6 text-brand-cloud flex-shrink-0 mt-0.5" />
                                     <div>
                                         <h4 className="font-semibold text-base text-main mb-1">Smart Tab Grouping</h4>
                                         <p className="text-sm text-muted">AI analyzes your tabs and suggests intelligent groupings</p>
@@ -209,9 +209,9 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                 </div>
                             </div>
 
-                            <div className="p-6 bg-surface-dim rounded-xl border border-border-subtle hover:border-blue-500/30 transition-colors">
+                            <div className="p-6 bg-surface-dim rounded-xl border border-border-subtle hover:border-brand-local/30 transition-colors">
                                 <div className="flex items-start gap-4">
-                                    <Copy className="w-6 h-6 text-blue-500 flex-shrink-0 mt-0.5" />
+                                    <Copy className="w-6 h-6 text-brand-local flex-shrink-0 mt-0.5" />
                                     <div>
                                         <h4 className="font-semibold text-base text-main mb-1">Duplicate Detection</h4>
                                         <p className="text-sm text-muted">Automatically find and close duplicate tabs</p>
@@ -235,9 +235,9 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                 onClick={() => handleProviderSelect(AIProviderType.Local)}
                                 disabled={!localAIAvailable}
                                 className={`relative p-6 rounded-xl border-2 transition-all text-left h-full ${selectedProvider === AIProviderType.Local
-                                    ? 'border-blue-500 bg-blue-500/5'
+                                    ? 'border-brand-local bg-status-info-bg'
                                     : localAIAvailable
-                                        ? 'border-border-subtle hover:border-blue-500/50 hover:bg-surface-dim'
+                                        ? 'border-border-subtle hover:border-brand-local/50 hover:bg-surface-dim'
                                         : 'border-border-subtle opacity-50 cursor-not-allowed bg-zinc-100 dark:bg-zinc-900'
                                     }`}
                             >
@@ -245,17 +245,17 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                     <div className="flex items-center justify-between mb-4">
                                         <span className="text-2xl">🤖</span>
                                         {selectedProvider === AIProviderType.Local && (
-                                            <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                                                <Check className="w-4 h-4 text-white" />
+                                            <div className="w-6 h-6 rounded-full bg-brand-local flex items-center justify-center">
+                                                <Check className="w-4 h-4 text-inverted" />
                                             </div>
                                         )}
                                     </div>
                                     <h4 className="font-bold text-lg text-main mb-1">Local AI</h4>
                                     <div className="flex items-center gap-2 mb-3">
-                                        <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 text-[10px] font-bold uppercase tracking-wider">
+                                        <span className="px-2 py-0.5 rounded-full bg-status-success-bg text-status-success-fg text-[10px] font-bold uppercase tracking-wider">
                                             Recommended
                                         </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
+                                        <span className="px-2 py-0.5 rounded-full bg-surface-highlight text-muted text-[10px] font-bold uppercase tracking-wider">
                                             Private
                                         </span>
                                     </div>
@@ -279,25 +279,25 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                             <button
                                 onClick={() => handleProviderSelect(AIProviderType.Gemini)}
                                 className={`relative p-6 rounded-xl border-2 transition-all text-left h-full ${selectedProvider === AIProviderType.Gemini
-                                    ? 'border-purple-500 bg-purple-500/5'
-                                    : 'border-border-subtle hover:border-purple-500/50 hover:bg-surface-dim'
+                                    ? 'border-brand-cloud bg-status-ai-bg'
+                                    : 'border-border-subtle hover:border-brand-cloud/50 hover:bg-surface-dim'
                                     }`}
                             >
                                 <div className="flex flex-col h-full">
                                     <div className="flex items-center justify-between mb-4">
                                         <span className="text-2xl">✨</span>
                                         {selectedProvider === AIProviderType.Gemini && (
-                                            <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center">
-                                                <Check className="w-4 h-4 text-white" />
+                                            <div className="w-6 h-6 rounded-full bg-brand-cloud flex items-center justify-center">
+                                                <Check className="w-4 h-4 text-inverted" />
                                             </div>
                                         )}
                                     </div>
                                     <h4 className="font-bold text-lg text-main mb-1">Google Gemini</h4>
                                     <div className="flex items-center gap-2 mb-3">
-                                        <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 text-[10px] font-bold uppercase tracking-wider">
+                                        <span className="px-2 py-0.5 rounded-full bg-status-ai-bg text-status-ai-fg text-[10px] font-bold uppercase tracking-wider">
                                             Powerful
                                         </span>
-                                        <span className="px-2 py-0.5 rounded-full bg-zinc-500/10 text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
+                                        <span className="px-2 py-0.5 rounded-full bg-surface-highlight text-muted text-[10px] font-bold uppercase tracking-wider">
                                             Cloud
                                         </span>
                                     </div>
@@ -320,13 +320,13 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                             value={geminiApiKey}
                                             onChange={(e) => handleApiKeyChange(e.target.value)}
                                             placeholder="Enter your API key"
-                                            className="w-full px-4 py-3 bg-surface border border-border-subtle rounded-lg text-sm text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm"
+                                            className="w-full px-4 py-3 bg-surface border border-border-subtle rounded-lg text-sm text-main placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-cloud transition-all shadow-sm"
                                         />
                                         <a
                                             href="https://aistudio.google.com/app/apikey"
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="text-xs text-purple-500 hover:text-purple-600 hover:underline mt-2 inline-flex items-center gap-1"
+                                            className="text-xs text-brand-cloud hover:underline mt-2 inline-flex items-center gap-1"
                                         >
                                             Get a free API key <ArrowRight className="w-3 h-3" />
                                         </a>
@@ -334,7 +334,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
                                     {isLoadingModels && (
                                         <div className="flex items-center gap-2 text-muted text-sm">
-                                            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <div className="w-4 h-4 border-2 border-brand-cloud border-t-transparent rounded-full animate-spin"></div>
                                             Loading available models...
                                         </div>
                                     )}
@@ -347,7 +347,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                             <select
                                                 value={selectedModel}
                                                 onChange={(e) => setSelectedModel(e.target.value)}
-                                                className="w-full px-4 py-3 bg-surface border border-border-subtle rounded-lg text-sm text-main focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all shadow-sm"
+                                                className="w-full px-4 py-3 bg-surface border border-border-subtle rounded-lg text-sm text-main focus:outline-none focus:ring-2 focus:ring-brand-cloud transition-all shadow-sm"
                                             >
                                                 {availableModels.map((model) => (
                                                     <option key={model.id} value={model.id}>
@@ -362,14 +362,14 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                         )}
 
                         {isDownloading && (
-                            <div className="p-6 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+                            <div className="p-6 bg-status-info-bg border border-brand-local/20 rounded-xl">
                                 <div className="flex items-center justify-between mb-3">
                                     <p className="font-medium text-main">Downloading AI Model...</p>
-                                    <span className="text-sm font-bold text-blue-600">{downloadProgress}%</span>
+                                    <span className="text-sm font-bold text-brand-local">{downloadProgress}%</span>
                                 </div>
                                 <div className="w-full bg-surface-dim rounded-full h-3 overflow-hidden">
                                     <div
-                                        className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                                        className="h-full bg-brand-local transition-all duration-300 ease-out"
                                         style={{ width: `${downloadProgress}%` }}
                                     />
                                 </div>
@@ -382,7 +382,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
 
                         {error && (
-                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-600 text-sm">
+                            <div className="p-4 bg-status-error-bg border border-status-error-fg/20 rounded-xl flex items-center gap-3 text-status-error-fg text-sm">
                                 <span className="text-xl">⚠️</span>
                                 {error}
                             </div>
@@ -401,8 +401,8 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
 
                 {step === OnboardingStep.Complete && (
                     <div className="space-y-8 text-center py-8">
-                        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-tr from-green-500 to-emerald-500 flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
-                            <Check className="w-12 h-12 text-white" />
+                        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-success flex items-center justify-center shadow-lg animate-in zoom-in duration-300">
+                            <Check className="w-12 h-12 text-inverted" />
                         </div>
 
                         <div>
@@ -453,7 +453,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                             onClick={handleNext}
                             disabled={!canProceed() || isDownloading}
                             className={`px-8 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95 ${canProceed() && !isDownloading
-                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:brightness-110 hover:shadow-blue-500/25'
+                                ? 'bg-gradient-brand text-inverted hover:brightness-110 hover:shadow-brand-local/25'
                                 : 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
                                 }`}
                         >

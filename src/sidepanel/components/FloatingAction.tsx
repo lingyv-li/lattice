@@ -18,7 +18,7 @@ export const FloatingAction = ({ hasWork, isProcessing, buttonLabel, onOrganize 
                     flex items-center justify-center gap-2 transition-all active:scale-[0.98]
                     ${!hasWork
                         ? 'bg-surface-dim text-muted cursor-not-allowed shadow-none'
-                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:shadow-blue-500/20 hover:brightness-110'
+                        : 'bg-gradient-brand text-inverted hover:shadow-brand-local/20 hover:brightness-110'
                     }
                 `}
             >

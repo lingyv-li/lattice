@@ -18,11 +18,11 @@ export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnab
     const { status, closedCount, duplicateCount } = data;
 
     const badge = status === OrganizerStatus.Success ? (
-        <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-status-success-fg bg-status-success-bg px-2 py-0.5 rounded-full">
             Cleaned
         </span>
     ) : duplicateCount > 0 ? (
-        <span className="text-xs font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-status-warning-fg bg-status-warning-bg px-2 py-0.5 rounded-full">
             {duplicateCount} found
         </span>
     ) : (
@@ -52,12 +52,12 @@ export const DuplicateCleanerCard = ({ isSelected, onToggle, data, autopilotEnab
                     <span>Cleaning...</span>
                 </div>
             ) : status === OrganizerStatus.Success ? (
-                <div className="flex items-center gap-2 text-xs text-green-600 mt-2">
+                <div className="flex items-center gap-2 text-xs text-status-success-fg mt-2">
                     <CheckCircle className="w-3 h-3" />
                     <span>Closed {closedCount} tabs</span>
                 </div>
             ) : status === OrganizerStatus.Error ? (
-                <div className="flex items-center gap-2 text-xs text-red-600 mt-2">
+                <div className="flex items-center gap-2 text-xs text-status-error-fg mt-2">
                     <AlertCircle className="w-3 h-3" />
                     <span>Error cleaning duplicates</span>
                 </div>

@@ -47,7 +47,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
                             e.stopPropagation();
                             chrome.runtime.openOptionsPage();
                         }}
-                        className="text-blue-500 hover:text-blue-600 underline font-medium self-start"
+                        className="text-action hover:text-action-hover underline font-medium self-start"
                     >
                         Open Settings
                     </button>
@@ -57,15 +57,15 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
     }
 
     const badge = status === OrganizerStatus.Success ? (
-        <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-status-success-fg bg-status-success-bg px-2 py-0.5 rounded-full">
             Done
         </span>
     ) : previewGroups ? (
-        <span className="text-xs font-medium text-purple-600 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-status-ai-fg bg-status-ai-bg px-2 py-0.5 rounded-full">
             Review
         </span>
     ) : ungroupedCount > 0 ? (
-        <span className="text-xs font-medium text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+        <span className="text-xs font-medium text-status-warning-fg bg-status-warning-bg px-2 py-0.5 rounded-full">
             {ungroupedCount} ungrouped
         </span>
     ) : (
@@ -104,7 +104,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         >
             {/* Error State */}
             {error && (
-                <div className="mb-3 p-2 text-xs bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg flex items-center gap-2">
+                <div className="mb-3 p-2 text-xs bg-status-error-bg text-status-error-fg rounded-lg flex items-center gap-2">
                     <AlertCircle className="w-4 h-4" />
                     {error}
                 </div>

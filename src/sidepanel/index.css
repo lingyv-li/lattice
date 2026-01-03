@@ -9,6 +9,17 @@
     --color-border-strong: var(--border-strong);
     --color-surface-highlight: var(--surface-highlight);
     --color-text-inverted: var(--text-inverted);
+    --color-text-action: var(--text-action);
+    --color-text-action-hover: var(--text-action-hover);
+
+    /* Gradients */
+    /* Gradients */
+    --image-gradient-brand: var(--gradient-brand);
+    --image-gradient-success: var(--gradient-success);
+
+    /* Branding */
+    --color-brand-local: var(--brand-local);
+    --color-brand-cloud: var(--brand-cloud);
 
     /* Button Tokens */
     --color-btn-primary-bg: var(--btn-primary-bg);
@@ -34,8 +45,10 @@
     --color-status-error-bg: var(--status-error-bg);
     --color-status-error-fg: var(--status-error-fg);
     --color-status-neutral-bg: var(--status-neutral-bg);
-    --color-status-neutral-bg: var(--status-neutral-bg);
     --color-status-neutral-fg: var(--status-neutral-fg);
+    --color-status-ai-bg: var(--status-ai-bg);
+    --color-status-ai-fg: var(--status-ai-fg);
+
 
     /* Sizing & Spacing */
     --spacing-card-padding: var(--spacing-card-padding);
@@ -60,7 +73,23 @@
     /* zinc-200 */
     --border-strong: #d4d4d8;
     /* zinc-300 */
-    --text-inverted: #ffffff;
+    /* Gradients */
+    --gradient-brand: linear-gradient(to top right, #3b82f6, #a855f7);
+    /* blue-500 to purple-500 */
+    --gradient-success: linear-gradient(to top right, #22c55e, #10b981);
+    /* green-500 to emerald-500 */
+
+    /* Branding */
+    --brand-local: #3b82f6;
+    /* blue-500 */
+    --brand-cloud: #a855f7;
+    /* purple-500 */
+
+    /* Text Action */
+    --text-action: #3b82f6;
+    /* blue-500 */
+    --text-action-hover: #2563eb;
+    /* blue-600 */
 
     /* Button - Light */
     --btn-primary-bg: #7c3aed;
@@ -106,8 +135,11 @@
     /* teal-100 */
     --status-neutral-fg: #0f766e;
     /* teal-700 */
-    --status-neutral-fg: #0f766e;
-    /* teal-700 */
+
+    --status-ai-bg: #f3e8ff;
+    /* purple-100 */
+    --status-ai-fg: #7e22ce;
+    /* purple-700 */
 
     /* Spacing & Sizing Tokens */
     --spacing-card-padding: 1rem;
@@ -140,7 +172,22 @@
         /* zinc-800 */
         --border-strong: #52525b;
         /* zinc-600 */
-        --text-inverted: #18181b;
+        /* Gradients */
+        /* Gradients */
+        --gradient-brand: linear-gradient(to top right, #3b82f6, #a855f7);
+        --gradient-success: linear-gradient(to top right, #22c55e, #10b981);
+
+        /* Branding */
+        --brand-local: #60a5fa;
+        /* blue-400 */
+        --brand-cloud: #c084fc;
+        /* purple-400 */
+
+        /* Text Action - Dark */
+        --text-action: #60a5fa;
+        /* blue-400 */
+        --text-action-hover: #93c5fd;
+        /* blue-300 */
 
         /* Button - Dark */
         --btn-primary-bg: #7c3aed;
@@ -187,7 +234,11 @@
         /* teal-900/30 */
         --status-neutral-fg: #5eead4;
         /* teal-300 */
-        /* teal-300 */
+
+        --status-ai-bg: rgba(88, 28, 135, 0.3);
+        /* purple-900/30 */
+        --status-ai-fg: #c084fc;
+        /* purple-400 */
     }
 
 }

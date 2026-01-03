@@ -21,6 +21,12 @@ This directory is versions controlled using `jj` (Jujutsu).
 - **Improvements**: Look for areas with room for improvement, but do not implement them immediately. Suggest them to the user at the end of the task.
 - **AI API**: ALWAYS use the `LanguageModel` API for local AI. NEVER use `window.ai` as it is deprecated.
 
+## Design System & CSS
+- **Semantic Tokens**: ALWAYS use semantic tokens for colors and spacing (e.g., `bg-surface`, `text-muted`, `bg-btn-primary-bg`).
+- **No Hardcoded Colors**: NEVER use hardcoded Tailwind colors (e.g., `bg-blue-500`, `text-slate-900`) in components. Define a semantic token in `index.css` if one is missing.
+- **Dark Mode**: Rely on the semantic system to handle Dark Mode. Do not use manual `dark:` modifiers unless absolutely necessary for specific overrides.
+- **Component Abstraction**: Use React components to encapsulate styles. Do not use `@apply` to create CSS classes (e.g., `.card`) unless strictly necessary; use `<Card />` components instead.
+
 ## Architectural Patterns
 - **Atomic Window Processing**: Always isolate processing logic and staleness tracking to the window level. A change in one window should never abort processing in another.
 - **Input Snapshotting**: For long-running or batch operations (like AI grouping), capture a fingerprint of the input state at the start. Verify consistency against this snapshot between batches to prevent data races (e.g., closing a tab during an AI call).
