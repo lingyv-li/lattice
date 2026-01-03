@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../types/tabGrouper';
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
@@ -21,8 +21,19 @@ export const useTabGrouper = () => {
 
     // Store port reference
     const portRef = useRef<chrome.runtime.Port | null>(null);
-    // Store current previews in ref to access inside listeners without re-subscribing
-    const previewGroupsRef = useRef<typeof previewGroups>(null);
+
+    // Derive unselected signatures from current state
+    // Groups the user has "rejected" (unselected) - used to preserve selection across updates
+    const unselectedSignatures = useMemo(() => {
+        if (!previewGroups) return new Set<string>();
+        const result = new Set<string>();
+        previewGroups.forEach((g, idx) => {
+            if (!selectedPreviewIndices.has(idx)) {
+                result.add(JSON.stringify(g));
+            }
+        });
+        return result;
+    }, [previewGroups, selectedPreviewIndices]);
 
     // Check settings for enabled state
     useEffect(() => {
@@ -38,11 +49,6 @@ export const useTabGrouper = () => {
 
         return () => unsubscribe();
     }, []);
-
-    // Update refs when state changes
-    useEffect(() => {
-        previewGroupsRef.current = previewGroups;
-    }, [previewGroups]);
 
     // Convert cached suggestions to preview groups
     const convertCacheToGroups = useCallback((cache: TabSuggestionCache[], snap: WindowSnapshot) => {
@@ -78,7 +84,7 @@ export const useTabGrouper = () => {
     }, []);
 
     useEffect(() => {
-        // Initial scan
+        // Initial scan - intentionally sets state on mount
         // eslint-disable-next-line react-hooks/set-state-in-effect
         scanUngrouped();
 
@@ -136,51 +142,47 @@ export const useTabGrouper = () => {
     }, [scanUngrouped]);
 
     // Process suggestions and update state
-    const processSuggestions = useCallback(async (cache: Map<number, TabSuggestionCache>) => {
+    const processSuggestions = async (cache: Map<number, TabSuggestionCache>) => {
         const newValue = Array.from(cache.values());
         const snap = await scanUngrouped();
 
-        let groups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
+        let newGroups: (TabGroupSuggestion & { existingGroupId?: number | null })[] = [];
         if (newValue && Array.isArray(newValue) && newValue.length > 0) {
-            groups = convertCacheToGroups(newValue, snap);
+            newGroups = convertCacheToGroups(newValue, snap);
         }
 
-        // Check if groups actually changed to prevent resetting selection
-        // Use ref to compare against current state without adding dependency
-        const currentGroups = previewGroupsRef.current;
-        if (currentGroups && JSON.stringify(groups) === JSON.stringify(currentGroups)) {
-            return;
-        }
+        // Use functional updater to let React handle the diff.
+        // If the new groups are identical to the previous, return the same reference (no re-render).
+        setPreviewGroups(prevGroups => {
+            const newHash = JSON.stringify(newGroups);
+            const prevHash = JSON.stringify(prevGroups);
 
-        if (groups.length > 0) {
-            // New suggestions arrived
-
-            // Smart Selection Preservation:
-            // Logic: Default to selected, unless it matches a group the user previously ignored.
-            const newSelection = new Set<number>();
-            const unselectedSignatures = new Set<string>();
-
-            if (currentGroups) {
-                currentGroups.forEach((g, idx) => {
-                    if (!selectedPreviewIndices.has(idx)) {
-                        unselectedSignatures.add(JSON.stringify(g));
-                    }
-                });
+            if (newHash === prevHash) {
+                return prevGroups; // No change, return same reference
             }
 
-            groups.forEach((g, idx) => {
-                // If it's NOT in the unselected set -> Select it.
-                if (!unselectedSignatures.has(JSON.stringify(g))) {
-                    newSelection.add(idx);
-                }
-            });
+            if (newGroups.length > 0) {
+                // Compute new selection based on unselected signatures
+                const newSelection = new Set<number>();
 
-            setPreviewGroups(groups);
-            setSelectedPreviewIndices(newSelection);
-        } else if (groups.length === 0) {
-            setPreviewGroups(null);
-        }
-    }, [scanUngrouped, convertCacheToGroups, selectedPreviewIndices]);
+                newGroups.forEach((g, idx) => {
+                    if (!unselectedSignatures.has(JSON.stringify(g))) {
+                        newSelection.add(idx);
+                    }
+                });
+                setSelectedPreviewIndices(newSelection);
+                return newGroups;
+            } else {
+                return null;
+            }
+        });
+    };
+
+    // Stable ref for subscription - always points to latest processSuggestions
+    const processSuggestionsRef = useRef(processSuggestions);
+    useEffect(() => {
+        processSuggestionsRef.current = processSuggestions;
+    });
 
     // --- Current Window ID ---
     useEffect(() => {
@@ -194,7 +196,7 @@ export const useTabGrouper = () => {
         // Initial load for current window
         StateService.getSuggestionCache(currentWindowId).then(cache => {
             if (cache.size > 0) {
-                processSuggestions(cache);
+                processSuggestionsRef.current(cache);
             }
         });
 
@@ -205,14 +207,14 @@ export const useTabGrouper = () => {
 
         // Subscribe to Suggestions AND Status
         const unsubscribe = StateService.subscribe(currentWindowId, (cache, isProcessing) => {
-            processSuggestions(cache);
+            processSuggestionsRef.current(cache);
             setBackgroundProcessing(isProcessing);
         });
 
         return () => {
             unsubscribe();
         };
-    }, [processSuggestions, currentWindowId]);
+    }, [currentWindowId, processSuggestionsRef]); // processSuggestions NOT a dependency - accessed via ref
 
     const applyGroups = async () => {
         if (!previewGroups) return;
