@@ -3,6 +3,7 @@ import { AppSettings, AIProviderType } from '../../utils/storage';
 import { AIProvider, ModelInfo } from './types';
 import { GeminiProvider } from './GeminiProvider';
 import { LocalProvider } from './LocalProvider';
+import { ConfigurationError } from '../../utils/AppError';
 
 export class AIService {
     static async getProvider(settings: AppSettings): Promise<AIProvider> {
@@ -12,9 +13,9 @@ export class AIService {
             case AIProviderType.Local:
                 return new LocalProvider();
             case AIProviderType.None:
-                throw new Error("AI Provider is disabled.");
+                throw new ConfigurationError("AI Provider is disabled.");
             default:
-                throw new Error("Invalid AI Provider.");
+                throw new ConfigurationError("Invalid AI Provider.");
         }
     }
 

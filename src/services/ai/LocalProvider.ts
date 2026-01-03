@@ -1,5 +1,6 @@
 import { BaseProvider } from './BaseProvider';
 import { constructSystemPrompt } from './shared';
+import { AIProviderError } from '../../utils/AppError';
 
 export class LocalProvider extends BaseProvider {
     id = 'local';
@@ -74,7 +75,7 @@ export class LocalProvider extends BaseProvider {
         signal?: AbortSignal
     ): Promise<string> {
         if (await LocalProvider.checkAvailability() !== 'available') {
-            throw new Error("Local AI is not available.");
+            throw new AIProviderError("Local AI is not available.");
         }
 
         // Clone the session for this specific request

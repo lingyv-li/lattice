@@ -25,6 +25,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
     const [isLoadingModels, setIsLoadingModels] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
+    const [error, setError] = useState<string | null>(null);
 
     // AI Availability State
     const [localAIAvailable, setLocalAIAvailable] = useState<boolean | null>(null);
@@ -63,6 +64,7 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                     });
                 } catch (e) {
                     console.error('Failed to download model:', e);
+                    setError("Failed to download model. Please checks your connection and try again.");
                 }
                 setIsDownloading(false);
             }
@@ -374,6 +376,15 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
                                 <p className="text-xs text-muted mt-2">
                                     This enables Lattice to run privately on your device.
                                 </p>
+                            </div>
+                        )}
+
+
+
+                        {error && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-600 text-sm">
+                                <span className="text-xl">⚠️</span>
+                                {error}
                             </div>
                         )}
 
