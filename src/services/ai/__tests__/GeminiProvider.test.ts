@@ -39,6 +39,21 @@ describe('GeminiProvider', () => {
         expect(result.errors[0].message).toContain('API Key is missing');
     });
 
+    it('should collect error if model is missing', async () => {
+        const noModelProvider = new GeminiProvider('fake-key', '');
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+        };
+
+        const result = await noModelProvider.generateSuggestions(request);
+
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].name).toBe('ConfigurationError');
+        expect(result.errors[0].message).toBe('Please select an AI model in Settings.');
+    });
+
     it('should correctly handle assignments and group mapping', async () => {
         const tabs = [
             { id: 1, title: 'Shop 1', url: 'http://shop.com/1' },

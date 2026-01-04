@@ -1,6 +1,6 @@
 import { BaseProvider } from './BaseProvider';
 import { GoogleGenAI } from '@google/genai';
-import { AIProviderError } from '../../utils/AppError';
+import { AIProviderError, ConfigurationError } from '../../utils/AppError';
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
@@ -17,7 +17,8 @@ export class GeminiProvider extends BaseProvider {
         systemPrompt: string,
         signal?: AbortSignal
     ): Promise<string> {
-        if (!this.apiKey) throw new AIProviderError("API Key is missing for Gemini Cloud.");
+        if (!this.apiKey) throw new ConfigurationError("API Key is missing for Gemini Cloud.");
+        if (!this.model) throw new ConfigurationError("Please select an AI model in Settings.");
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Prompting model: ${this.model}`);
 

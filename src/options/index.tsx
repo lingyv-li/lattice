@@ -77,7 +77,16 @@ export const InnerApp = () => {
         setLoadingModels(true);
         try {
             const models = await AIService.listGeminiModels(key);
-            setAvailableModels(sortModels(models));
+            const sortedModels = sortModels(models);
+            setAvailableModels(sortedModels);
+
+            // Auto-select first model if none selected
+            setSettings(prev => {
+                if (!prev.aiModel && sortedModels.length > 0) {
+                    return { ...prev, aiModel: sortedModels[0].id };
+                }
+                return prev;
+            });
         } catch (e) {
             console.error("Failed to fetch models", e);
             showToast("Failed to fetch Gemini models. Check your API Key.", 'error');
