@@ -146,7 +146,12 @@ export class QueueProcessor {
             // Initial check still useful, but less critical now with smart aborts.
             // We'll trust verifySnapshot for the initial queue pick-up.
             console.log(`[QueueProcessor] [${new Date().toISOString()}] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
-            await this.state.add(windowId, true);
+
+            // Re-fetch fresh snapshot
+            const newSnapshot = await WindowSnapshot.fetch(windowId);
+
+            // Re-enqueue using new signature (enqueue handles persistence)
+            await this.state.enqueue(windowId, newSnapshot, true);
             return { aborted: true };
         }
 
@@ -195,9 +200,11 @@ export class QueueProcessor {
             if (windowState.inputSnapshot.isFatalChange(finalSnapshot, batchTabs.map(t => t.id!).filter(id => id !== undefined))) {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected immediately before applying. Skipping batch.`);
                 return { aborted: false }; // Not strictly aborted, just skipped this batch. Window loop continues? Or should we return aborted?
-                // If we return aborted=false, the loop continues to next batch. But state changed.
+                // If we return aborted=false, the loop continues to final cleanup. But state changed.
                 // Probably safer to return aborted=true to force re-evaluation of the whole window.
-                await this.state.add(windowId, true);
+
+                // Re-fetch fresh snapshot (finalSnapshot already fetched above, use it)
+                await this.state.enqueue(windowId, finalSnapshot, true);
                 return { aborted: true };
             }
 

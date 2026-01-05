@@ -33,6 +33,54 @@ export class WindowSnapshot {
     }
 
     /**
+     * Efficiently fetches snapshots for ALL windows matching the given filter.
+     * Reduces Chrome IPC overhead by querying all tabs/groups once and partitioning in memory.
+     */
+    public static async fetchAll(filter?: chrome.windows.QueryOptions): Promise<Map<number, WindowSnapshot>> {
+        // 1. Get relevant windows
+        const windows = await chrome.windows.getAll(filter ?? {});
+        const validWindowIds = new Set(windows.map(w => w.id!).filter(id => id !== undefined));
+
+        if (validWindowIds.size === 0) {
+            return new Map();
+        }
+
+        // 2. Get all tabs and groups (O(1) IPC call)
+        const [allTabs, allGroups] = await Promise.all([
+            chrome.tabs.query({}),
+            chrome.tabGroups.query({})
+        ]);
+
+        // 3. Partition data by windowId (only for valid windows)
+        const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
+        const groupsByWindow = new Map<number, chrome.tabGroups.TabGroup[]>();
+
+        for (const tab of allTabs) {
+            if (tab.windowId !== undefined && validWindowIds.has(tab.windowId)) {
+                if (!tabsByWindow.has(tab.windowId)) tabsByWindow.set(tab.windowId, []);
+                tabsByWindow.get(tab.windowId)!.push(tab);
+            }
+        }
+
+        for (const group of allGroups) {
+            if (group.windowId !== undefined && validWindowIds.has(group.windowId)) {
+                if (!groupsByWindow.has(group.windowId)) groupsByWindow.set(group.windowId, []);
+                groupsByWindow.get(group.windowId)!.push(group);
+            }
+        }
+
+        const snapshots = new Map<number, WindowSnapshot>();
+        for (const windowId of validWindowIds) {
+            snapshots.set(windowId, new WindowSnapshot(
+                tabsByWindow.get(windowId) || [],
+                groupsByWindow.get(windowId) || []
+            ));
+        }
+
+        return snapshots;
+    }
+
+    /**
      * Checks equality against another snapshot or string.
      */
     equals(other: WindowSnapshot | string | null | undefined): boolean {

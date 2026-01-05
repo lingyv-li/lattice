@@ -18,7 +18,8 @@ describe('tabFilter', () => {
             windowId: 10,
             url: 'https://example.com',
             title: 'Example',
-            status: 'complete'
+            status: 'complete',
+            groupId: -1 // TAB_ID_NONE
         };
 
         it('should return true for normal tabs', () => {
@@ -47,6 +48,10 @@ describe('tabFilter', () => {
 
         it('should return false for empty new tab pages', () => {
             const tab = { ...baseTab, url: 'chrome://newtab/' };
+            expect(isGroupableTab(tab as chrome.tabs.Tab)).toBe(false);
+        });
+        it('should return false for grouped tabs', () => {
+            const tab = { ...baseTab, groupId: 1 };
             expect(isGroupableTab(tab as chrome.tabs.Tab)).toBe(false);
         });
     });

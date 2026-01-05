@@ -76,7 +76,8 @@ describe('QueueProcessor', () => {
         getWindowState: Mock;
         completeWindow: Mock;
         acquireQueue: Mock;
-        add: Mock;
+        enqueue: Mock;
+        updateKnownState: Mock;
         isWindowChanged: Mock;
         onWindowRequeued: Mock;
     };
@@ -97,7 +98,8 @@ describe('QueueProcessor', () => {
             getWindowState: vi.fn().mockReturnValue(mockWindowState),
             completeWindow: vi.fn(),
             acquireQueue: vi.fn(),
-            add: vi.fn(),
+            enqueue: vi.fn(),
+            updateKnownState: vi.fn(),
             isWindowChanged: vi.fn(),
             onWindowRequeued: vi.fn(),
         };
@@ -255,8 +257,8 @@ describe('QueueProcessor', () => {
         const provider = await AIService.getProvider({} as AppSettings);
         expect(provider.generateSuggestions).not.toHaveBeenCalled();
 
-        // add() is now called with just windowId (fetches data internally)
-        expect(mockState.add).toHaveBeenCalledWith(1, true);
+        // enqueue() is now called with windowId, snapshot, and highPriority
+        expect(mockState.enqueue).toHaveBeenCalledWith(1, expect.any(Object), true);
         expect(mockState.completeWindow).not.toHaveBeenCalled();
     });
 

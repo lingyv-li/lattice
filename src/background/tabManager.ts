@@ -1,4 +1,5 @@
 import { StateService } from './state';
+import { WindowSnapshot } from '../utils/snapshots';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { SettingsStorage } from '../utils/storage';
@@ -52,22 +53,29 @@ export class TabManager {
             return;
         }
 
-        // Get all normal windows
-        const allWindows = await chrome.windows.getAll({ windowTypes: [chrome.windows.WindowType.NORMAL] });
-        const windowIds = allWindows.map(w => w.id!).filter(id => id !== undefined);
+        // Efficiently get snapshots for all NORMAL windows
+        const snapshots = await WindowSnapshot.fetchAll({ windowTypes: [chrome.windows.WindowType.NORMAL] });
 
-        for (const windowId of windowIds) {
-            // Check if window state has changed (fetches snapshot internally)
-            const changed = await this.processingState.isWindowChanged(windowId);
+        for (const [windowId, currentSnapshot] of snapshots) {
 
-            if (!changed) {
+            const lastPersistent = await StateService.getWindowSnapshot(windowId);
+
+            if (!currentSnapshot.equals(lastPersistent)) {
+                // Window changed!
+                console.log(`[TabManager] Window ${windowId} changed (Tabs: ${currentSnapshot.tabCount})`);
+
+                // Check if we actually need to analyze
+                if (currentSnapshot.tabCount > 0) {
+                    console.log(`[TabManager] Enqueuing window ${windowId} for analysis.`);
+                    await this.processingState.enqueue(windowId, currentSnapshot, false);
+                } else {
+                    console.log(`[TabManager] Window ${windowId} has no ungrouped tabs. Marking as Organized (skipping analysis).`);
+                    // We must manually update storage here since we are NOT enqueuing
+                    await this.processingState.updateKnownState(windowId, currentSnapshot);
+                }
+            } else {
                 console.log(`[TabManager] Skipping window ${windowId}: No changes since last successful processing.`);
-                continue;
             }
-
-            // Queue for processing - QueueProcessor handles the "no ungrouped tabs" case
-            console.log(`[TabManager] Window ${windowId} has changes, queuing.`);
-            await this.processingState.add(windowId, false);
         }
 
         // Process immediately if we have windows queued in ProcessingState

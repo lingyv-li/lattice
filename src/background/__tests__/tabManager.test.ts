@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { TabManager } from '../tabManager';
 import { StateService } from '../state';
@@ -6,62 +5,83 @@ import { ProcessingState } from '../processing';
 import { QueueProcessor } from '../queueProcessor';
 import { SettingsStorage, AppSettings } from '../../utils/storage';
 import { FeatureId } from '../../types/features';
+import { WindowSnapshot } from '../../utils/snapshots';
+import { MockWindowSnapshot } from './testUtils';
 
 // Mock dependencies
 vi.mock('../state');
 vi.mock('../processing');
 vi.mock('../../utils/storage');
+vi.mock('../../utils/snapshots');
 
-// Mock chrome API
-const mockTabs = {
-    query: vi.fn(),
-    get: vi.fn(),
-    remove: vi.fn(),
-    TAB_ID_NONE: -1,
-    TabStatus: { LOADING: 'loading', COMPLETE: 'complete' }, // Mock Enum
-    WindowType: { NORMAL: 'normal' }
-};
-const mockAlarms = {
-    create: vi.fn(),
-    get: vi.fn(),
-};
-const mockWindows = {
-    get: vi.fn(),
-    getAll: vi.fn(),
-    WindowType: { NORMAL: 'normal' }
-};
-const mockTabGroups = {
-    query: vi.fn(),
-};
 
-global.chrome = {
-    tabs: mockTabs,
-    alarms: mockAlarms,
-    windows: mockWindows,
-    tabGroups: mockTabGroups,
-} as unknown as typeof chrome;
 
 describe('TabManager', () => {
     let tabManager: TabManager;
     let mockProcessingState: {
-        add: Mock;
+        enqueue: Mock;
+        updateKnownState: Mock;
         has: Mock;
         clear: Mock;
-        isWindowChanged: Mock;
         completeWindow: Mock;
         size: number;
+        hasItems: boolean;
     };
+    let mockTabs: any;
+    let mockWindows: any;
+    let mockTabGroups: any;
+    let mockAlarms: any;
 
     beforeEach(() => {
         vi.useFakeTimers();
         vi.clearAllMocks();
+
+        // Setup Chrome mocks
+        mockTabs = {
+            query: vi.fn(),
+            get: vi.fn(),
+            remove: vi.fn(),
+            onCreated: { addListener: vi.fn(), removeListener: vi.fn() },
+            onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
+            onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+            TAB_ID_NONE: -1,
+            TabStatus: { LOADING: 'loading', COMPLETE: 'complete' },
+            WindowType: { NORMAL: 'normal' }
+        };
+        mockAlarms = {
+            create: vi.fn(),
+            get: vi.fn(),
+        };
+        mockWindows = {
+            get: vi.fn(),
+            getAll: vi.fn(),
+            WindowType: { NORMAL: 'normal' }
+        };
+        mockTabGroups = {
+            query: vi.fn(),
+            onCreated: { addListener: vi.fn(), removeListener: vi.fn() },
+            onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
+            onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+        };
+
+        // Use direct assignment instead of stubGlobal to ensure visibility
+        Object.assign(global, {
+            chrome: {
+                tabs: mockTabs,
+                alarms: mockAlarms,
+                windows: mockWindows,
+                tabGroups: mockTabGroups,
+            }
+        });
+
         mockProcessingState = {
-            add: vi.fn(),
+            enqueue: vi.fn(),
+            updateKnownState: vi.fn(),
             has: vi.fn(),
             clear: vi.fn(),
-            isWindowChanged: vi.fn().mockResolvedValue(true),
             completeWindow: vi.fn().mockResolvedValue(undefined),
-            size: 0
+            size: 0,
+            hasItems: false
         };
         const mockQueueProcessor = {
             process: vi.fn().mockResolvedValue(undefined)
@@ -69,6 +89,9 @@ describe('TabManager', () => {
         tabManager = new TabManager(mockProcessingState as unknown as ProcessingState, mockQueueProcessor as unknown as QueueProcessor);
 
         // Default mocks
+        // Capture referenced mocks for tests to use
+
+
         vi.mocked(mockTabs.query).mockResolvedValue([]);
         vi.mocked(StateService.getSuggestionCache).mockResolvedValue(new Map());
         vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
@@ -80,6 +103,7 @@ describe('TabManager', () => {
             }
         } as AppSettings);
         vi.mocked(mockTabGroups.query).mockResolvedValue([]);
+        vi.mocked(WindowSnapshot.fetch).mockResolvedValue(new MockWindowSnapshot([], []) as unknown as WindowSnapshot);
     });
 
     afterEach(() => {
@@ -187,8 +211,8 @@ describe('TabManager', () => {
 
     describe('triggerRecalculation', () => {
         it('should debounce multiple rapid calls', async () => {
-            // Mock windows.getAll to return a window
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
+            // Mock fetchAll to return map
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([[1, new MockWindowSnapshot([], []) as unknown as WindowSnapshot]]));
 
             // Call multiple times rapidly
             tabManager.triggerRecalculation('Test Call 1');
@@ -196,91 +220,95 @@ describe('TabManager', () => {
             tabManager.triggerRecalculation('Test Call 3');
 
             // Before debounce timer fires, no processing should have occurred
-            expect(mockWindows.getAll).not.toHaveBeenCalled();
+            expect(WindowSnapshot.fetchAll).not.toHaveBeenCalled();
 
             // Advance past debounce delay (1500ms)
             await vi.advanceTimersByTimeAsync(1600);
 
             // Should only have queried once despite 3 calls
-            expect(mockWindows.getAll).toHaveBeenCalledTimes(1);
+            expect(WindowSnapshot.fetchAll).toHaveBeenCalledTimes(1);
         });
 
-        it('should add windowId to processing state after debounce', async () => {
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
+        it('should add windowId to processing state after debounce IF tab count > 0', async () => {
+            // Mock non-empty snapshot
+            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
+            Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
+
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([[1, snapshot]]));
 
             tabManager.triggerRecalculation('Test Debounce');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockWindows.getAll).toHaveBeenCalledWith({ windowTypes: ['normal'] });
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
+            expect(WindowSnapshot.fetchAll).toHaveBeenCalledWith({ windowTypes: ['normal'] });
+            expect(mockProcessingState.enqueue).toHaveBeenCalledWith(1, snapshot, false);
         });
 
-        it('should filter out already grouped tabs', async () => {
-            // No windows, so nothing to process
-            vi.mocked(mockWindows.getAll).mockResolvedValue([]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(false);
+        it('should NOT add windowId if tab count == 0 (fixed behavior)', async () => {
+            // Mock EMPTY snapshot
+            const snapshot = new MockWindowSnapshot([], []) as unknown as WindowSnapshot;
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([[1, snapshot]]));
 
-            tabManager.triggerRecalculation('Test Call Filter');
+            // Ensure verifySnapshot returns false (changed) so we trigger logic
+            vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
+
+            tabManager.triggerRecalculation('Test Empty');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).not.toHaveBeenCalled();
+            expect(mockProcessingState.enqueue).not.toHaveBeenCalled();
+            expect(mockProcessingState.updateKnownState).toHaveBeenCalledWith(1, snapshot);
         });
 
-        it('should trigger windows for empty new tabs (filter happens in processor)', async () => {
-            // Window exists, isWindowChanged returns true
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(true);
+        it('should process window if mismatch and tab count > 0', async () => {
+            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
+            Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
 
-            tabManager.triggerRecalculation('Test New Tab');
-            await vi.advanceTimersByTimeAsync(1600);
-
-            // TabManager now just calls add() and lets processor handle filtering
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
-        });
-
-        it('should process window if any ungrouped tabs exist', async () => {
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(true);
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([[1, snapshot]]));
+            vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined); // Mismatch
 
             tabManager.triggerRecalculation('Test Mixed');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
+            expect(mockProcessingState.enqueue).toHaveBeenCalledWith(1, snapshot, false);
         });
 
-        it('should trigger windows for cached tabs', async () => {
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(true);
+        it('should NOT process window if state matches (no change)', async () => {
+            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
+            Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
+            // Mock equals to return TRUE
+            snapshot.equals = vi.fn().mockReturnValue(true);
 
-            tabManager.triggerRecalculation('Test Cached');
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([[1, snapshot]]));
+            vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(snapshot.fingerprint); // Matches!
+
+            tabManager.triggerRecalculation('Test No Change');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
-        });
-
-        it('should process window once even with multiple tabs', async () => {
-            vi.mocked(mockWindows.getAll).mockResolvedValue([{ id: 1, type: 'normal' }] as chrome.windows.Window[]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(true);
-
-            tabManager.triggerRecalculation('Test Multiple');
-            await vi.advanceTimersByTimeAsync(1600);
-
-            expect(mockProcessingState.add).toHaveBeenCalledTimes(1);
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
+            expect(mockProcessingState.enqueue).not.toHaveBeenCalled();
+            expect(mockProcessingState.updateKnownState).not.toHaveBeenCalled();
         });
 
         it('should process multiple windows', async () => {
-            vi.mocked(mockWindows.getAll).mockResolvedValue([
-                { id: 1, type: 'normal' },
-                { id: 2, type: 'normal' }
-            ] as chrome.windows.Window[]);
-            vi.mocked(mockProcessingState.isWindowChanged).mockResolvedValue(true);
+            const validTab1 = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const validTab2 = { id: 2, url: 'http://b.com', title: 'B', status: 'complete', groupId: -1, windowId: 2 } as chrome.tabs.Tab;
+            const snapshot1 = new MockWindowSnapshot([validTab1], []) as unknown as WindowSnapshot;
+            const snapshot2 = new MockWindowSnapshot([validTab2], []) as unknown as WindowSnapshot;
+            Object.defineProperty(snapshot1, 'tabCount', { get: () => 1 });
+            Object.defineProperty(snapshot2, 'tabCount', { get: () => 1 });
+
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([
+                [1, snapshot1],
+                [2, snapshot2]
+            ]));
+            vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
 
             tabManager.triggerRecalculation('Test Multiple Windows');
             await vi.advanceTimersByTimeAsync(1600);
 
-            expect(mockProcessingState.add).toHaveBeenCalledWith(1, false);
-            expect(mockProcessingState.add).toHaveBeenCalledWith(2, false);
+            expect(mockProcessingState.enqueue).toHaveBeenCalledWith(1, snapshot1, false);
+            expect(mockProcessingState.enqueue).toHaveBeenCalledWith(2, snapshot2, false);
         });
     });
 });

@@ -4,7 +4,7 @@ import { StateService } from './state';
 /**
  * Encapsulates the processing status of a single window.
  */
-class WindowState {
+export class WindowState {
     constructor(
         public readonly id: number,
         public inputSnapshot: WindowSnapshot
@@ -69,31 +69,18 @@ export class ProcessingState {
     }
 
     /**
-     * Checks if the window state has changed since it was last successfully processed.
-     * Fetches current state internally using the centralized snapshot function.
-     * Always compares against the persisted state in StateService.
-     */
-    async isWindowChanged(windowId: number): Promise<boolean> {
-        const currentSnapshot = await WindowSnapshot.fetch(windowId);
-
-        // Always compare against the last persisted snapshot to decide if we need to process
-        const lastPersistent = await StateService.getWindowSnapshot(windowId);
-        const changed = !currentSnapshot.equals(lastPersistent);
-
-        if (changed) {
-            console.log(`[ProcessingState] Window ${windowId} changed:`);
-            console.log(`  Previous: ${lastPersistent ?? '(none)'}`);
-            console.log(`  Current:  ${currentSnapshot}`);
-        }
-        return changed;
-    }
-
-    /**
      * Marks a window processing as complete and clean.
-     * Persists the snapshot that was captured at enqueue time.
+     * Persists the snapshot that was CAPTURED at enqueue time (or updated via re-queue).
+     * This is the "Checkpoint": We only save to storage after we assume success.
      */
     async completeWindow(windowId: number) {
         console.log(`[ProcessingState] Window ${windowId} completed`);
+
+        // Retrieve the state before deleting it to persist the snapshot
+        const state = this.windowStates.get(windowId);
+        if (state) {
+            await this.updateKnownState(windowId, state.inputSnapshot);
+        }
 
         this.activeWindows.delete(windowId);
 
@@ -116,22 +103,33 @@ export class ProcessingState {
     }
 
     /**
-     * Add a window for processing. If it already exists, move it to the front (Priority).
-     * Captures the snapshot at enqueue time to ensure consistency.
-     * Uses centralized fetchWindowSnapshotData to ensure consistent schema.
+     * Enqueue a window for processing using a provided snapshot.
+     * If it already exists, move it to the front (Priority).
+     * 
+     * IMPROVEMENT: Does NOT persist to storage immediately.
+     * Checks in-memory queue to prevent duplicate work for the same fingerprint.
      */
-    async add(windowId: number, highPriority: boolean = true): Promise<boolean> {
-        const snapshot = await WindowSnapshot.fetch(windowId);
-        const existingIndex = this.windowQueue.indexOf(windowId);
+    async enqueue(windowId: number, snapshot: WindowSnapshot, highPriority: boolean = true): Promise<boolean> {
+        const existingState = this.windowStates.get(windowId);
 
-        if (!this.windowStates.has(windowId)) {
+        if (existingState) {
+            // DUPLICATE WORK CHECK:
+            // If we are already tracking this window, and the snapshot fingerprint hasn't changed,
+            // then we should IGNORE this request. We are already on it.
+            if (existingState.inputSnapshot.equals(snapshot)) {
+                console.log(`[ProcessingState] Skipping enqueue for Window ${windowId}: Already queued/active with same fingerprint.`);
+                return false;
+            }
+
+            // Fingerprint changed! Update the efficient in-memory state
+            existingState.update(snapshot);
+        } else {
+            // New entry
             const state = new WindowState(windowId, snapshot);
             this.windowStates.set(windowId, state);
-        } else {
-            // Update snapshot if re-queued (state already exists)
-            const state = this.windowStates.get(windowId)!;
-            state.update(snapshot);
         }
+
+        const existingIndex = this.windowQueue.indexOf(windowId);
 
         // If window is currently active, notify listeners that it was re-queued (new data available)
         if (this.activeWindows.has(windowId)) {
@@ -139,10 +137,6 @@ export class ProcessingState {
                 this.onWindowRequeued(windowId);
             }
         }
-
-        // Persist snapshot immediately to prevent false "window changed" detections
-        // during queue waits (e.g., when other windows are processing)
-        await StateService.updateWindowSnapshot(windowId, snapshot);
 
         if (existingIndex !== -1) {
             // If already queued, only move to front if high priority
@@ -162,6 +156,14 @@ export class ProcessingState {
 
         this.updateStatus();
         return true;
+    }
+
+    /**
+     * Updates the known state of a window (persistence) without adding it to the processing queue.
+     * Useful for marking a window as "seen" or "clean" when no processing is needed.
+     */
+    async updateKnownState(windowId: number, snapshot: WindowSnapshot): Promise<void> {
+        await StateService.updateWindowSnapshot(windowId, snapshot);
     }
 
     /**
@@ -197,6 +199,13 @@ export class ProcessingState {
         if (this.activeWindows.has(windowId)) {
             this.activeWindows.delete(windowId);
             changed = true;
+        }
+
+        // Also remove the state object so has() returns false
+        if (this.windowStates.has(windowId)) {
+            this.windowStates.delete(windowId);
+            // If it was in windowStates but not queue/active, changed might not be true yet?
+            // Usually it is at least in one of them if in windowStates.
         }
 
         if (changed) {
