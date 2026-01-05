@@ -8,13 +8,23 @@ export const useFeatureSettings = () => {
         [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
     });
 
-    // Load persisted selection
+    // Load persisted selection and subscribe to changes
     useEffect(() => {
+        // Initial load
         SettingsStorage.get().then(settings => {
             if (settings.features) {
                 setFeatures(settings.features);
             }
         });
+
+        // Subscribe to changes
+        const unsubscribe = SettingsStorage.subscribe((changes) => {
+            if (changes.features && changes.features.newValue) {
+                setFeatures(changes.features.newValue as Record<FeatureId, FeatureSettings>);
+            }
+        });
+
+        return () => unsubscribe();
     }, []);
 
     // Persist selection changes
