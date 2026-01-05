@@ -58,163 +58,38 @@ describe('shared utilities', () => {
     });
 
     describe('constructSystemPrompt', () => {
-        it('should match the golden prompt structure', () => {
+        it('should return CLOUD prompt by default', () => {
             const prompt = constructSystemPrompt();
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
 
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
+            // Should contain Cloud role
+            expect(prompt).toContain('Cognitive Architect');
+            // Should contain CoT instructions
+            expect(prompt).toContain('Chain-of-Thought');
+            // Should contain schema with reasoning
+            expect(prompt).toContain('"reasoning": "Brief summary of your grouping logic"');
+        });
 
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
-- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
+        it('should return LOCAL prompt when strategy is local', () => {
+            const prompt = constructSystemPrompt("", 'local');
 
-OUTPUT FORMAT:
-- Output ONLY a valid JSON array of objects.
-- Each object must have "tabId" (number) and "groupName" (string).
+            // Should contain Local role
+            expect(prompt).toContain('The Structuralist');
+            // Should contain CoD instructions
+            expect(prompt).toContain('Chain-of-Draft');
+            // Should contain Draft schema
+            expect(prompt).toContain('Draft: [Topic 1, Topic 2, ...]');
+            expect(prompt).toContain('####');
+        });
 
-Example:
-[
-  {"tabId": 101, "groupName": "Group A"},
-  {"tabId": 102, "groupName": "Group A"},
-  {"tabId": 103, "groupName": "Group B"}
-]
-
-IMPORTANT:
-- Return exactly ONE object for EVERY tab ID in the input.
-- Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.`;
-            expect(prompt).toBe(expected);
+        it('should return CLOUD prompt when strategy is cloud', () => {
+            const prompt = constructSystemPrompt("", 'cloud');
+            expect(prompt).toContain('Cognitive Architect');
         });
 
         it('should include custom rules if provided', () => {
-            const prompt = constructSystemPrompt('Custom Rule 1');
+            const prompt = constructSystemPrompt('Custom Rule 1', 'cloud');
             expect(prompt).toContain('Additional Rules:');
             expect(prompt).toContain('Custom Rule 1');
-        });
-    });
-
-    describe('constructSystemPrompt (CoT)', () => {
-        it('should match the golden prompt structure for readability', () => {
-            const prompt = constructSystemPrompt("", true);
-
-            // Golden test - ensure prompt structure stays consistent
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
-
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
-
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
-- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
-
-You MUST output a JSON list of assignments.
-
-Step 1: Briefly annotate and expand on each tab (a few words per tab).
-Step 2: Identify common themes. List top themes and proposed group names.
-Step 3: Output the JSON array wrapped in a markdown code block.
-
-Format: List of objects with "tabId" and "groupName".
-
-<example>
-INPUT:
-Existing Groups:
-- "🛒Shopping"
-Ungrouped Tabs:
-- [ID: 101] "React hooks guide"
-- [ID: 102] "Amazon.com: headphones"
-- [ID: 103] "TypeScript handbook"
-
-OUTPUT:
-Step 1: Annotations
-- 101: React JavaScript coding (Dev).
-- 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
-
-Step 2: Themes
-- 🛒Shopping (Existing)
-- ⚛️React (New)
-
-Step 3: JSON
-\`\`\`json
-[
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
-]
-\`\`\`
-</example>
-
-IMPORTANT:
-- Return exactly ONE object for EVERY tab ID in the input.
-- Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.`;
-
-            expect(prompt).toBe(expected);
-        });
-
-        it('should match the golden prompt structure with custom rules', () => {
-            const prompt = constructSystemPrompt("Rule 1: Be cool.\nRule 2: Have fun.", true);
-
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
-
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
-
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
-- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
-
-You MUST output a JSON list of assignments.
-
-Step 1: Briefly annotate and expand on each tab (a few words per tab).
-Step 2: Identify common themes. List top themes and proposed group names.
-Step 3: Output the JSON array wrapped in a markdown code block.
-
-Format: List of objects with "tabId" and "groupName".
-
-<example>
-INPUT:
-Existing Groups:
-- "🛒Shopping"
-Ungrouped Tabs:
-- [ID: 101] "React hooks guide"
-- [ID: 102] "Amazon.com: headphones"
-- [ID: 103] "TypeScript handbook"
-
-OUTPUT:
-Step 1: Annotations
-- 101: React JavaScript coding (Dev).
-- 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
-
-Step 2: Themes
-- 🛒Shopping (Existing)
-- ⚛️React (New)
-
-Step 3: JSON
-\`\`\`json
-[
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
-]
-\`\`\`
-</example>
-
-IMPORTANT:
-- Return exactly ONE object for EVERY tab ID in the input.
-- Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.
-
-Additional Rules:
-Rule 1: Be cool.
-Rule 2: Have fun.`;
-
-            expect(prompt).toBe(expected);
         });
     });
 
