@@ -26,7 +26,7 @@ export const TabGroupPreview = ({
                         e.stopPropagation();
                         onRegenerate();
                     }}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-muted hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider text-muted hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
                     title="Regenerate suggestions"
                 >
                     <RotateCcw className="w-3 h-3" />
@@ -36,8 +36,17 @@ export const TabGroupPreview = ({
             {previewGroups.map((group, idx) => (
                 <div
                     key={idx}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedPreviewIndices.has(idx)}
                     onClick={() => onToggleSelection(idx)}
-                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 ${selectedPreviewIndices.has(idx)
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onToggleSelection(idx);
+                        }
+                    }}
+                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-purple-500 ${selectedPreviewIndices.has(idx)
                         ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
                         : 'bg-surface border-border-subtle hover:bg-surface-dim'
                         }`}
