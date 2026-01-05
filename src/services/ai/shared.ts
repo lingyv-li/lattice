@@ -86,83 +86,63 @@ export const cleanAndParseJson = (responseText: string): unknown => {
 // PROMPT COMPONENTS
 // =============================================================================
 
-const ROLE = `You are a Tab Organizer that groups browser tabs into logical categories.`;
+export type PromptStrategy = 'cloud' | 'local';
 
-const TASK = `I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.`;
+// --- CLOUD (SOTA - Gemini 1.5 Flash / 3.0 Flash) ---
+const CLOUD_ROLE = `You are an expert Information Architect and Productivity Assistant (Cognitive Architect).`;
+const CLOUD_TASK = `Organize the user's chaotic browser session into semantically coherent, context-aware groups.`;
+const CLOUD_INSTRUCTIONS = `Reasoning Instructions (Chain-of-Thought):
+- Analyze Intent: Do not rely solely on keywords. Reason about the user's goal. (e.g. "Stack Overflow" + "Pandas" = "Data Science").
+- Handle Ambiguity: If a tab is generic, look at adjacent tabs to infer context.
+- Hierarchy: Create groups that are mutually exclusive and collectively exhaustive.
+- Naming: Generate concise, action-oriented group titles (e.g., "Debugging", "Reading List").
 
-const OBJECTIVES = `Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
-- New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".`;
+Output Format:
+Return ONLY a valid JSON object matching this schema:
+{
+  "reasoning": "Brief summary of your grouping logic",
+  "groups": [
+    { "name": "string (with emoji)", "tab_ids": [integer] }
+  ]
+}`;
 
-// --- Non-CoT (direct JSON output) ---
-const INSTRUCTIONS = `OUTPUT FORMAT:
-- Output ONLY a valid JSON array of objects.
-- Each object must have "tabId" (number) and "groupName" (string).
+// --- LOCAL (Edge - Gemini Nano) ---
+const LOCAL_ROLE = `You are a precise tab categorization engine (The Structuralist). Output strict JSON only.`;
+const LOCAL_TASK = `Group the browser tabs into 3-5 logical categories.`;
+const LOCAL_INSTRUCTIONS = `Strategy (Chain-of-Draft):
+1. Draft: Identify main topics in < 5 words.
+2. Group: Assign tabs to these topics.
+3. Format: Output JSON.
 
-Example:
-[
-  {"tabId": 101, "groupName": "Group A"},
-  {"tabId": 102, "groupName": "Group A"},
-  {"tabId": 103, "groupName": "Group B"}
-]`;
-
-// --- CoT (reasoning + JSON) ---
-const COT_INSTRUCTIONS = `You MUST output a JSON list of assignments.
-
-Step 1: Briefly annotate and expand on each tab (a few words per tab).
-Step 2: Identify common themes. List top themes and proposed group names.
-Step 3: Output the JSON array wrapped in a markdown code block.
-
-Format: List of objects with "tabId" and "groupName".
-
-<example>
-INPUT:
-Existing Groups:
-- "🛒Shopping"
-Ungrouped Tabs:
-- [ID: 101] "React hooks guide"
-- [ID: 102] "Amazon.com: headphones"
-- [ID: 103] "TypeScript handbook"
-
-OUTPUT:
-Step 1: Annotations
-- 101: React JavaScript coding (Dev).
-- 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
-
-Step 2: Themes
-- 🛒Shopping (Existing)
-- ⚛️React (New)
-
-Step 3: JSON
-\`\`\`json
-[
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
-]
-\`\`\`
-</example>`;
+Output Format:
+Draft: [Topic 1, Topic 2, ...]
+####
+{
+  "groups": [
+    { "name": "string (with emoji)", "ids": [integer] }
+  ]
+}`;
 
 const CONSTRAINTS = `IMPORTANT:
-- Return exactly ONE object for EVERY tab ID in the input.
+- Return exactly ONE assignment for EVERY tab ID in the input.
 - Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.`;
+- "name" must be a string. "ids" or "tab_ids" must be numbers.`;
 
 // =============================================================================
 // PROMPT CONSTRUCTION
 // =============================================================================
 
-export const constructSystemPrompt = (customRules: string = "", isCoT: boolean = false): string => {
-    const coreInstructions = isCoT ? COT_INSTRUCTIONS : INSTRUCTIONS;
+export const constructSystemPrompt = (customRules: string = "", strategy: PromptStrategy = 'cloud'): string => {
+    const isCloud = strategy === 'cloud';
+
+    const role = isCloud ? CLOUD_ROLE : LOCAL_ROLE;
+    const task = isCloud ? CLOUD_TASK : LOCAL_TASK;
+    const instructions = isCloud ? CLOUD_INSTRUCTIONS : LOCAL_INSTRUCTIONS;
 
     const parts = [
-        ROLE,
-        TASK,
-        OBJECTIVES,
-        coreInstructions,
+        role,
+        task,
+        instructions,
         CONSTRAINTS
     ];
 
@@ -172,8 +152,6 @@ export const constructSystemPrompt = (customRules: string = "", isCoT: boolean =
 
     return parts.join('\n\n');
 };
-
-
 
 export const mapExistingGroups = (groups: { id: number, title?: string }[]): Map<string, number> => {
     const map = new Map<string, number>();

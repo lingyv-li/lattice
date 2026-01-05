@@ -1,6 +1,8 @@
 import { BaseProvider } from './BaseProvider';
-import { constructSystemPrompt } from './shared';
+import { constructSystemPrompt, cleanAndParseJson, handleAssignment } from './shared';
 import { AIProviderError } from '../../utils/AppError';
+import { GroupingRequest, SuggestionResult } from './types';
+import { TabGroupSuggestion } from '../../types/tabGrouper';
 
 export class LocalProvider extends BaseProvider {
     id = 'local';
@@ -32,7 +34,7 @@ export class LocalProvider extends BaseProvider {
     }
 
     protected getSystemPrompt(customRules?: string): string {
-        return constructSystemPrompt(customRules, true);
+        return constructSystemPrompt(customRules, 'local');
     }
 
     private async getSession(systemPrompt: string, signal?: AbortSignal): Promise<LanguageModel> {
@@ -83,29 +85,126 @@ export class LocalProvider extends BaseProvider {
         const session = await this.getSession(systemPrompt, signal);
 
         const startTime = Date.now();
-        console.log(`[LocalProvider] [${new Date().toISOString()}] Sending single-turn CoT prompt`);
+        console.log(`[LocalProvider] [${new Date().toISOString()}] Sending prompt`);
         try {
 
             const response = await session.prompt(userPrompt, { signal });
 
             const totalDuration = Date.now() - startTime;
-            console.log(`[LocalProvider] CoT complete (took ${totalDuration}ms). Parsing response...`);
+            console.log(`[LocalProvider] Prompt complete (took ${totalDuration}ms).`);
 
-            const parts = response.split('@@START@@');
-            let jsonPart = response;
-            if (parts.length > 1) {
-                console.log(`[LocalProvider] Found JSON marker. Reasoning length: ${parts[0].length} chars.`);
-                jsonPart = parts[1];
-            } else {
-                console.warn(`[LocalProvider] No JSON marker found, attempting to parse full response.`);
-            }
-
-            return jsonPart;
+            // Note: The response might contain "Draft: ..." followed by JSON.
+            // BaseProvider uses cleanAndParseJson which handles this.
+            return response;
         } finally {
             // Always destroy the cloned session after use
             console.log(`[LocalProvider] [${new Date().toISOString()}] Destroying cloned session`);
             session.destroy();
         }
+    }
+
+    // Override generateSuggestions to implement Map-Reduce Batching
+    async generateSuggestions(
+        request: GroupingRequest
+    ): Promise<SuggestionResult> {
+        const { ungroupedTabs, existingGroups, customRules, signal } = request;
+
+        // Batch configuration
+        const BATCH_SIZE = 10;
+
+        const groupNameMap = existingGroups;
+        const suggestions = new Map<string, TabGroupSuggestion>();
+        const errors: Error[] = [];
+        let nextNewGroupId = -1;
+
+        const systemPrompt = this.getSystemPrompt(customRules);
+
+        // Chunk tabs
+        const batches = [];
+        for (let i = 0; i < ungroupedTabs.length; i += BATCH_SIZE) {
+            batches.push(ungroupedTabs.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log(`[LocalProvider] Processing ${ungroupedTabs.length} tabs in ${batches.length} batches (Size: ${BATCH_SIZE})`);
+
+        const currentGroupNames = Array.from(groupNameMap.keys())
+            .filter(name => name.trim().length > 0);
+
+        const existingGroupsText = currentGroupNames.length > 0 ?
+                "Existing Groups:\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') : "";
+
+        // Process batches sequentially to respect single-thread nature and simple concurrency management
+        for (let i = 0; i < batches.length; i++) {
+            const batchTabs = batches[i];
+            console.log(`[LocalProvider] Processing batch ${i + 1}/${batches.length}`);
+
+            const tabList = batchTabs
+                .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${t.url}"`)
+                .join('\n');
+
+            const userPrompt = existingGroupsText + `\nUngrouped Tabs:\n${tabList}`;
+
+            try {
+                const responseText = await this.promptAI(userPrompt, systemPrompt, signal);
+                const parsed = cleanAndParseJson(responseText);
+
+                // Logic duplicated from BaseProvider but adapted for batch context if needed
+                // Currently just reusing the same parsing logic
+                 if (typeof parsed === 'object' && parsed !== null && 'groups' in parsed && Array.isArray((parsed as any).groups)) {
+                    const groups = (parsed as any).groups;
+                    for (const group of groups) {
+                        const groupName = group.name;
+                        const tabIds = group.ids || group.tab_ids;
+
+                        if (Array.isArray(tabIds)) {
+                            for (const tabId of tabIds) {
+                                // Verify tabId exists in the *current batch* (or global, but strict check is good)
+                                if (!batchTabs.find(t => t.id == tabId)) continue;
+
+                                nextNewGroupId = handleAssignment(
+                                    groupName,
+                                    Number(tabId),
+                                    groupNameMap,
+                                    suggestions,
+                                    nextNewGroupId
+                                );
+                            }
+                        }
+                    }
+                } else {
+                   // Fallback for other formats (though Local Prompt is strict)
+                   // We can reuse the BaseProvider logic logic here by just copy-pasting or refactoring
+                   // For now, I will implement the object iteration fallback
+                    if (typeof parsed === 'object' && parsed !== null) {
+                        for (const [groupName, tabIds] of Object.entries(parsed)) {
+                            if (groupName === 'reasoning') continue;
+                            if (Array.isArray(tabIds)) {
+                                for (const tabId of tabIds) {
+                                    if (!batchTabs.find(t => t.id == tabId)) continue;
+                                    nextNewGroupId = handleAssignment(
+                                        groupName,
+                                        Number(tabId),
+                                        groupNameMap,
+                                        suggestions,
+                                        nextNewGroupId
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+            } catch (err) {
+                 const error = err instanceof Error ? err : new Error(String(err));
+                console.error(`[LocalProvider] Batch ${i + 1} failed`, error);
+                errors.push(error);
+            }
+        }
+
+        return {
+            suggestions: Array.from(suggestions.values()),
+            errors
+        };
     }
 
     public static async downloadModel(onProgress: (e: ProgressEvent) => void) {

@@ -56,6 +56,7 @@ export abstract class BaseProvider implements AIProvider {
             const parsed = cleanAndParseJson(responseText);
 
             if (Array.isArray(parsed)) {
+                // Handle legacy array format: [{ tabId, groupName }]
                 for (const assignment of parsed) {
                     const { tabId, groupName } = assignment;
                     // Verify tabId exists in the requested tabs
@@ -70,21 +71,50 @@ export abstract class BaseProvider implements AIProvider {
                     );
                 }
             } else if (typeof parsed === 'object' && parsed !== null) {
-                // Dictionary format: { "Group Name": [1, 2, 3] }
-                for (const [groupName, tabIds] of Object.entries(parsed)) {
-                    if (Array.isArray(tabIds)) {
-                        for (const tabId of tabIds) {
-                            // Verify tabId exists in the requested tabs
-                            // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
-                            if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+                // Handle object formats
 
-                            nextNewGroupId = handleAssignment(
-                                groupName,
-                                Number(tabId),
-                                groupNameMap,
-                                suggestions,
-                                nextNewGroupId
-                            );
+                // 1. New Format: { groups: [{ name: "...", ids: [...] }] }
+                if ('groups' in parsed && Array.isArray((parsed as any).groups)) {
+                    const groups = (parsed as any).groups;
+                    for (const group of groups) {
+                        const groupName = group.name;
+                        // Supports both "ids" (Local) and "tab_ids" (Cloud/Legacy)
+                        const tabIds = group.ids || group.tab_ids;
+
+                        if (Array.isArray(tabIds)) {
+                            for (const tabId of tabIds) {
+                                // Verify tabId exists
+                                if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+
+                                nextNewGroupId = handleAssignment(
+                                    groupName,
+                                    Number(tabId),
+                                    groupNameMap,
+                                    suggestions,
+                                    nextNewGroupId
+                                );
+                            }
+                        }
+                    }
+                }
+                // 2. Legacy Dictionary Format: { "Group Name": [1, 2, 3] }
+                else {
+                    for (const [groupName, tabIds] of Object.entries(parsed)) {
+                        if (groupName === 'reasoning') continue; // Skip metadata
+
+                        if (Array.isArray(tabIds)) {
+                            for (const tabId of tabIds) {
+                                // Verify tabId exists
+                                if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+
+                                nextNewGroupId = handleAssignment(
+                                    groupName,
+                                    Number(tabId),
+                                    groupNameMap,
+                                    suggestions,
+                                    nextNewGroupId
+                                );
+                            }
                         }
                     }
                 }

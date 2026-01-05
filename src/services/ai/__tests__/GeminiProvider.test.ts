@@ -2,17 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiProvider } from '../GeminiProvider';
 import { GroupingRequest } from '../types';
 
-// Mock @google/genai
-const mockGenerateContent = vi.fn();
-const mockList = vi.fn();
+// Mock SettingsStorage
+vi.mock('../../../utils/storage', () => ({
+    SettingsStorage: {
+        getApiKey: vi.fn().mockResolvedValue('fake-api-key')
+    },
+    AIProviderType: {
+        Gemini: 'gemini',
+        Local: 'local'
+    }
+}));
 
-vi.mock('@google/genai', () => {
+// Mock @google/generative-ai
+const mockGenerateContent = vi.fn();
+const mockGetGenerativeModel = vi.fn().mockReturnValue({
+    generateContent: mockGenerateContent
+});
+
+vi.mock('@google/generative-ai', () => {
     return {
-        GoogleGenAI: class {
-            models = {
-                generateContent: mockGenerateContent,
-                list: mockList
-            };
+        GoogleGenerativeAI: class {
+            constructor() {}
+            getGenerativeModel = mockGetGenerativeModel;
         }
     };
 });
@@ -22,36 +33,24 @@ describe('GeminiProvider', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        provider = new GeminiProvider('fake-api-key', 'gemini-pro');
+        provider = new GeminiProvider();
     });
 
     it('should collect error if API key is missing', async () => {
-        const noKeyProvider = new GeminiProvider('', 'gemini-pro');
+        // Mock SettingsStorage to return null
+        const { SettingsStorage } = await import('../../../utils/storage');
+        vi.mocked(SettingsStorage.getApiKey).mockResolvedValueOnce(null);
+
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
         };
 
-        const result = await noKeyProvider.generateSuggestions(request);
+        const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0].message).toContain('API Key is missing');
-    });
-
-    it('should collect error if model is missing', async () => {
-        const noModelProvider = new GeminiProvider('fake-key', '');
-        const request: GroupingRequest = {
-            existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
-        };
-
-        const result = await noModelProvider.generateSuggestions(request);
-
-        expect(result.suggestions).toEqual([]);
-        expect(result.errors).toHaveLength(1);
-        expect(result.errors[0].name).toBe('ConfigurationError');
-        expect(result.errors[0].message).toBe('Please select an AI model in Settings.');
+        expect(result.errors[0].message).toContain('No Gemini API key found');
     });
 
     it('should correctly handle assignments and group mapping', async () => {
@@ -65,12 +64,18 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify({
-                "Shopping": [1, 2]
-            })
+            response: {
+                text: () => JSON.stringify({
+                    "groups": [{ "name": "Shopping", "tab_ids": [1, 2] }]
+                })
+            }
         });
 
         const result = await provider.generateSuggestions(request);
+
+        if (result.errors.length > 0) {
+            console.error("Errors:", result.errors);
+        }
 
         expect(result.suggestions).toHaveLength(1);
         expect(result.suggestions[0].groupName).toBe('Shopping');
@@ -90,9 +95,11 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify([
-                { tabId: 1, groupName: 'Work' }
-            ])
+            response: {
+                text: () => JSON.stringify({
+                   "groups": [{ "name": "Work", "tab_ids": [1] }]
+                })
+            }
         });
 
         const result = await provider.generateSuggestions(request);
@@ -107,54 +114,29 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: "This is not JSON"
+            response: {
+                text: () => "This is not JSON"
+            }
         });
 
         const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
-        // Malformed JSON doesn't throw, it's handled gracefully
         expect(result.errors).toHaveLength(0);
     });
 
-    it('should collect error on empty response text', async () => {
-        const request: GroupingRequest = {
+    it('should propagate prompt errors', async () => {
+         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
         };
 
-        mockGenerateContent.mockResolvedValue({}); // No text
+        mockGenerateContent.mockRejectedValue(new Error("API Error"));
 
         const result = await provider.generateSuggestions(request);
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
-        expect(result.errors[0].message).toContain('No response text');
-    });
-    it('should handle Gemma models differently (no system instruction in config)', async () => {
-        const gemmaProvider = new GeminiProvider('fake-key', 'gemma-2-9b-it');
-        const request: GroupingRequest = {
-            existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
-        };
-
-        mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify([])
-        });
-
-        await gemmaProvider.generateSuggestions(request);
-
-        const callArgs = mockGenerateContent.mock.calls[0][0];
-
-        // Config should be empty for Gemma
-        expect(callArgs.config).toEqual({});
-
-        // System prompt should be injected into user prompt
-        const promptText = callArgs.contents[0].parts[0].text;
-        expect(promptText).toContain('System Instructions:');
-        expect(promptText).toContain('Output ONLY valid JSON'); // Adjusted casing to match implementation if needed, checking insensitive? No, implementation has "Output ONLY valid JSON." vs "IMPORTANT: Output ONLY valid JSON."
-        // Implementation: `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
-        expect(promptText).toContain('IMPORTANT: Output ONLY valid JSON');
+        expect(result.errors[0].message).toBe("API Error");
     });
 });
-
