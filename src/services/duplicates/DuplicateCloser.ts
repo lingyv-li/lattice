@@ -1,4 +1,6 @@
 import { findDuplicates, getTabsToRemove } from './utils';
+import { SettingsStorage } from '../../utils/storage';
+import { FeatureId } from '../../types/features';
 
 export interface CloseResult {
     closedCount: number;
@@ -10,6 +12,14 @@ export interface CloseResult {
  * Can be used from both background script (autopilot) and sidepanel UI.
  */
 export class DuplicateCloser {
+    /**
+     * Checks if the duplicate cleaner autopilot is enabled.
+     */
+    static async isAutopilotEnabled(): Promise<boolean> {
+        const settings = await SettingsStorage.get();
+        return settings.features?.[FeatureId.DuplicateCleaner]?.autopilot ?? false;
+    }
+
     /**
      * Closes duplicate tabs in the specified window.
      * @param windowId - The window to check for duplicates. If undefined, uses current window.
