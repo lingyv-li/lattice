@@ -2,12 +2,17 @@ import { TabGroupSuggestion } from '../../types/tabGrouper';
 import JSON5 from 'json5';
 
 export const handleAssignment = (
-    groupName: string,
+    groupName: string | null,
     tabId: number,
     groupMap: Map<string, number>,
     suggestions: Map<string, TabGroupSuggestion>,
     currentNextId: number
 ): number => {
+    // 0. Explicitly check for null (intent to NOT group)
+    if (groupName === null) {
+        return currentNextId;
+    }
+
     let targetGroupId: number;
     let updatedNextId = currentNextId;
 
@@ -16,7 +21,7 @@ export const handleAssignment = (
 
     // 2. Validate
     if (normalizedName.length === 0) {
-        // Fallback for empty group name
+        // Fallback for empty group name (only if it was an empty string, not null)
         targetGroupId = updatedNextId--;
     } else {
         // 3. Direct lookup for existing groups
@@ -93,18 +98,20 @@ const TASK = `I will provide "Existing Groups" and "Ungrouped Tabs". Assign each
 const OBJECTIVES = `Objectives:
 - COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
 - Do NOT create a new group if an existing one is suitable.
+- If a tab does not fit ANY group (existing or new), set "groupName" to null.
 - Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".`;
 
 // --- Non-CoT (direct JSON output) ---
 const INSTRUCTIONS = `OUTPUT FORMAT:
 - Output ONLY a valid JSON array of objects.
-- Each object must have "tabId" (number) and "groupName" (string).
+- Each object must have "tabId" (number) and "groupName" (string or null).
+- Use null for "groupName" if the tab should not be grouped.
 
 Example:
 [
   {"tabId": 101, "groupName": "Group A"},
-  {"tabId": 102, "groupName": "Group A"},
+  {"tabId": 102, "groupName": null},
   {"tabId": 103, "groupName": "Group B"}
 ]`;
 
@@ -124,13 +131,13 @@ Existing Groups:
 Ungrouped Tabs:
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
-- [ID: 103] "TypeScript handbook"
+- [ID: 103] "Localhost:3000"
 
 OUTPUT:
 Step 1: Annotations
 - 101: React JavaScript coding (Dev).
 - 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
+- 103: Local dev server (Standalone).
 
 Step 2: Themes
 - 🛒Shopping (Existing)
@@ -141,7 +148,7 @@ Step 3: JSON
 [
   {"tabId": 101, "groupName": "⚛️React"},
   {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
+  {"tabId": 103, "groupName": null}
 ]
 \`\`\`
 </example>`;
@@ -149,7 +156,7 @@ Step 3: JSON
 const CONSTRAINTS = `IMPORTANT:
 - Return exactly ONE object for EVERY tab ID in the input.
 - Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.`;
+- "groupName" must be a string or null. "tabId" must be a number.`;
 
 // =============================================================================
 // PROMPT CONSTRUCTION
