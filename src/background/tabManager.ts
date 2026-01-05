@@ -12,7 +12,30 @@ export class TabManager {
     constructor(
         private processingState: ProcessingState,
         private queueProcessor: QueueProcessor
-    ) { }
+    ) {
+        // Listen to group changes as they are fatal to current AI context
+
+        chrome.tabGroups.onUpdated.addListener(() => this.triggerRecalculation('Group Updated'));
+        chrome.tabGroups.onCreated.addListener(() => this.triggerRecalculation('Group Created'));
+        chrome.tabGroups.onRemoved.addListener(() => this.triggerRecalculation('Group Removed'));
+
+        // Tab creation/removal also needs to trigger recalc (though potentially benign)
+
+        chrome.tabs.onCreated.addListener(async (tab) => {
+            // If tab is not complete, triggerRecalculation will handle it via debounce.
+            if (tab.status !== 'loading') {
+                this.triggerRecalculation(`Tab Created ${tab.id}`);
+            }
+        });
+        chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
+            await this.handleTabUpdated(tabId, changeInfo);
+        });
+        chrome.tabs.onRemoved.addListener(async (tabId) => {
+            await StateService.removeSuggestion(tabId);
+            processingState.remove(tabId);
+            this.triggerRecalculation('Tab Removed')
+        });
+    }
 
     /**
      * Trigger a check for new/ungrouped tabs

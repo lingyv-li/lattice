@@ -88,10 +88,10 @@ export const SettingsStorage = {
 
         (Object.keys(settings) as Array<keyof AppSettings>).forEach((key) => {
             if (isLocalKey(key)) {
-                // @ts-ignore
+                // @ts-expect-error - key mapping is loose
                 localUpdates[key] = settings[key];
             } else {
-                // @ts-ignore
+                // @ts-expect-error - key mapping is loose
                 syncUpdates[key as keyof SyncedSettings] = settings[key];
             }
         });

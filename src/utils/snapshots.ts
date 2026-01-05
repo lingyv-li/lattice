@@ -7,23 +7,25 @@ import { isGroupableTab } from './tabFilter';
 export class WindowSnapshot {
     public readonly fingerprint: string;
 
+    private readonly allTabs: chrome.tabs.Tab[];
     protected readonly tabs: chrome.tabs.Tab[];
     protected readonly groups: chrome.tabGroups.TabGroup[];
 
-    protected constructor(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
-        this.tabs = tabs.filter((t: chrome.tabs.Tab) => isGroupableTab(t));
+    protected constructor(allTabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
+        this.allTabs = allTabs;
+        // Keep "tabs" as only the ungrouped tabs to preserve existing behavior
+        this.tabs = allTabs.filter((t: chrome.tabs.Tab) => isGroupableTab(t));
         this.groups = groups;
         this.fingerprint = WindowSnapshot.generateFingerprint(this.tabs, this.groups);
     }
 
     /**
      * Fetches the current snapshot data for a window.
-     * Queries for UNGROUPED tabs only (to match the persisted schema).
-     * This is the single source of truth for all snapshot comparisons.
+     * Queries for ALL tabs to support smart staleness checks.
      */
     public static async fetch(windowId: number): Promise<WindowSnapshot> {
         const [tabs, groups] = await Promise.all([
-            chrome.tabs.query({ windowId, groupId: chrome.tabs.TAB_ID_NONE }),
+            chrome.tabs.query({ windowId }),
             chrome.tabGroups.query({ windowId })
         ]);
 
@@ -37,6 +39,42 @@ export class WindowSnapshot {
         if (!other) return false;
         const otherFingerprint = typeof other === 'string' ? other : other.fingerprint;
         return this.fingerprint === otherFingerprint;
+    }
+
+    /**
+     * Determines if a change in the new snapshot is "Fatal" for the given relevant tabs.
+     * Fatal changes = Group structure changed OR relevant tabs were manually grouped.
+     * Benign changes = New tabs opened, irrelevant tabs moved, or relevant tabs closed.
+     */
+    isFatalChange(newSnapshot: WindowSnapshot, relevantTabIds: number[]): boolean {
+        // 1. Group Structure Change (Strict equality)
+        // If groups were renamed, removed, or added -> Fatal (Context changed)
+        const currentGroupFingerprint = this.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
+        const newGroupFingerprint = newSnapshot.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
+
+        if (currentGroupFingerprint !== newGroupFingerprint) {
+            console.log(`[WindowSnapshot] Fatal: Group structure changed.`);
+            return true;
+        }
+
+        // 2. User Intervention Check
+        // Check if any of the "relevant tabs" (tabs we are about to group) have been moved
+        // to a group in the new snapshot.
+        for (const tabId of relevantTabIds) {
+            const newTab = newSnapshot.allTabs.find(t => t.id === tabId);
+
+            // If tab is missing, it was closed. This is NOT fatal (we just skip it later).
+            if (!newTab) continue;
+
+            // If tab exists but is now grouped (and wasn't before, implied by being in relevantTabIds),
+            // then the user manually grouped it. This IS Fatal.
+            if (newTab.groupId !== chrome.tabs.TAB_ID_NONE) {
+                console.log(`[WindowSnapshot] Fatal: Tab ${tabId} was manually grouped (gid: ${newTab.groupId}).`);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     toString(): string {
@@ -74,7 +112,7 @@ export class WindowSnapshot {
     }
 
     /**
-     * Checks if a tab with the given ID exists in this snapshot.
+     * Checks if a tab with the given ID exists in this snapshot (Ungrouped only).
      */
     hasTab(tabId: number): boolean {
         return this.tabs.some(t => t.id === tabId);
@@ -85,7 +123,7 @@ export class WindowSnapshot {
      * Returns undefined if the tab is not found.
      */
     getTabData(tabId: number): chrome.tabs.Tab | undefined {
-        return this.tabs.find(t => t.id === tabId);
+        return this.allTabs.find(t => t.id === tabId);
     }
 
     /**

@@ -81,28 +81,6 @@ const tabManager = new TabManager(processingState, queueProcessor);
 
 // ===== LISTENERS =====
 
-// 2. Tab Events
-chrome.tabs.onCreated.addListener(async (tab) => {
-    // If tab is not complete, triggerRecalculation will handle it via debounce.
-    if (tab.status !== 'loading') {
-        tabManager.triggerRecalculation(`Tab Created ${tab.id}`);
-    }
-});
-
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-    await tabManager.handleTabUpdated(tabId, changeInfo);
-});
-
-chrome.tabs.onRemoved.addListener(async (tabId) => {
-    await StateService.removeSuggestion(tabId);
-    processingState.remove(tabId);
-});
-
-// 3. Group Events
-chrome.tabGroups.onCreated.addListener((g) => tabManager.triggerRecalculation(`Group Created ${g.id}`));
-chrome.tabGroups.onRemoved.addListener((g) => tabManager.triggerRecalculation(`Group Removed ${g.id}`));
-chrome.tabGroups.onUpdated.addListener((g) => tabManager.triggerRecalculation(`Group Updated ${g.id}`));
-
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async (_activeInfo) => {
     await performBadgeUpdate();

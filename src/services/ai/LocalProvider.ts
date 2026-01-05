@@ -1,6 +1,6 @@
 import { BaseProvider } from './BaseProvider';
 import { constructSystemPrompt } from './shared';
-import { AIProviderError } from '../../utils/AppError';
+import { AIProviderError, AbortError } from '../../utils/AppError';
 
 export class LocalProvider extends BaseProvider {
     id = 'local';
@@ -101,6 +101,12 @@ export class LocalProvider extends BaseProvider {
             }
 
             return jsonPart;
+        } catch (error: unknown) {
+            // Rethrow DOMException AbortError as our typed AbortError
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                throw new AbortError('Request aborted', error);
+            }
+            throw error;
         } finally {
             // Always destroy the cloned session after use
             console.log(`[LocalProvider] [${new Date().toISOString()}] Destroying cloned session`);

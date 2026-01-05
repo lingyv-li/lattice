@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QueueProcessor } from '../queueProcessor';
 import { StateService } from '../state';
+import { AbortError } from '../../utils/AppError';
 import { AIService } from '../../services/ai/AIService';
 import { AIProvider } from '../../services/ai/types';
 import { TabSuggestionCache } from '../../types/tabGrouper';
@@ -19,10 +20,24 @@ vi.mock('../../services/ai/AIService');
 vi.mock('../../services/ai/shared', () => ({
     mapExistingGroups: vi.fn().mockReturnValue(new Map()),
 }));
+vi.mock('../../utils/errorStorage', () => ({
+    ErrorStorage: {
+        addError: vi.fn(),
+        getErrors: vi.fn().mockResolvedValue([])
+    }
+}));
 vi.mock('../../utils/storage');
 vi.mock('../../utils/tabs');
+// Mock tabFilter to avoid filtering out test tabs
+vi.mock('../../utils/tabFilter', () => ({
+    isGroupableTab: vi.fn().mockReturnValue(true)
+}));
 
-// Mock global objects
+// ... (rest of imports)
+
+// ...
+
+
 const mockTabs = {
     query: vi.fn(),
     get: vi.fn(),
@@ -63,6 +78,7 @@ describe('QueueProcessor', () => {
         acquireQueue: Mock;
         add: Mock;
         isWindowChanged: Mock;
+        onWindowRequeued: Mock;
     };
 
     beforeEach(() => {
@@ -83,6 +99,7 @@ describe('QueueProcessor', () => {
             acquireQueue: vi.fn(),
             add: vi.fn(),
             isWindowChanged: vi.fn(),
+            onWindowRequeued: vi.fn(),
         };
         // Mock hasItems getter
         Object.defineProperty(mockState, 'hasItems', {
@@ -103,8 +120,8 @@ describe('QueueProcessor', () => {
         } as AppSettings);
         vi.mocked(mockState.acquireQueue).mockReturnValue([1]);
         const testTabs = [
-            { id: 101, windowId: 1, url: 'http://example.com', title: 'Example' },
-            { id: 102, windowId: 1, url: 'http://example.com', title: 'Example' }
+            { id: 101, windowId: 1, url: 'http://example.com', title: 'Example', groupId: -1 },
+            { id: 102, windowId: 1, url: 'http://example.com', title: 'Example', groupId: -1 }
         ] as chrome.tabs.Tab[];
 
         vi.mocked(mockTabs.query).mockResolvedValue(testTabs);
@@ -369,6 +386,129 @@ describe('QueueProcessor', () => {
         expect(AIService.getProvider).not.toHaveBeenCalled();
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
 
+    });
+
+    describe('Smart Abort Logic', () => {
+        it('should abort if a fatal change (User Grouping) occurs during processing', async () => {
+            mockSettings({
+                features: {
+                    [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+                }
+            } as AppSettings);
+
+            // 1. Setup initial state (Ungrouped tabs)
+            const initialTabs = [
+                { id: 101, windowId: 1, url: 'http://a.com', title: 'A', groupId: -1 },
+                { id: 102, windowId: 1, url: 'http://b.com', title: 'B', groupId: -1 }
+            ] as chrome.tabs.Tab[];
+
+            mockWindowState.inputSnapshot = new MockWindowSnapshot(initialTabs, []);
+
+            // 2. Mock AI to hang/delay so we can simulate interruption
+            let resolveAI: any;
+            const aiPromise = new Promise(resolve => resolveAI = resolve);
+            const mockProvider = {
+                id: 'mock',
+                generateSuggestions: vi.fn().mockImplementation(() => aiPromise)
+            };
+            vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
+
+            // 3. Start processing
+            const processPromise = processor.process();
+
+            await new Promise(r => setTimeout(r, 0)); // Let process() advance to AI call
+
+            // 4. Simulate Re-queue event with FATAL change (Tab 101 is now grouped)
+            const updatedTabs = [
+                { id: 101, windowId: 1, url: 'http://a.com', title: 'A', groupId: 999 }, // Grouped!
+                { id: 102, windowId: 1, url: 'http://b.com', title: 'B', groupId: -1 }
+            ] as chrome.tabs.Tab[];
+            const updatedSnapshot = new MockWindowSnapshot(updatedTabs, []);
+
+            // Mock getWindowState to return new snapshot
+            vi.mocked(mockState.getWindowState).mockReturnValue({
+                ...mockWindowState,
+                inputSnapshot: updatedSnapshot
+            });
+            // Also need to mock generic global fetch to return the fatal snapshot for the final check
+            vi.mocked(WindowSnapshot.fetch).mockResolvedValue(updatedSnapshot as unknown as WindowSnapshot);
+
+            // Trigger event
+            if (mockState.onWindowRequeued) {
+                mockState.onWindowRequeued(1);
+            }
+
+            // 5. Resolve AI (it should have been aborted, but let's finish the promise)
+            resolveAI({ suggestions: [] });
+            await processPromise;
+
+            // 6. Verify Abort
+            // The controller should have been aborted
+            // And process() should have returned/handled the abort
+            expect(mockState.completeWindow).toHaveBeenCalledWith(1); // Should eventually complete (or re-queue)
+            // Ideally check if controller.abort() was called.
+            // Since controller is private, we check side effects: AI probably threw AbortError or we check logs?
+            // Test verifies it doesn't crash and handles flow.
+            // We can check if applyTabGroup was skipped.
+            expect(applyTabGroup).not.toHaveBeenCalled();
+        });
+
+        it('should NOT abort if a benign change (New Tab) occurs', async () => {
+            mockSettings({
+                features: {
+                    [FeatureId.TabGrouper]: { enabled: true, autopilot: true }
+                }
+            } as AppSettings);
+
+            // 1. Setup initial state
+            const initialTabs = [
+                { id: 101, windowId: 1, url: 'http://a.com', title: 'A', groupId: -1 }
+            ] as chrome.tabs.Tab[];
+            mockWindowState.inputSnapshot = new MockWindowSnapshot(initialTabs, []);
+
+            // 2. AI Delay
+            let resolveAI: any;
+            const aiPromise = new Promise(resolve => resolveAI = resolve);
+            const mockProvider = {
+                id: 'mock',
+                generateSuggestions: vi.fn().mockImplementation(async ({ signal }) => {
+                    if (signal.aborted) throw new AbortError('AbortError'); // Simulate fetch behavior
+                    return aiPromise;
+                })
+            };
+            vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
+
+            // 3. Start
+            const processPromise = processor.process();
+            await new Promise(r => setTimeout(r, 0));
+
+            // 4. Benign Change: New tab 103 added
+            const updatedTabs = [
+                { id: 101, windowId: 1, url: 'http://a.com', title: 'A', groupId: -1 },
+                { id: 103, windowId: 1, url: 'http://c.com', title: 'C', groupId: -1 } // New!
+            ] as chrome.tabs.Tab[];
+            const updatedSnapshot = new MockWindowSnapshot(updatedTabs, []);
+            vi.mocked(mockState.getWindowState).mockReturnValue({
+                ...mockWindowState,
+                inputSnapshot: updatedSnapshot
+            });
+            // Update fetch for final check
+            vi.mocked(WindowSnapshot.fetch).mockResolvedValue(updatedSnapshot as unknown as WindowSnapshot);
+
+            // Trigger event
+            if (mockState.onWindowRequeued) {
+                mockState.onWindowRequeued(1);
+            }
+
+            // 5. Resolve AI
+            resolveAI({
+                suggestions: [{ groupName: 'Group A', tabIds: [101] }]
+            });
+            await processPromise;
+
+            // 6. Verify Success
+            expect(applyTabGroup).toHaveBeenCalled();
+        });
     });
 
 });

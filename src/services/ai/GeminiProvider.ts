@@ -1,6 +1,6 @@
 import { BaseProvider } from './BaseProvider';
 import { GoogleGenAI } from '@google/genai';
-import { AIProviderError, ConfigurationError } from '../../utils/AppError';
+import { AIProviderError, ConfigurationError, AbortError } from '../../utils/AppError';
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
@@ -54,10 +54,10 @@ export class GeminiProvider extends BaseProvider {
                 requestPromise,
                 new Promise<never>((_, reject) => {
                     if (signal.aborted) {
-                        reject(new DOMException('Request aborted', 'AbortError'));
+                        reject(new AbortError('Request aborted'));
                     }
                     signal.addEventListener('abort', () => {
-                        reject(new DOMException('Request aborted', 'AbortError'));
+                        reject(new AbortError('Request aborted'));
                     });
                 })
             ])

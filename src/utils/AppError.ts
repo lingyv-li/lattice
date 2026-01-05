@@ -20,8 +20,15 @@ export class NetworkError extends AppError {
     }
 }
 
+
 export class ConfigurationError extends AppError {
     constructor(message: string) {
         super(message);
+    }
+}
+
+export class AbortError extends AppError {
+    constructor(message: string = 'Operation aborted', originalError?: unknown) {
+        super(message, originalError);
     }
 }

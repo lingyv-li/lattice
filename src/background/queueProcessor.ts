@@ -4,16 +4,50 @@ import { AIService } from '../services/ai/AIService';
 import { SettingsStorage, AppSettings, AIProviderType } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup } from '../utils/tabs';
+import { AbortError } from '../utils/AppError';
 import { getUserFriendlyError } from '../utils/errors';
 import { FeatureId } from '../types/features';
 import { GroupIdManager } from './GroupIdManager';
+import { WindowSnapshot } from '../utils/snapshots';
 
 const BATCH_SIZE = 10;
 
 export class QueueProcessor {
     private windowAbortControllers = new Map<number, AbortController>();
 
-    constructor(private state: ProcessingState) { }
+    // Track context of currently processing windows for smart abort checks
+    private processingContext = new Map<number, {
+        batchTabIds: number[],
+        snapshot: WindowSnapshot,
+        controller: AbortController
+    }>();
+
+    constructor(private state: ProcessingState) {
+        // Subscribe to re-queue events to check for fatal changes
+        this.state.onWindowRequeued = (windowId) => this.checkFatalChange(windowId);
+    }
+
+    private checkFatalChange(windowId: number) {
+        const context = this.processingContext.get(windowId);
+        if (!context) return;
+
+        console.log(`[QueueProcessor] Window ${windowId} re-queued while active. Checking for fatal changes...`);
+
+        // Get the NEW snapshot (already updated in state by the add() call)
+        const windowState = this.state.getWindowState(windowId);
+        if (!windowState) return;
+
+        const newSnapshot = windowState.inputSnapshot;
+
+        // Check if the change is fatal for the CURRENT batch
+        if (context.snapshot.isFatalChange(newSnapshot, context.batchTabIds)) {
+            console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected for window ${windowId}. Aborting AI request.`);
+            context.controller.abort();
+            this.processingContext.delete(windowId);
+        } else {
+            console.log(`[QueueProcessor] Change in window ${windowId} is benign (non-fatal). Continuing AI request.`);
+        }
+    }
 
     async process(): Promise<void> {
         console.log(`[QueueProcessor] [${new Date().toISOString()}] process() called (Items: ${this.state.hasItems})`);
@@ -109,14 +143,9 @@ export class QueueProcessor {
         const windowState = this.state.getWindowState(windowId);
 
         if (!windowState || !(await windowState.verifySnapshot())) {
+            // Initial check still useful, but less critical now with smart aborts.
+            // We'll trust verifySnapshot for the initial queue pick-up.
             console.log(`[QueueProcessor] [${new Date().toISOString()}] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
-            // Abort any in-progress AI request
-            const controller = this.windowAbortControllers.get(windowId);
-            if (controller) {
-                console.log(`[QueueProcessor] [${new Date().toISOString()}] Aborting AI request for window ${windowId}`);
-                controller.abort();
-                this.windowAbortControllers.delete(windowId);
-            }
             await this.state.add(windowId, true);
             return { aborted: true };
         }
@@ -131,6 +160,13 @@ export class QueueProcessor {
             const controller = new AbortController();
             this.windowAbortControllers.set(windowId, controller);
 
+            // Register processing context for smart aborts
+            this.processingContext.set(windowId, {
+                batchTabIds: batchTabs.map(t => t.id!).filter(id => id !== undefined),
+                snapshot: windowState.inputSnapshot,
+                controller
+            });
+
             const promptInput = windowState.inputSnapshot.getPromptForBatch(
                 batchTabs,
                 groupIdManager.getGroupMap(),
@@ -142,6 +178,9 @@ export class QueueProcessor {
                 signal: controller.signal
             });
 
+            // Clear context on success
+            this.processingContext.delete(windowId);
+
             const batchDuration = Date.now() - batchStartTime;
             console.log(`[QueueProcessor] [${new Date().toISOString()}] AI results for window ${windowId}:`, results.suggestions.map(s => s.groupName), `(took ${batchDuration}ms)`);
 
@@ -149,6 +188,18 @@ export class QueueProcessor {
             const groupedTabIds = new Set<number>();
             const suggestionsToCache = [];
             const now = Date.now();
+
+            // Final safety check: Check for fatal changes one last time before applying
+            // This covers the gap between the last re-queue check and now.
+            const finalSnapshot = await WindowSnapshot.fetch(windowId);
+            if (windowState.inputSnapshot.isFatalChange(finalSnapshot, batchTabs.map(t => t.id!).filter(id => id !== undefined))) {
+                console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected immediately before applying. Skipping batch.`);
+                return { aborted: false }; // Not strictly aborted, just skipped this batch. Window loop continues? Or should we return aborted?
+                // If we return aborted=false, the loop continues to next batch. But state changed.
+                // Probably safer to return aborted=true to force re-evaluation of the whole window.
+                await this.state.add(windowId, true);
+                return { aborted: true };
+            }
 
             for (const suggestion of results.suggestions) {
                 try {
@@ -194,6 +245,12 @@ export class QueueProcessor {
             }
 
         } catch (e: unknown) {
+            // Handle AbortError specifically
+            if (e instanceof AbortError) {
+                console.log(`[QueueProcessor] Processing aborted for window ${windowId}`);
+                return { aborted: true };
+            }
+
             // Don't show error if user hasn't configured an AI provider yet
             if (settings.aiProvider !== AIProviderType.None) {
                 const errorMsg = getUserFriendlyError(e);
@@ -202,6 +259,9 @@ export class QueueProcessor {
             } else {
                 console.log(`[QueueProcessor] Skipping AI processing: No provider configured`);
             }
+        } finally {
+            this.windowAbortControllers.delete(windowId);
+            this.processingContext.delete(windowId);
         }
 
         return { aborted: false };

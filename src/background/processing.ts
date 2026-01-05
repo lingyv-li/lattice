@@ -33,6 +33,9 @@ export class ProcessingState {
     private windowStates = new Map<number, WindowState>();
     private _lastEmittedState = false;
 
+    // Callback for when an active window is re-queued with new data
+    public onWindowRequeued: ((windowId: number) => void) | null = null;
+
     private updateStatus() {
         // Status is valid if we have queued items OR active items
         const isProcessing = this.windowQueue.length > 0 || this.activeWindows.size > 0;
@@ -128,6 +131,13 @@ export class ProcessingState {
             // Update snapshot if re-queued (state already exists)
             const state = this.windowStates.get(windowId)!;
             state.update(snapshot);
+        }
+
+        // If window is currently active, notify listeners that it was re-queued (new data available)
+        if (this.activeWindows.has(windowId)) {
+            if (this.onWindowRequeued) {
+                this.onWindowRequeued(windowId);
+            }
         }
 
         // Persist snapshot immediately to prevent false "window changed" detections
