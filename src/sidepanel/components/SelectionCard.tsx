@@ -29,11 +29,31 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     autopilot,
     spinIcon = false
 }) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+
+        // Prevent activation if the event originated from an interactive element inside
+        // (though we stop propagation on the inner button, this is a safety check)
+        if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) {
+            return;
+        }
+
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+        }
+    };
+
     return (
         <div
+            role="checkbox"
+            aria-checked={isSelected}
+            aria-disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={handleKeyDown}
             onClick={!disabled ? onToggle : undefined}
             className={`
-                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-purple-500
                 ${disabled ? 'opacity-50 cursor-not-allowed bg-surface-dim border-border-subtle' : ''}
                 ${isSelected && !disabled
                     ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-500 shadow-sm ring-1 ring-purple-500/20'
@@ -80,14 +100,18 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
                             e.stopPropagation();
                             autopilot.onToggle(!autopilot.enabled);
                         }}
+                        onKeyDown={(e) => {
+                             e.stopPropagation();
+                        }}
                         className={`
-                            shrink-0 px-2 py-1.5 rounded-lg transition-all border flex items-center gap-1.5
+                            shrink-0 px-2 py-1.5 rounded-lg transition-all border flex items-center gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-purple-500
                             ${autopilot.enabled
                                 ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'
                                 : 'bg-surface hover:bg-surface-highlight text-muted border-transparent hover:border-border-subtle'
                             }
                         `}
                         title={autopilot.enabled ? "Autopilot On" : "Enable Autopilot"}
+                        aria-label={autopilot.enabled ? "Disable Autopilot" : "Enable Autopilot"}
                     >
                         <Zap className={`w-3.5 h-3.5 ${autopilot.enabled ? 'fill-amber-500 text-amber-500' : ''}`} />
                         <span className="text-[10px] font-semibold uppercase tracking-wide">
