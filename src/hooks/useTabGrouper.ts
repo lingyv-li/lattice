@@ -6,6 +6,8 @@ import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
+
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -125,7 +127,10 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        // Debounce the event handler to prevent excessive snapshot generation during rapid updates (e.g. loading)
+        // We use ..._args: any[] to make the signature compatible with all listener types (updated, created, removed)
+        const handleTabEvent = debounce((..._args: any[]) => scanUngrouped(), 200);
+
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
