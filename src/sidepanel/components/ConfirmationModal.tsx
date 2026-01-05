@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -17,11 +18,35 @@ export const ConfirmationModal = ({
     description,
     confirmLabel = "Enable"
 }: ConfirmationModalProps) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            // Focus the modal when opened for accessibility
+            modalRef.current?.focus();
+
+            const handleEscape = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') onClose();
+            };
+
+            document.addEventListener('keydown', handleEscape);
+            return () => document.removeEventListener('keydown', handleEscape);
+        }
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200">
-            <div className="w-full max-w-[280px] bg-surface relative rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 scale-100 ring-1 ring-black/5">
+            <div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-title"
+                aria-describedby="modal-desc"
+                tabIndex={-1}
+                className="w-full max-w-[280px] bg-surface relative rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 scale-100 ring-1 ring-black/5 outline-none"
+            >
                 {/* Decorative Background Glow */}
                 <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-amber-500/10 to-transparent pointer-events-none" />
 
@@ -32,10 +57,16 @@ export const ConfirmationModal = ({
                     </div>
 
                     {/* Content */}
-                    <h3 className="font-bold text-main text-lg mb-2 leading-tight">
+                    <h3
+                        id="modal-title"
+                        className="font-bold text-main text-lg mb-2 leading-tight"
+                    >
                         {title}
                     </h3>
-                    <p className="text-xs text-muted leading-relaxed mb-6">
+                    <p
+                        id="modal-desc"
+                        className="text-xs text-muted leading-relaxed mb-6"
+                    >
                         {description}
                     </p>
 
