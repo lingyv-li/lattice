@@ -58,9 +58,7 @@ export class TabManager {
         // Autopilot: close duplicates when a tab navigates or finishes loading
         if (changeInfo.url || changeInfo.status === 'complete') {
             // Check global autopilot setting for Tab Grouper
-            const settings = await SettingsStorage.get();
-            // FIX: Use DuplicateCleaner for this check, as per original logic
-            const autopilotEnabled = settings.features?.[FeatureId.DuplicateCleaner]?.autopilot ?? false;
+            const autopilotEnabled = await DuplicateCloser.isAutopilotEnabled();
 
             if (autopilotEnabled) {
                 console.log(`[TabManager] Autopilot enabled for duplicate cleaning (tabId: ${tabId}).`);
