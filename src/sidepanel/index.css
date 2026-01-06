@@ -8,14 +8,13 @@
     --color-border-subtle: var(--border-subtle);
     --color-border-strong: var(--border-strong);
     --color-surface-highlight: var(--surface-highlight);
-    --color-text-inverted: var(--text-inverted);
+    --color-inverted: var(--text-inverted);
     --color-text-action: var(--text-action);
     --color-text-action-hover: var(--text-action-hover);
 
     /* Gradients */
-    /* Gradients */
-    --image-gradient-brand: var(--gradient-brand);
-    --image-gradient-success: var(--gradient-success);
+    --background-image-gradient-brand: var(--gradient-brand);
+    --background-image-gradient-success: var(--gradient-success);
 
     /* Branding */
     --color-brand-local: var(--brand-local);
@@ -69,6 +68,8 @@
     /* zinc-900 */
     --text-muted: #71717a;
     /* zinc-500 */
+    --text-inverted: #ffffff;
+    /* white - for use on dark/gradient backgrounds */
     --border-subtle: #e4e4e7;
     /* zinc-200 */
     --border-strong: #d4d4d8;
@@ -168,6 +169,8 @@
         /* zinc-100 */
         --text-muted: #a1a1aa;
         /* zinc-400 */
+        --text-inverted: #ffffff;
+        /* white - for use on dark/gradient backgrounds */
         --border-subtle: #27272a;
         /* zinc-800 */
         --border-strong: #52525b;
