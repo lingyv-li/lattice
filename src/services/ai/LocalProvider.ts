@@ -83,21 +83,21 @@ export class LocalProvider extends BaseProvider {
         const session = await this.getSession(systemPrompt, signal);
 
         const startTime = Date.now();
-        console.log(`[LocalProvider] [${new Date().toISOString()}] Sending single-turn CoT prompt`);
+        console.log(`[LocalProvider] [${new Date().toISOString()}] Sending single-turn CoD prompt`);
         try {
 
             const response = await session.prompt(userPrompt, { signal });
 
             const totalDuration = Date.now() - startTime;
-            console.log(`[LocalProvider] CoT complete (took ${totalDuration}ms). Parsing response...`);
+            console.log(`[LocalProvider] CoD complete (took ${totalDuration}ms). Parsing response...`);
 
-            const parts = response.split('@@START@@');
+            const parts = response.split('####');
             let jsonPart = response;
             if (parts.length > 1) {
-                console.log(`[LocalProvider] Found JSON marker. Reasoning length: ${parts[0].length} chars.`);
+                console.log(`[LocalProvider] Found CoD separator. Draft length: ${parts[0].length} chars.`);
                 jsonPart = parts[1];
             } else {
-                console.warn(`[LocalProvider] No JSON marker found, attempting to parse full response.`);
+                console.warn(`[LocalProvider] No CoD separator found, attempting to parse full response.`);
             }
 
             return jsonPart;

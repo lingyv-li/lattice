@@ -95,7 +95,7 @@ IMPORTANT:
         });
     });
 
-    describe('constructSystemPrompt (CoT)', () => {
+    describe('constructSystemPrompt (CoD)', () => {
         it('should match the golden prompt structure for readability', () => {
             const prompt = constructSystemPrompt("", true);
 
@@ -112,32 +112,28 @@ Objectives:
 
 You MUST output a JSON list of assignments.
 
-Step 1: Briefly annotate and expand on each tab (a few words per tab).
-Step 2: Identify common themes. List top themes and proposed group names.
-Step 3: Output the JSON array wrapped in a markdown code block.
+Think step by step, but only keep a minimum draft for each thinking step, with 5 words at most.
+Return the draft, then the separator '####', then the JSON array wrapped in a markdown code block.
 
 Format: List of objects with "tabId" and "groupName".
 
-<example>
 INPUT:
+<example>
 Existing Groups:
 - "🛒Shopping"
 Ungrouped Tabs:
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
 - [ID: 103] "TypeScript handbook"
+</example>
 
 OUTPUT:
-Step 1: Annotations
-- 101: React JavaScript coding (Dev).
-- 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
+<example>
+Thoughts:
+1. ...
+2. ...
 
-Step 2: Themes
-- 🛒Shopping (Existing)
-- ⚛️React (New)
-
-Step 3: JSON
+####
 \`\`\`json
 [
   {"tabId": 101, "groupName": "⚛️React"},
@@ -170,32 +166,28 @@ Objectives:
 
 You MUST output a JSON list of assignments.
 
-Step 1: Briefly annotate and expand on each tab (a few words per tab).
-Step 2: Identify common themes. List top themes and proposed group names.
-Step 3: Output the JSON array wrapped in a markdown code block.
+Think step by step, but only keep a minimum draft for each thinking step, with 5 words at most.
+Return the draft, then the separator '####', then the JSON array wrapped in a markdown code block.
 
 Format: List of objects with "tabId" and "groupName".
 
-<example>
 INPUT:
+<example>
 Existing Groups:
 - "🛒Shopping"
 Ungrouped Tabs:
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
 - [ID: 103] "TypeScript handbook"
+</example>
 
 OUTPUT:
-Step 1: Annotations
-- 101: React JavaScript coding (Dev).
-- 102: Shopping for headphones.
-- 103: TypeScript JavaScript coding guide (Dev).
+<example>
+Thoughts:
+1. ...
+2. ...
 
-Step 2: Themes
-- 🛒Shopping (Existing)
-- ⚛️React (New)
-
-Step 3: JSON
+####
 \`\`\`json
 [
   {"tabId": 101, "groupName": "⚛️React"},

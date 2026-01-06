@@ -76,8 +76,8 @@ describe('LocalProvider', () => {
             ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }]
         };
 
-        const responseText = `Here is some reasoning about the tabs...
-@@START@@
+        const responseText = `Here is some reasoning...
+####
 ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
 
         mockPromptResponse(responseText);
@@ -86,7 +86,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
 
         expect(mockCreate).toHaveBeenCalledTimes(1); // One base session created
         expect(mockClone).toHaveBeenCalledTimes(1); // One clone created for request
-        expect(mockPrompt).toHaveBeenCalledTimes(1); // Single-turn CoT prompt
+        expect(mockPrompt).toHaveBeenCalledTimes(1); // Single-turn CoD prompt
         expect(mockDestroy).toHaveBeenCalledTimes(1); // Clone destroyed after use
     });
 
@@ -96,7 +96,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
             ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }]
         };
         const responseText = `Reasoning...
-@@START@@
+####
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
 
         mockPromptResponse(responseText);
@@ -124,7 +124,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
             customRules: 'Rule B'
         };
         const responseText = `Reasoning...
-@@START@@
+####
 ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         mockPromptResponse(responseText);
 
@@ -152,7 +152,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         };
 
         const responseText = `Reasoning about Tab 1 and Tab 2...
-@@START@@
+####
 ${JSON.stringify({ "Group A": [1, 2] })}`;
 
         mockPromptResponse(responseText);
