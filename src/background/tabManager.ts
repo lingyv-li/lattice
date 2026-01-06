@@ -46,7 +46,7 @@ export class TabManager {
         this.queueAndProcess();
     }, DEBOUNCE_DELAY_MS);
 
-    private async queueAndProcess() {
+    async queueAndProcess() {
         const settings = await SettingsStorage.get();
         if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
             console.log("[TabManager] Tab Grouper is disabled, skipping processing");

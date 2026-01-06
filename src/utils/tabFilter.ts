@@ -14,7 +14,7 @@ export const isEmptyNewTab = (url: string): boolean => {
  * Determines if a tab is suitable for group recommendation.
  * Filters out tabs without IDs/URLs/Titles, loading tabs, and empty new tabs.
  */
-export const isGroupableTab = (tab: chrome.tabs.Tab): boolean => {
+export function isGroupableTab(tab: chrome.tabs.Tab): boolean {
     if (!tab.id || !tab.url || !tab.title) {
         return false;
     }
@@ -25,7 +25,7 @@ export const isGroupableTab = (tab: chrome.tabs.Tab): boolean => {
     }
 
     // Skip tabs that are still actively loading to ensure titles are accurate
-    if (tab.status === 'loading' && !tab.frozen) { // Using string literal as enum depends on runtime chrome
+    if (tab.status === 'loading' && !tab.frozen) {
         return false;
     }
 

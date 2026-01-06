@@ -144,7 +144,6 @@ export class QueueProcessor {
 
         if (!windowState || !(await windowState.verifySnapshot())) {
             // Initial check still useful, but less critical now with smart aborts.
-            // We'll trust verifySnapshot for the initial queue pick-up.
             console.log(`[QueueProcessor] [${new Date().toISOString()}] Window ${windowId} aborted: Snapshot changed before batch. Re-queuing.`);
 
             // Re-fetch fresh snapshot
@@ -154,8 +153,6 @@ export class QueueProcessor {
             await this.state.enqueue(windowId, newSnapshot, true);
             return { aborted: true };
         }
-
-
         try {
             const provider = await AIService.getProvider(settings);
             const batchStartTime = Date.now();
