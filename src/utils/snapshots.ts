@@ -6,6 +6,7 @@ import { isGroupableTab } from './tabFilter';
  */
 export class WindowSnapshot {
     public readonly fingerprint: string;
+    public readonly groupFingerprint: string;
 
     private readonly allTabs: chrome.tabs.Tab[];
     protected readonly tabs: chrome.tabs.Tab[];
@@ -16,7 +17,10 @@ export class WindowSnapshot {
         // Keep "tabs" as only the ungrouped tabs to preserve existing behavior
         this.tabs = allTabs.filter((t: chrome.tabs.Tab) => isGroupableTab(t));
         this.groups = groups;
-        this.fingerprint = WindowSnapshot.generateFingerprint(this.tabs, this.groups);
+
+        const { tabPart, groupPart } = WindowSnapshot.generateFingerprintParts(this.tabs, this.groups);
+        this.groupFingerprint = groupPart;
+        this.fingerprint = `${tabPart}#${groupPart}`;
     }
 
     /**
@@ -97,10 +101,7 @@ export class WindowSnapshot {
     isFatalChange(newSnapshot: WindowSnapshot, relevantTabIds: number[]): boolean {
         // 1. Group Structure Change (Strict equality)
         // If groups were renamed, removed, or added -> Fatal (Context changed)
-        const currentGroupFingerprint = this.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
-        const newGroupFingerprint = newSnapshot.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
-
-        if (currentGroupFingerprint !== newGroupFingerprint) {
+        if (this.groupFingerprint !== newSnapshot.groupFingerprint) {
             console.log(`[WindowSnapshot] Fatal: Group structure changed.`);
             return true;
         }
@@ -131,16 +132,27 @@ export class WindowSnapshot {
 
     /**
      * Internal generation logic.
+     * Optimized to sort by ID (number) instead of string for performance.
      */
-    private static generateFingerprint(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): string {
+    private static generateFingerprintParts(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): { tabPart: string, groupPart: string } {
         const tabPart = tabs
+            .slice()
+            .sort((a, b) => (a.id || 0) - (b.id || 0))
             .map(t => `${t.id}:${t.url}:${t.title}`)
-            .sort()
             .join('|');
+
         const groupPart = groups
+            .slice()
+            .sort((a, b) => a.id - b.id)
             .map(g => `${g.id}:${g.title}`)
-            .sort()
             .join('|');
+
+        return { tabPart, groupPart };
+    }
+
+    // Keep for backward compatibility or testing if needed, but updated to use new logic
+    public static generateFingerprint(tabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]): string {
+        const { tabPart, groupPart } = this.generateFingerprintParts(tabs, groups);
         return `${tabPart}#${groupPart}`;
     }
 
