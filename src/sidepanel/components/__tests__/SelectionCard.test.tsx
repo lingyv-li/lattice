@@ -67,4 +67,27 @@ describe('SelectionCard', () => {
 
         expect(onToggle).toHaveBeenCalledTimes(1);
     });
+
+    it('should be keyboard accessible via checkbox button', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="Tab Grouper"
+                icon={Check}
+            >
+                <div>Content</div>
+            </SelectionCard>
+        );
+
+        // Find the checkbox by role
+        const checkbox = screen.getByRole('checkbox', { name: /Select Tab Grouper/i });
+        expect(checkbox).toBeInTheDocument();
+        expect(checkbox).not.toBeChecked();
+
+        // Simulate click (which is what Enter/Space does on a button)
+        fireEvent.click(checkbox);
+        expect(onToggle).toHaveBeenCalledTimes(1);
+    });
 });
