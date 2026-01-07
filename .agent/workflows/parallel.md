@@ -21,15 +21,18 @@ Before writing any code, check if you are in a dedicated workspace.
 ## Step 2: Create a Workspace
 If you need to edit code and are in the root, create a new isolated workspace.
 
-1.  **Create**: `jj workspace add .workspaces/<meaningful-name> -r @`
+1.  **Create**: `jj workspace add .workspaces/<workspace-name> -r @`
     - *Example*: `jj workspace add .workspaces/feat-login-ui -r @`
 
 ## Step 3: Develop & Test
 Perform all your changes within this workspace.
 
-- **Edit** files ONLY within `.workspaces/<meaningful-name>` directory.
+- **Edit** files ONLY within `.workspaces/<workspace-name>` directory.
 - **Run tests** from this directory to ensure isolation.
-- *NEVER*: Editing files in the standard `./lattice/src/...` path from the root, except for the implementation plan and walk through docs.
+- **Set Cwd**: For EVERY `run_command` tool, you MUST set `Cwd` to `<absolute-path-to-repo>/.workspaces/<workspace-name>`.
+- **Use Absolute Paths**: When using `replace_file_content` or `view_file`, ensure the path starts with `<absolute-path-to-repo>/.workspaces/<workspace-name>`.
+- *NEVER*: Editing files in the standard `<repo-root>/src/...` path from the root.
+- *Recovery*: If you accidentally modify the root, run `jj restore <path>` immediately.
 
 ## Step 4: Commit Changes
 When your work is ready, commit it.
@@ -43,4 +46,4 @@ Once your changes are committed, immediately clean up the workspace before notif
 
 1.  **Forget Workspace**: `jj workspace forget <workspace-name>`
     -   *Note*: Use the **name**, not the path (e.g., `feat-login-ui`, NOT `.workspaces/feat-login-ui`).
-2.  **Remove Directory**: `rm -rf .workspaces/<meaningful-name>`
+2.  **Remove Directory**: `rm -rf .workspaces/<workspace-name>`
