@@ -10,8 +10,6 @@ import { FeatureId } from '../types/features';
 import { GroupIdManager } from './GroupIdManager';
 import { WindowSnapshot } from '../utils/snapshots';
 
-const BATCH_SIZE = 10;
-
 export class QueueProcessor {
     private windowAbortControllers = new Map<number, AbortController>();
 
@@ -49,6 +47,16 @@ export class QueueProcessor {
         }
     }
 
+    private getBatchSize(settings: AppSettings): number {
+        // For Gemini Cloud, we want to disable batching (or use a very high limit)
+        // because it handles large contexts well and batching slows it down/costs more requests.
+        if (settings.aiProvider === AIProviderType.Gemini) {
+            return 200;
+        }
+        // Default for Local AI and others
+        return 10;
+    }
+
     async process(): Promise<void> {
         console.log(`[QueueProcessor] [${new Date().toISOString()}] process() called (Items: ${this.state.hasItems})`);
 
@@ -58,6 +66,9 @@ export class QueueProcessor {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Tab Grouper feature is disabled, stopping.`);
                 return;
             }
+
+            const batchSize = this.getBatchSize(settings);
+            console.log(`[QueueProcessor] Using batch size: ${batchSize} for provider: ${settings.aiProvider}`);
 
             const windowIds = this.state.acquireQueue() as number[];
             if (windowIds.length === 0) {
@@ -79,7 +90,7 @@ export class QueueProcessor {
                     }
 
                     // Reconstruct valid tabs from snapshot (to avoid race conditions)
-                    const batches = windowState.inputSnapshot.getBatches(BATCH_SIZE);
+                    const batches = windowState.inputSnapshot.getBatches(batchSize);
 
                     if (batches.length === 0) {
                         console.log(`[QueueProcessor] No valid ungrouped tabs in window ${windowId}`);
