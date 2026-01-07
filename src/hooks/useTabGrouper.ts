@@ -6,6 +6,7 @@ import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -130,7 +131,10 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        // Debounce tab event listener to avoid excessive snapshots
+        // Chrome tab events (like onUpdated) can fire multiple times rapidly during loading
+        const handleTabEvent = debounce(() => scanUngrouped(), 300);
+
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
