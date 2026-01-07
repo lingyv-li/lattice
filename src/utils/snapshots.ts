@@ -160,6 +160,13 @@ export class WindowSnapshot {
     }
 
     /**
+     * Returns all tabs in this snapshot (including pinned/grouped).
+     */
+    get all(): chrome.tabs.Tab[] {
+        return this.allTabs;
+    }
+
+    /**
      * Checks if a tab with the given ID exists in this snapshot (Ungrouped only).
      */
     hasTab(tabId: number): boolean {

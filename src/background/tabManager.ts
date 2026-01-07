@@ -3,7 +3,7 @@ import { WindowSnapshot } from '../utils/snapshots';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
 import { SettingsStorage } from '../utils/storage';
-import { DuplicateCloser } from '../services/duplicates';
+import { DuplicateCloser, findDuplicates, countDuplicates } from '../services/duplicates';
 import { debounce } from '../utils/debounce';
 import { FeatureId } from '../types/features';
 
@@ -57,6 +57,10 @@ export class TabManager {
         const snapshots = await WindowSnapshot.fetchAll({ windowTypes: [chrome.windows.WindowType.NORMAL] });
 
         for (const [windowId, currentSnapshot] of snapshots) {
+            // Calculate and update duplicates regardless of whether we process AI
+            const duplicatesMap = findDuplicates(currentSnapshot.all);
+            const duplicateCount = countDuplicates(duplicatesMap);
+            await StateService.updateDuplicateCount(windowId, duplicateCount);
 
             const lastPersistent = await StateService.getWindowSnapshot(windowId);
 

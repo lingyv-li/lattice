@@ -24,6 +24,11 @@ export const useTabGrouper = () => {
 
     // Derive unselected signatures from current state
     // Groups the user has "rejected" (unselected) - used to preserve selection across updates
+    const newGroupCount = useMemo(() => {
+        if (!previewGroups) return 0;
+        return previewGroups.filter(g => !g.existingGroupId).length;
+    }, [previewGroups]);
+
     const unselectedSignatures = useMemo(() => {
         if (!previewGroups) return new Set<string>();
         const result = new Set<string>();
@@ -300,6 +305,7 @@ export const useTabGrouper = () => {
         setAllGroupsSelected,
         regenerateSuggestions,
         triggerProcessing,
-        aiEnabled
+        aiEnabled,
+        newGroupCount
     };
 };

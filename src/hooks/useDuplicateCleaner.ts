@@ -1,47 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
-import { findDuplicates, countDuplicates, DuplicateCloser } from '../services/duplicates';
+import { useState, useEffect } from 'react';
+import { DuplicateCloser } from '../services/duplicates';
 import { OrganizerStatus } from '../types/organizer';
+import { StateService } from '../background/state';
 
 export const useDuplicateCleaner = () => {
     const [status, setStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
     const [closedCount, setClosedCount] = useState<number>(0);
     const [duplicateCount, setDuplicateCount] = useState<number>(0);
 
-    const scanDuplicates = useCallback(async () => {
-        // Don't change status to 'scanning' here to avoid flickering UI on every tab change
-        // just silently update the count.
-        try {
-            const tabs = await chrome.tabs.query({ currentWindow: true });
-            const urlMap = findDuplicates(tabs);
-            const count = countDuplicates(urlMap);
-
-            setDuplicateCount(count);
-        } catch (err) {
-            console.error('Failed to scan duplicates:', err);
-        }
-    }, []);
-
     useEffect(() => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        scanDuplicates();
+        let unsubscribe: (() => void) | undefined;
 
-        const handleTabUpdate = (_tabId: number, changeInfo: chrome.tabs.OnUpdatedInfo, _tab: chrome.tabs.Tab) => {
-            if (changeInfo.url || changeInfo.status === 'complete') {
-                scanDuplicates();
-            }
+        const init = async () => {
+            const window = await chrome.windows.getCurrent();
+            const windowId = window.id!;
+
+            // Hydrate logic if needed, but StateService handles it.
+            // We just need to ensure StateService is hydrated or listens.
+            // StateService.hydrate() is conceptually for background startup.
+            // But we can blindly subscribe. The callback gives us latest data.
+            // Also fetch initial value.
+
+            // Note: StateService loads from storage.session.
+            // We should ensure we get the stored value.
+            const count = await StateService.getDuplicateCount(windowId);
+            setDuplicateCount(count);
+
+            unsubscribe = StateService.subscribe(windowId, (_cache, _isProcessing, newDuplicateCount) => {
+                setDuplicateCount(newDuplicateCount);
+            });
         };
-        const handleTabEvent = () => scanDuplicates();
 
-        chrome.tabs.onUpdated.addListener(handleTabUpdate);
-        chrome.tabs.onCreated.addListener(handleTabEvent);
-        chrome.tabs.onRemoved.addListener(handleTabEvent);
+        init();
 
         return () => {
-            chrome.tabs.onUpdated.removeListener(handleTabUpdate);
-            chrome.tabs.onCreated.removeListener(handleTabEvent);
-            chrome.tabs.onRemoved.removeListener(handleTabEvent);
+            if (unsubscribe) unsubscribe();
         };
-    }, [scanDuplicates]);
+    }, []);
 
     const closeDuplicates = async () => {
         setStatus(OrganizerStatus.Applying);
@@ -56,8 +51,7 @@ export const useDuplicateCleaner = () => {
                 setStatus(OrganizerStatus.Idle);
             }
 
-            // Re-scan immediately to update UI
-            await scanDuplicates();
+            // No need to manual scan, background will update StateService
 
             setTimeout(() => {
                 setStatus(OrganizerStatus.Idle);

@@ -7,12 +7,22 @@ import { SettingsStorage, AppSettings } from '../../utils/storage';
 import { FeatureId } from '../../types/features';
 import { WindowSnapshot } from '../../utils/snapshots';
 import { MockWindowSnapshot } from './testUtils';
+import { DuplicateCloser } from '../../services/duplicates';
 
 // Mock dependencies
 vi.mock('../state');
 vi.mock('../processing');
 vi.mock('../../utils/storage');
 vi.mock('../../utils/snapshots');
+vi.mock('../../services/duplicates', () => ({
+    findDuplicates: vi.fn().mockReturnValue(new Map()),
+    countDuplicates: vi.fn().mockReturnValue(0),
+    DuplicateCloser: {
+        isAutopilotEnabled: vi.fn().mockResolvedValue(false),
+        closeDuplicatesInWindow: vi.fn().mockResolvedValue({ closedCount: 0, tabsRemoved: [] }),
+        closeDuplicates: vi.fn()
+    }
+}));
 
 
 
@@ -96,6 +106,7 @@ describe('TabManager', () => {
         vi.mocked(StateService.getSuggestionCache).mockResolvedValue(new Map());
         vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
         vi.mocked(StateService.updateWindowSnapshot).mockResolvedValue(undefined);
+        vi.mocked(StateService.updateDuplicateCount).mockResolvedValue(undefined);
         vi.mocked(SettingsStorage.get).mockResolvedValue({
             features: {
                 [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
@@ -163,6 +174,12 @@ describe('TabManager', () => {
             });
 
             it('should check and remove duplicates if autopilot is ON', async () => {
+                // Mock DuplicateCloser.isAutopilotEnabled to return true
+                // Note: We need to access the mocked module from import
+                // But duplicate module is mocked in factory.
+                // Mock DuplicateCloser.isAutopilotEnabled to return true
+                vi.mocked(DuplicateCloser.isAutopilotEnabled).mockResolvedValue(true);
+
                 vi.mocked(SettingsStorage.get).mockResolvedValue({
                     features: {
                         [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
@@ -183,8 +200,8 @@ describe('TabManager', () => {
                 await tabManager.handleTabUpdated(updatedTabId, { status: 'complete' });
 
                 expect(mockTabs.get).toHaveBeenCalledWith(updatedTabId);
-                expect(mockTabs.query).toHaveBeenCalledWith({ windowId: 1 });
-                expect(mockTabs.remove).toHaveBeenCalledWith([duplicateTabId]);
+                expect(mockTabs.get).toHaveBeenCalledWith(updatedTabId);
+                expect(DuplicateCloser.closeDuplicatesInWindow).toHaveBeenCalledWith(1);
             });
 
             it('should NOT remove updated tab if it is the one to keep', async () => {

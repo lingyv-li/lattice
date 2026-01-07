@@ -44,7 +44,7 @@ const performBadgeUpdate = async () => {
         // Show configuration needed badge on all windows
         const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'] });
         for (const window of allWindows) {
-            await updateWindowBadge(window.id!, false, 0, false, '!', '#FFA500');
+            await updateWindowBadge(window.id!, false, 0, 0, false, '!', '#FFA500');
         }
         return;
     }
@@ -69,7 +69,8 @@ const performBadgeUpdate = async () => {
             }
         }
 
-        await updateWindowBadge(windowId, isProcessing, newGroupNames.size, hasError);
+        const duplicateCount = await StateService.getDuplicateCount(windowId);
+        await updateWindowBadge(windowId, isProcessing, newGroupNames.size, duplicateCount, hasError);
     }
 };
 

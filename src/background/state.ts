@@ -6,6 +6,7 @@ interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
     windowSnapshots: Record<number, string>;
     processingWindowIds: number[];
+    duplicateCounts: Record<number, number>;
 }
 
 type StateChanges = {
@@ -20,6 +21,7 @@ export class StateService {
     private static cache: WindowCache | null = null;
     private static snapshots: Map<number, string> = new Map();
     private static processingWindows: Set<number> = new Set();
+    private static duplicateCounts: Map<number, number> = new Map();
     private static isHydrated = false;
 
     /**
@@ -29,7 +31,7 @@ export class StateService {
         if (this.isHydrated) return;
 
         try {
-            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds']) as Partial<StorageSchema>;
+            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts']) as Partial<StorageSchema>;
             this.cache = new Map();
 
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
@@ -51,6 +53,12 @@ export class StateService {
                 this.processingWindows = new Set(data.processingWindowIds);
             } else {
                 this.processingWindows = new Set();
+            }
+
+            if (data.duplicateCounts) {
+                this.duplicateCounts = new Map(Object.entries(data.duplicateCounts).map(([k, v]) => [Number(k), v]));
+            } else {
+                this.duplicateCounts = new Map();
             }
 
             this.isHydrated = true;
@@ -200,6 +208,25 @@ export class StateService {
     }
 
     /**
+     * Get duplicate count for a window
+     */
+    static async getDuplicateCount(windowId: number): Promise<number> {
+        await this.hydrate();
+        return this.duplicateCounts.get(windowId) || 0;
+    }
+
+    /**
+     * Update duplicate count for a window
+     */
+    static async updateDuplicateCount(windowId: number, count: number): Promise<void> {
+        await this.hydrate();
+        if (this.duplicateCounts.get(windowId) !== count) {
+            this.duplicateCounts.set(windowId, count);
+            await this.persist();
+        }
+    }
+
+    /**
      * Clear all processing status (e.g. on startup)
      */
     static async clearProcessingStatus(): Promise<void> {
@@ -217,7 +244,7 @@ export class StateService {
      * 1. A Map<tabId, cache> for the specified window.
      * 2. A boolean indicating if the window is currently processing.
      */
-    static subscribe(windowId: number, callback: (cache: Map<number, TabSuggestionCache>, isProcessing: boolean) => void): () => void {
+    static subscribe(windowId: number, callback: (cache: Map<number, TabSuggestionCache>, isProcessing: boolean, duplicateCount: number) => void): () => void {
         const handleStorageChange = (changes: StateChanges, areaName: string) => {
             if (areaName !== 'session') return;
 
@@ -258,10 +285,23 @@ export class StateService {
                 }
             }
 
+            if (changes.duplicateCounts?.newValue) {
+                const rawData = changes.duplicateCounts.newValue as Record<number, number>;
+                const oldRawData = changes.duplicateCounts.oldValue as Record<number, number> || {};
+
+                this.duplicateCounts = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
+                this.isHydrated = true;
+
+                if (rawData[windowId] !== oldRawData[windowId]) {
+                    shouldNotify = true;
+                }
+            }
+
             if (shouldNotify) {
                 const isProcessing = this.processingWindows.has(windowId);
                 const windowCache = this.cache?.get(windowId) || new Map();
-                callback(windowCache, isProcessing);
+                const duplicateCount = this.duplicateCounts.get(windowId) || 0;
+                callback(windowCache, isProcessing, duplicateCount);
             }
         };
 
@@ -301,6 +341,7 @@ export class StateService {
             }
             update.windowSnapshots = Object.fromEntries(this.snapshots.entries());
             update.processingWindowIds = Array.from(this.processingWindows);
+            update.duplicateCounts = Object.fromEntries(this.duplicateCounts.entries());
             await chrome.storage.session.set(update);
         } catch (e) {
             console.error("[StateService] Failed to persist:", e);

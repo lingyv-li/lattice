@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { calculateDuplicateCount, updateWindowBadge } from '../badge';
+import { updateWindowBadge } from '../badge';
 
 describe('badge utils', () => {
     // Mock chrome APIs
@@ -19,33 +19,13 @@ describe('badge utils', () => {
         } as unknown as typeof chrome;
     });
 
-    describe('calculateDuplicateCount', () => {
-        it('should return 0 when no tabs', async () => {
-            queryMock.mockResolvedValue([]);
-            const count = await calculateDuplicateCount();
-            expect(count).toBe(0);
-        });
-
-        it('should count single duplicate pair in specific window', async () => {
-            // Expect windowId query
-            queryMock.mockResolvedValue([
-                { url: 'https://a.com' },
-                { url: 'https://a.com' }
-            ]);
-            const count = await calculateDuplicateCount(123);
-
-            // Should have been called with windowId
-            expect(queryMock).toHaveBeenCalledWith({ windowId: 123 });
-            expect(count).toBe(1);
-        });
-    });
-
     describe('updateWindowBadge', () => {
         it('should show processing state', async () => {
             // Mock active tab for window
             queryMock.mockResolvedValue([{ id: 99 }]);
 
-            await updateWindowBadge(123, true, 0, false);
+            // windowId=123, isProcessing=true, groupCount=0, duplicateCount=0, hasError=false
+            await updateWindowBadge(123, true, 0, 0, false);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "...", tabId: 99 });
@@ -56,15 +36,11 @@ describe('badge utils', () => {
             // Mock active tab for window
             queryMock.mockImplementation((query) => {
                 if (query.active) return Promise.resolve([{ id: 99 }]); // Active tab
-                // Duplicate check query (all tabs in window)
-                return Promise.resolve([
-                    { url: 'https://a.com' },
-                    { url: 'https://a.com' } // 1 duplicate
-                ]);
+                return Promise.resolve([]);
             });
 
             // processing=false, groupCount=2, duplicateCount=1 => Total 3
-            await updateWindowBadge(123, false, 2, false);
+            await updateWindowBadge(123, false, 2, 1, false);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "3", tabId: 99 });
@@ -73,7 +49,7 @@ describe('badge utils', () => {
 
         it('should do nothing if no active tab in window', async () => {
             queryMock.mockResolvedValue([]);
-            await updateWindowBadge(123, false, 0, false);
+            await updateWindowBadge(123, false, 0, 0, false);
             expect(setBadgeTextMock).not.toHaveBeenCalled();
         });
 
@@ -81,11 +57,20 @@ describe('badge utils', () => {
             // Mock active tab for window
             queryMock.mockResolvedValue([{ id: 99 }]);
 
-            await updateWindowBadge(123, false, 0, true);
+            await updateWindowBadge(123, false, 0, 0, true);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
             expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "ERR", tabId: 99 });
             expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#D93025", tabId: 99 });
+        });
+
+        it('should show custom text', async () => {
+            queryMock.mockResolvedValue([{ id: 99 }]);
+
+            await updateWindowBadge(123, false, 0, 0, false, "!", "#FFA500");
+
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "!", tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#FFA500", tabId: 99 });
         });
     });
 });

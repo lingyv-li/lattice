@@ -1,33 +1,8 @@
-
-export const calculateDuplicateCount = async (windowId?: number) => {
-    try {
-        const query: chrome.tabs.QueryInfo = {};
-        if (windowId) query.windowId = windowId;
-
-        const tabs = await chrome.tabs.query(query);
-        const urlMap = new Map<string, number>();
-        let duplicateCount = 0;
-
-        for (const tab of tabs) {
-            if (!tab.url) continue;
-            const normalizedUrl = tab.url.replace(/\/$/, '');
-            const count = urlMap.get(normalizedUrl) || 0;
-            if (count > 0) {
-                duplicateCount++;
-            }
-            urlMap.set(normalizedUrl, count + 1);
-        }
-        return duplicateCount;
-    } catch (e: unknown) {
-        console.error("[Badge] Failed to calculate duplicates:", e);
-        return 0;
-    }
-};
-
 export const updateWindowBadge = async (
     windowId: number,
     isProcessing: boolean,
     groupCount: number,
+    duplicateCount: number,
     hasError: boolean,
     customText?: string,
     customColor?: string
@@ -62,9 +37,6 @@ export const updateWindowBadge = async (
         await chrome.action.setBadgeBackgroundColor({ color: "#A855F7", tabId: activeTabId }); // Purple-500
         return;
     }
-
-    // Calculate duplicates for this window
-    const duplicateCount = await calculateDuplicateCount(windowId);
 
     const totalCount = groupCount + duplicateCount;
 

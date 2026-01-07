@@ -24,6 +24,7 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
         toggleGroupSelection,
         aiEnabled,
         regenerateSuggestions,
+        newGroupCount,
     } = data;
 
     const ungroupedCount = snapshot?.tabCount ?? 0;
@@ -59,6 +60,10 @@ export const TabGrouperCard = ({ isSelected, onToggle, data, autopilotEnabled, o
     const badge = status === OrganizerStatus.Success ? (
         <span className="text-xs font-medium text-status-success-fg bg-status-success-bg px-2 py-0.5 rounded-full">
             Done
+        </span>
+    ) : newGroupCount > 0 ? (
+        <span className="text-xs font-medium text-status-ai-fg bg-status-ai-bg px-2 py-0.5 rounded-full">
+            {newGroupCount} Suggestions
         </span>
     ) : previewGroups ? (
         <span className="text-xs font-medium text-status-ai-fg bg-status-ai-bg px-2 py-0.5 rounded-full">

@@ -90,7 +90,7 @@ describe('StateService', () => {
         const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(1);
         expect(cache.get(1)).toEqual(testData[0]);
-        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots', 'processingWindowIds']);
+        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts']);
     });
 
     it('should update and persist suggestions', async () => {
@@ -232,5 +232,33 @@ describe('StateService', () => {
         expect(await StateService.getWindowSnapshot(windowId)).toBe('v2');
         // @ts-expect-error - Accessing mock storage with dynamic keys
         expect(mockStorage['windowSnapshots'][windowId]).toBe('v2');
+    });
+
+    it('should store and retrieve duplicate counts', async () => {
+        await StateService.clearCache();
+        const windowId = 555;
+
+        expect(await StateService.getDuplicateCount(windowId)).toBe(0);
+
+        await StateService.updateDuplicateCount(windowId, 5);
+        expect(await StateService.getDuplicateCount(windowId)).toBe(5);
+
+        // Verify persistence
+        // @ts-expect-error - Accessing mock storage with dynamic keys
+        expect(mockStorage['duplicateCounts'][windowId]).toBe(5);
+    });
+
+    it('should notify listeners on duplicate count change', async () => {
+        await StateService.clearCache();
+        const listener = vi.fn();
+        const unsubscribe = StateService.subscribe(WINDOW_ID, listener);
+
+        await StateService.updateDuplicateCount(WINDOW_ID, 3);
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        // Arg 3 is duplicateCount
+        expect(listener).toHaveBeenCalledWith(expect.any(Map), false, 3);
+
+        unsubscribe();
     });
 });
