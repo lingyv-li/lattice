@@ -1,6 +1,7 @@
 import { AIProvider, GroupingRequest, SuggestionResult } from './types';
 import { TabGroupSuggestion } from '../../types/tabGrouper';
 import { handleAssignment, cleanAndParseJson, constructSystemPrompt } from './shared';
+import { sanitizeUrl } from './sanitization';
 
 /**
  * Abstract base class for AI providers with shared batch processing logic.
@@ -42,7 +43,7 @@ export abstract class BaseProvider implements AIProvider {
         const currentGroupNames = Array.from(groupNameMap.keys())
             .filter(name => name.trim().length > 0);
         const tabList = ungroupedTabs
-            .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${t.url}"`)
+            .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${sanitizeUrl(t.url)}"`)
             .join('\n');
 
         const userPrompt = (
