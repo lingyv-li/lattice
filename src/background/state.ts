@@ -140,6 +140,27 @@ export class StateService {
     }
 
     /**
+     * Remove suggestions for tabs that are not in the valid list for a window
+     */
+    static async pruneSuggestions(windowId: number, validTabIds: Set<number>): Promise<void> {
+        await this.hydrate();
+        const windowCache = this.cache?.get(windowId);
+        if (!windowCache) return;
+
+        let changed = false;
+        for (const tabId of windowCache.keys()) {
+            if (!validTabIds.has(tabId)) {
+                windowCache.delete(tabId);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            await this.persist();
+        }
+    }
+
+    /**
      * Clear all suggestions for a window
      */
     static async clearWindowCache(windowId: number): Promise<void> {

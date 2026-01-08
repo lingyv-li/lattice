@@ -55,19 +55,27 @@ const performBadgeUpdate = async () => {
     const isProcessing = processingState.isProcessing;
 
     // Get all normal windows
-    const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'] });
+    const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'], populate: true });
 
     // Count unique NEW groups per window (existingGroupId === null)
     for (const window of allWindows) {
         const windowId = window.id!;
+        const validTabIds = new Set(window.tabs?.map(t => t.id).filter((id): id is number => id !== undefined) || []);
+
         const windowCache = await StateService.getSuggestionCache(windowId);
         const newGroupNames = new Set<string>();
 
-        for (const cached of windowCache.values()) {
+        // Filter and count only valid suggestions
+        for (const [tabId, cached] of windowCache.entries()) {
+            if (!validTabIds.has(tabId)) continue;
+
             if (cached.groupName && cached.existingGroupId === null) {
                 newGroupNames.add(cached.groupName);
             }
         }
+
+        // Asynchronously clean up stale cache entries
+        StateService.pruneSuggestions(windowId, validTabIds).catch(console.error);
 
         const duplicateCount = await StateService.getDuplicateCount(windowId);
         await updateWindowBadge(windowId, isProcessing, newGroupNames.size, duplicateCount, hasError);
