@@ -6,10 +6,10 @@
 export function debounce<A extends unknown[], R>(
     func: (...args: A) => R,
     wait: number
-): (...args: A) => void {
+): ((...args: A) => void) & { cancel: () => void } {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    return (...args: A) => {
+    const debounced = (...args: A) => {
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
         }
@@ -18,4 +18,13 @@ export function debounce<A extends unknown[], R>(
             func(...args);
         }, wait);
     };
+
+    debounced.cancel = () => {
+        if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    };
+
+    return debounced;
 }

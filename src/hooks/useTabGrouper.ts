@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { debounce } from '../utils/debounce';
 import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../types/tabGrouper';
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
@@ -88,6 +89,9 @@ export const useTabGrouper = () => {
         return snap;
     }, []);
 
+    // ⚡ Performance: Debounce the scan for high-frequency tab events
+    const debouncedScan = useMemo(() => debounce(scanUngrouped, 300), [scanUngrouped]);
+
     useEffect(() => {
         // Initial scan - intentionally sets state on mount
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -130,7 +134,7 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        const handleTabEvent = () => debouncedScan();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
@@ -143,8 +147,10 @@ export const useTabGrouper = () => {
             chrome.tabs.onUpdated.removeListener(handleTabEvent);
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
+            // Cancel pending debounced call to prevent state updates on unmounted component
+            debouncedScan.cancel();
         };
-    }, [scanUngrouped]);
+    }, [scanUngrouped, debouncedScan]);
 
     // Process suggestions and update state
     const processSuggestions = async (cache: Map<number, TabSuggestionCache>) => {
