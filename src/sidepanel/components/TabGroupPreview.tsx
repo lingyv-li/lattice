@@ -34,12 +34,18 @@ export const TabGroupPreview = ({
                 </button>
             </div>
             {previewGroups.map((group, idx) => (
-                <div
+                <button
                     key={idx}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={selectedPreviewIndices.has(idx)}
+                    aria-label={`Select group ${group.groupName}`}
                     onClick={() => onToggleSelection(idx)}
-                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 ${selectedPreviewIndices.has(idx)
-                        ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
-                        : 'bg-surface border-border-subtle hover:bg-surface-dim'
+                    className={`w-full text-left p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500
+                        ${selectedPreviewIndices.has(idx)
+                            ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
+                            : 'bg-surface border-border-subtle hover:bg-surface-dim'
                         }`}
                 >
                     <div className="flex items-start gap-[var(--spacing-item-gap)] mb-0.5">
@@ -71,7 +77,7 @@ export const TabGroupPreview = ({
                             </div>
                         </div>
                     </div>
-                </div>
+                </button>
             ))}
         </div>
     );
