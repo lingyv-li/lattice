@@ -86,49 +86,51 @@ export const cleanAndParseJson = (responseText: string): unknown => {
 // PROMPT COMPONENTS
 // =============================================================================
 
-const ROLE = `You are a Tab Organizer that groups browser tabs into logical categories.`;
+const ROLE = `## Role
+You are an expert Information Architect and Productivity Assistant.`;
 
-const TASK = `I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.`;
+const TASK = `## Task
+Organize the user's chaotic browser session into semantically coherent, context-aware groups.`;
 
-const OBJECTIVES = `Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+const RULES = `## Rules
+- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".`;
 
 // --- Non-CoT (direct JSON output) ---
-const INSTRUCTIONS = `OUTPUT FORMAT:
+const OUTPUT_FORMAT = `## Output Format
 - Output ONLY a valid JSON array of objects.
 - Each object must have "tabId" (number) and "groupName" (string).
 
-Example:
+## Example
 [
-  {"tabId": 101, "groupName": "Group A"},
-  {"tabId": 102, "groupName": "Group A"},
-  {"tabId": 103, "groupName": "Group B"}
+  {"tabId": 101, "groupName": "..."},
+  {"tabId": 102, "groupName": "..."},
+  {"tabId": 103, "groupName": "..."}
 ]`;
 
-// --- CoT (reasoning + JSON) ---
 // --- CoD (Chain-of-Draft) ---
-const COD_INSTRUCTIONS = `You MUST output a JSON list of assignments.
+const COD_OUTPUT_FORMAT = `## Output Format
+You MUST output a JSON list of assignments.
 
 Think step by step, but only keep a minimum draft for each thinking step, with 5 words at most.
 Return the draft, then the separator '####', then the JSON array wrapped in a markdown code block.
 
 Format: List of objects with "tabId" and "groupName".
 
-INPUT:
-<example>
-Existing Groups:
+## Example
+<input>
+<existing_groups>
 - "🛒Shopping"
-Ungrouped Tabs:
+</existing_groups>
+<ungrouped_tabs>
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
 - [ID: 103] "TypeScript handbook"
-</example>
+</ungrouped_tabs>
+</input>
 
-OUTPUT:
-<example>
+<output>
 Thoughts:
 1. ...
 2. ...
@@ -136,14 +138,13 @@ Thoughts:
 ####
 \`\`\`json
 [
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
+  {"tabId": 101, "groupName": "..."},
+  {"tabId": 102, "groupName": "..."},
+  {"tabId": 103, "groupName": "..."}
 ]
-\`\`\`
-</example>`;
+\`\`\`</output>`;
 
-const CONSTRAINTS = `IMPORTANT:
+const CONSTRAINTS = `## Constraints
 - Return exactly ONE object for EVERY tab ID in the input.
 - Do NOT skip any tabs.
 - "groupName" must be a string. "tabId" must be a number.`;
@@ -153,19 +154,13 @@ const CONSTRAINTS = `IMPORTANT:
 // =============================================================================
 
 export const constructSystemPrompt = (customRules: string = "", useReasoning: boolean = false): string => {
-    const coreInstructions = useReasoning ? COD_INSTRUCTIONS : INSTRUCTIONS;
-
     const parts = [
         ROLE,
         TASK,
-        OBJECTIVES,
-        coreInstructions,
+        RULES + (customRules.trim().length > 0 ? '\n' + customRules : ""),
+        useReasoning ? COD_OUTPUT_FORMAT : OUTPUT_FORMAT,
         CONSTRAINTS
     ];
-
-    if (customRules.trim().length > 0) {
-        parts.push(`Additional Rules:\n${customRules}`);
-    }
 
     return parts.join('\n\n');
 };

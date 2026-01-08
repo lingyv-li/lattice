@@ -49,9 +49,12 @@ export class LocalProvider extends BaseProvider {
             LocalProvider.cachedSession = null;
         }
 
-        console.log(`[LocalProvider] [${new Date().toISOString()}] Creating new base session`);
+        const params = await LanguageModel.params();
+        console.log(`[LocalProvider] [${new Date().toISOString()}] Creating new base session with temp 0.2, topK ${params.defaultTopK}`);
         const sessionCreateStart = Date.now();
         LocalProvider.cachedSession = await LanguageModel.create({
+            temperature: 0.2,
+            topK: params.defaultTopK,
             expectedInputs: [{ type: 'text', languages: ['en'] }],
             initialPrompts: [{
                 role: "system",

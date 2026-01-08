@@ -48,8 +48,8 @@ export abstract class BaseProvider implements AIProvider {
 
         const userPrompt = (
             currentGroupNames.length > 0 ?
-                "Existing Groups:\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') : "")
-            + `\nUngrouped Tabs:\n${tabList}`;
+                "<existing_groups>\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') + "\n</existing_groups>" : "")
+            + `\n<ungrouped_tabs>\n${tabList}\n</ungrouped_tabs>`;
 
         try {
             const responseText = await this.promptAI(userPrompt, systemPrompt, signal);

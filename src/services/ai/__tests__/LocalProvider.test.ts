@@ -25,7 +25,8 @@ describe('LocalProvider', () => {
 
         const mockLanguageModel = {
             create: mockCreate,
-            availability: mockAvailability
+            availability: mockAvailability,
+            params: vi.fn().mockResolvedValue({ defaultTopK: 10 })
         };
 
         // Use proper Vitest stubbing for Global

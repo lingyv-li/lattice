@@ -60,39 +60,42 @@ describe('shared utilities', () => {
     describe('constructSystemPrompt', () => {
         it('should match the golden prompt structure', () => {
             const prompt = constructSystemPrompt();
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
+            const expected = `## Role
+You are an expert Information Architect and Productivity Assistant.
 
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
+## Task
+Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+## Rules
+- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
-OUTPUT FORMAT:
+## Output Format
 - Output ONLY a valid JSON array of objects.
 - Each object must have "tabId" (number) and "groupName" (string).
 
-Example:
+## Example
 [
-  {"tabId": 101, "groupName": "Group A"},
-  {"tabId": 102, "groupName": "Group A"},
-  {"tabId": 103, "groupName": "Group B"}
+  {"tabId": 101, "groupName": "..."},
+  {"tabId": 102, "groupName": "..."},
+  {"tabId": 103, "groupName": "..."}
 ]
 
-IMPORTANT:
+## Constraints
 - Return exactly ONE object for EVERY tab ID in the input.
 - Do NOT skip any tabs.
 - "groupName" must be a string. "tabId" must be a number.`;
             expect(prompt).toBe(expected);
         });
 
-        it('should include custom rules if provided', () => {
-            const prompt = constructSystemPrompt('Custom Rule 1');
-            expect(prompt).toContain('Additional Rules:');
-            expect(prompt).toContain('Custom Rule 1');
-        });
+        const prompt = constructSystemPrompt('Custom Rule 1');
+        // Check that it's appended to Rules
+        expect(prompt).toContain('## Rules');
+        expect(prompt).toContain('Custom Rule 1');
+        // And that it doesn't add a new header if not implemented that way anymore
+        // Based on shared.ts implementation: RULES + (customRules ... ? '\n' + customRules : "")
+        expect(prompt).not.toContain('## Additional Rules');
     });
 
     describe('constructSystemPrompt (CoD)', () => {
@@ -100,16 +103,18 @@ IMPORTANT:
             const prompt = constructSystemPrompt("", true);
 
             // Golden test - ensure prompt structure stays consistent
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
+            const expected = `## Role
+You are an expert Information Architect and Productivity Assistant.
 
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
+## Task
+Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+## Rules
+- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
+## Output Format
 You MUST output a JSON list of assignments.
 
 Think step by step, but only keep a minimum draft for each thinking step, with 5 words at most.
@@ -117,18 +122,19 @@ Return the draft, then the separator '####', then the JSON array wrapped in a ma
 
 Format: List of objects with "tabId" and "groupName".
 
-INPUT:
-<example>
-Existing Groups:
+## Example
+<input>
+<existing_groups>
 - "🛒Shopping"
-Ungrouped Tabs:
+</existing_groups>
+<ungrouped_tabs>
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
 - [ID: 103] "TypeScript handbook"
-</example>
+</ungrouped_tabs>
+</input>
 
-OUTPUT:
-<example>
+<output>
 Thoughts:
 1. ...
 2. ...
@@ -136,14 +142,13 @@ Thoughts:
 ####
 \`\`\`json
 [
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
+  {"tabId": 101, "groupName": "..."},
+  {"tabId": 102, "groupName": "..."},
+  {"tabId": 103, "groupName": "..."}
 ]
-\`\`\`
-</example>
+\`\`\`</output>
 
-IMPORTANT:
+## Constraints
 - Return exactly ONE object for EVERY tab ID in the input.
 - Do NOT skip any tabs.
 - "groupName" must be a string. "tabId" must be a number.`;
@@ -154,16 +159,20 @@ IMPORTANT:
         it('should match the golden prompt structure with custom rules', () => {
             const prompt = constructSystemPrompt("Rule 1: Be cool.\nRule 2: Have fun.", true);
 
-            const expected = `You are a Tab Organizer that groups browser tabs into logical categories.
+            const expected = `## Role
+You are an expert Information Architect and Productivity Assistant.
 
-I will provide "Existing Groups" and "Ungrouped Tabs". Assign each ungrouped tab to a group.
+## Task
+Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
-Objectives:
-- COMPULSORY: Check "Existing Groups" first. If a tab fits an existing group, you MUST use that EXACT group name.
-- Do NOT create a new group if an existing one is suitable.
-- Merge similar topics aggressively (e.g., "Tech" and "Technology" → pick one).
+## Rules
+- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
+- Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
+Rule 1: Be cool.
+Rule 2: Have fun.
 
+## Output Format
 You MUST output a JSON list of assignments.
 
 Think step by step, but only keep a minimum draft for each thinking step, with 5 words at most.
@@ -171,18 +180,19 @@ Return the draft, then the separator '####', then the JSON array wrapped in a ma
 
 Format: List of objects with "tabId" and "groupName".
 
-INPUT:
-<example>
-Existing Groups:
+## Example
+<input>
+<existing_groups>
 - "🛒Shopping"
-Ungrouped Tabs:
+</existing_groups>
+<ungrouped_tabs>
 - [ID: 101] "React hooks guide"
 - [ID: 102] "Amazon.com: headphones"
 - [ID: 103] "TypeScript handbook"
-</example>
+</ungrouped_tabs>
+</input>
 
-OUTPUT:
-<example>
+<output>
 Thoughts:
 1. ...
 2. ...
@@ -190,21 +200,16 @@ Thoughts:
 ####
 \`\`\`json
 [
-  {"tabId": 101, "groupName": "⚛️React"},
-  {"tabId": 102, "groupName": "🛒Shopping"},
-  {"tabId": 103, "groupName": "⚛️React"}
+  {"tabId": 101, "groupName": "..."},
+  {"tabId": 102, "groupName": "..."},
+  {"tabId": 103, "groupName": "..."}
 ]
-\`\`\`
-</example>
+\`\`\`</output>
 
-IMPORTANT:
+## Constraints
 - Return exactly ONE object for EVERY tab ID in the input.
 - Do NOT skip any tabs.
-- "groupName" must be a string. "tabId" must be a number.
-
-Additional Rules:
-Rule 1: Be cool.
-Rule 2: Have fun.`;
+- "groupName" must be a string. "tabId" must be a number.`;
 
             expect(prompt).toBe(expected);
         });
