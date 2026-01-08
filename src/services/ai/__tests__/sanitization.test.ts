@@ -141,4 +141,21 @@ describe('sanitizeUrl', () => {
         expect(cleaned).not.toContain('fbs');
         expect(cleaned).not.toContain('ved');
     });
+
+    it('should handle complex Google Search URL with gemini prompt (User Reported)', () => {
+        const url = "https://www.google.com/search?q=gemini+nano+gemma+prompt&num=10&sca_esv=0bef742b4fee5174&rlz=1C5CHFA_enAU946AU946&sxsrf=ANbL-n6-_RzSXSumgdhn8SdCcRiohu5ymg%3A1767870526022&ei=PZBfafSNNp7g2roPtrih6AQ&ved=0ahUKEwi0oNH15vuRAxUesFYBHTZcCE0Q4dUDCBE&uact=5&oq=gemini+nano+gemma+prompt&gs_lp=Egxnd3Mtd2l6LXNlcnAiGGdlbWluaSBuYW5vIGdlbW1hIHByb21wdDIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzIKEAAYsAMY1gQYRzINEAAYgAQYsAMYQxiKBTINEAAYgAQYsAMYQxiKBUj6C1DQBVisC3ABeAGQAQCYAZEDoAHEC6oBBTMtMy4xuAEDyAEA-AEBmAIBoAIImAMAiAYBkAYKkgcBMaAH1BeyBwC4BwDCBwMyLTHIBwWACAA&sclient=gws-wiz-serp";
+
+        const cleaned = sanitizeUrl(url);
+
+        // Should keep relevant params
+        expect(cleaned).toContain('q=gemini+nano+gemma+prompt');
+        expect(cleaned).toContain('num=10');
+        expect(cleaned).toContain('uact=5');
+
+        // Should remove large tracking payloads
+        expect(cleaned).not.toContain('gs_lp'); // Massive payload
+        expect(cleaned).not.toContain('sxsrf'); // Long token
+        expect(cleaned).not.toContain('ved');   // Tracking
+        expect(cleaned).not.toContain('sca_esv'); // Tracking (explicitly in regex)
+    });
 });

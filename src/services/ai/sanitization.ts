@@ -1,9 +1,12 @@
 
 const analyzeTokenStats = (str: string) => {
-    // 1. Split on separators (hyphen, underscore, plus, space, dot)
-    let clean = str.replace(/[-_+. ]/g, ' ');
+    // 1. Split on separators (hyphen, underscore, plus, space, dot, colon, equals)
+    let clean = str.replace(/[-_+. :=]/g, ' ');
 
     // 2. Insert space before capital letters (CamelCase)
+    // Handle acronyms: XMLHttp -> XML Http
+    clean = clean.replace(/([A-Z])([A-Z][a-z])/g, '$1 $2');
+    // Handle normal: camelCase -> camel Case
     clean = clean.replace(/([a-z])([A-Z])/g, '$1 $2');
 
     // 3. Insert space between Alpha and Number
@@ -33,22 +36,24 @@ const shouldSanitizeValue = (value: string): boolean => {
     // eslint-disable-next-line no-control-regex
     if (/[^\x00-\x7F]/.test(value)) return false;
 
-    // 2. ROBUST: Token Segmentation Stats
-    // IDs are highly fragmented (short tokens). Natural language has longer words.
     const stats = analyzeTokenStats(value);
 
-    // Heuristic A: High Fragmentation
-    // If avg < 1.8, it's extremely fragmented (mixed case/nums) -> Strip even if short (10-25 chars)
-    if (stats.avgLen < 1.8) return true;
+    // RULE 1: Massive Token (Fatal)
+    // Chrome Ext IDs are 32 chars. Longest common English words < 20.
+    // If a single token is > 30 chars, it's almost certainly a key/hash.
+    if (stats.maxLen > 30) return true;
 
+    // RULE 2: Extreme Fragmentation (Fatal)
+    // Avglen < 2.2 means the string is chopped into tiny pieces (e.g. hex).
+    // Natural language (even short words) usually averages > 3.0.
+    if (stats.avgLen < 2.2) return true;
+
+    // RULE 3: High Entropy (Conditional)
+    // Avglen < 3.0 is suspicious, but simple English can fall here ("to be").
     // If avg < 3.0, strip if it's long enough to be an ID (> 25 chars)
     if (stats.avgLen < 3.0 && value.length > 25) return true;
 
-    // Heuristic B: Single Massive Token (e.g. Hash/Key)
-    // Longest English words are rarely > 20 chars. 30 is a safe upper bound.
-    // Chrome Ext IDs are 32 chars.
-    if (stats.maxLen > 30) return true;
-
+    // If none of the above, assume it's safe (e.g. Long natural text).
     return false;
 };
 
