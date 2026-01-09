@@ -42,14 +42,7 @@ archive.on('error', function (err) {
 });
 
 archive.pipe(output);
-archive.directory(distDir, false, (entry) => {
-    if (entry.name.endsWith('/')) {
-        entry.mode = 0o755;
-    } else {
-        entry.mode = 0o644;
-    }
-    return entry;
-});
+archive.directory(distDir, false);
 archive.finalize();
 
 // Create CRX if key exists

@@ -22,11 +22,11 @@ jobs:
         run: npm ci
         
       - name: Build and Pack
-        run: npm run pack
+        run: npm run build
         
       - name: Upload Artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: extension-package
-          path: releases/*.zip
+          name: lattice-extension
+          path: dist/
           if-no-files-found: error
