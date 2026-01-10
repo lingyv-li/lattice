@@ -43,16 +43,28 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
         >
             {/* Header / Selection Area */}
             <div className="p-4 flex items-start gap-3">
-                {/* Checkbox Indicator */}
-                <div className={`
-                    mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0
-                    ${isSelected && !disabled
-                        ? 'bg-purple-500 border-purple-500 text-white'
-                        : 'border-muted text-transparent group-hover:border-purple-400'
-                    }
-                `}>
+                {/* Checkbox Indicator - NOW ACCESSIBLE */}
+                <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={`Select ${title}`}
+                    disabled={disabled}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!disabled) onToggle();
+                    }}
+                    className={`
+                        mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center transition-colors shrink-0 cursor-pointer
+                        focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2
+                        ${isSelected && !disabled
+                            ? 'bg-purple-500 border-purple-500 text-white'
+                            : 'border-muted text-transparent group-hover:border-purple-400'
+                        }
+                    `}
+                >
                     <Check className="w-3 h-3" strokeWidth={3} />
-                </div>
+                </button>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
