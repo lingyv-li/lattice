@@ -11,10 +11,27 @@ export class WindowSnapshot {
     protected readonly tabs: chrome.tabs.Tab[];
     protected readonly groups: chrome.tabGroups.TabGroup[];
 
+    // Optimized O(1) lookup structures
+    private readonly tabMap: Map<number, chrome.tabs.Tab>;
+    private readonly ungroupedTabSet: Set<number>;
+
     protected constructor(allTabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
         this.allTabs = allTabs;
+
+        // Initialize O(1) lookup map for all tabs
+        this.tabMap = new Map();
+        for (const t of allTabs) {
+            if (t.id !== undefined) {
+                this.tabMap.set(t.id, t);
+            }
+        }
+
         // Keep "tabs" as only the ungrouped tabs to preserve existing behavior
         this.tabs = allTabs.filter((t: chrome.tabs.Tab) => isGroupableTab(t));
+
+        // Initialize O(1) lookup set for ungrouped tabs
+        this.ungroupedTabSet = new Set(this.tabs.map(t => t.id!).filter(id => id !== undefined));
+
         this.groups = groups;
         this.fingerprint = WindowSnapshot.generateFingerprint(this.tabs, this.groups);
     }
@@ -170,7 +187,7 @@ export class WindowSnapshot {
      * Checks if a tab with the given ID exists in this snapshot (Ungrouped only).
      */
     hasTab(tabId: number): boolean {
-        return this.tabs.some(t => t.id === tabId);
+        return this.ungroupedTabSet.has(tabId);
     }
 
     /**
@@ -178,7 +195,7 @@ export class WindowSnapshot {
      * Returns undefined if the tab is not found.
      */
     getTabData(tabId: number): chrome.tabs.Tab | undefined {
-        return this.allTabs.find(t => t.id === tabId);
+        return this.tabMap.get(tabId);
     }
 
     /**
