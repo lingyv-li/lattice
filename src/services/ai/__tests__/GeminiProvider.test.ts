@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GeminiProvider } from '../GeminiProvider';
-import { GroupingRequest } from '../types';
+import { GroupingRequest, GroupContext } from '../types';
 
 // Mock @google/genai
 const mockGenerateContent = vi.fn();
@@ -80,8 +80,8 @@ describe('GeminiProvider', () => {
     });
 
     it('should use existing group ID if AI returns existing name', async () => {
-        const existingGroups = new Map<string, number>();
-        existingGroups.set('Work', 100);
+        const existingGroups = new Map<string, GroupContext>();
+        existingGroups.set('Work', { id: 100, tabs: [] });
 
         const tabs = [{ id: 1, title: 'Work Doc', url: 'http://docs.com' }];
         const request: GroupingRequest = {
@@ -131,6 +131,7 @@ describe('GeminiProvider', () => {
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].message).toContain('No response text');
     });
+
     it('should handle Gemma models differently (no system instruction in config)', async () => {
         const gemmaProvider = new GeminiProvider('fake-key', 'gemma-2-9b-it');
         const request: GroupingRequest = {
@@ -152,9 +153,52 @@ describe('GeminiProvider', () => {
         // System prompt should be injected into user prompt
         const promptText = callArgs.contents[0].parts[0].text;
         expect(promptText).toContain('System Instructions:');
-        expect(promptText).toContain('Output ONLY valid JSON'); // Adjusted casing to match implementation if needed, checking insensitive? No, implementation has "Output ONLY valid JSON." vs "IMPORTANT: Output ONLY valid JSON."
-        // Implementation: `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
+        expect(promptText).toContain('Output ONLY valid JSON');
         expect(promptText).toContain('IMPORTANT: Output ONLY valid JSON');
     });
-});
 
+    describe('Prompt Construction Context', () => {
+        // Expose protected method for testing
+        class TestGeminiProvider extends GeminiProvider {
+            public testConstructExistingGroupsPrompt(
+                groups: Map<string, GroupContext>
+            ): string {
+                return this.constructExistingGroupsPrompt(groups);
+            }
+        }
+
+        it('should construct prompt with existing group tabs and sampled content', () => {
+            const provider = new TestGeminiProvider('fake-key', 'gemini-pro');
+            const groups = new Map<string, GroupContext>();
+            groups.set("Work", {
+                id: 1,
+                tabs: [
+                    { id: 101, title: "GitHub", url: "https://github.com" },
+                    { id: 102, title: "Jira", url: "https://jira.com" }
+                ]
+            });
+            groups.set("Social", { id: 2, tabs: [] });
+
+            const prompt = provider.testConstructExistingGroupsPrompt(groups);
+
+            expect(prompt).toBe(`<existing_groups>
+- "Work"
+  - [GitHub](https://github.com/)
+  - [Jira](https://jira.com/)
+- "Social"
+</existing_groups>`);
+        });
+
+        it('should handle empty group tabs gracefully', () => {
+            const provider = new TestGeminiProvider('fake-key', 'gemini-pro');
+            const groups = new Map<string, GroupContext>();
+            groups.set("Work", { id: 1, tabs: [] });
+
+            const prompt = provider.testConstructExistingGroupsPrompt(groups);
+
+            expect(prompt).toBe(`<existing_groups>
+- "Work"
+</existing_groups>`);
+        });
+    });
+});

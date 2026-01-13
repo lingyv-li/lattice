@@ -1,4 +1,4 @@
-import { AIProvider, GroupingRequest, SuggestionResult } from './types';
+import { AIProvider, GroupingRequest, SuggestionResult, GroupContext } from './types';
 import { TabGroupSuggestion } from '../../types/tabGrouper';
 import { handleAssignment, cleanAndParseJson, constructSystemPrompt } from './shared';
 import { sanitizeUrl } from './sanitization';
@@ -26,11 +26,22 @@ export abstract class BaseProvider implements AIProvider {
         return constructSystemPrompt(customRules);
     }
 
+    protected constructExistingGroupsPrompt(
+        groups: Map<string, GroupContext>
+    ): string {
+        const currentGroupNames = Array.from(groups.keys()).filter(name => name.trim().length > 0);
+        if (currentGroupNames.length === 0) return "";
+        return "<existing_groups>\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') + "\n</existing_groups>";
+    }
+
     async generateSuggestions(
         request: GroupingRequest
     ): Promise<SuggestionResult> {
         const { ungroupedTabs, existingGroups, customRules, signal } = request;
-        const groupNameMap = existingGroups;
+        const groupNameMap = new Map<string, number>();
+        for (const [name, context] of existingGroups) {
+            groupNameMap.set(name, context.id);
+        }
         const suggestions = new Map<string, TabGroupSuggestion>();
         const errors: Error[] = [];
         let nextNewGroupId = -1;
@@ -40,15 +51,14 @@ export abstract class BaseProvider implements AIProvider {
 
         const systemPrompt = this.getSystemPrompt(customRules);
 
-        const currentGroupNames = Array.from(groupNameMap.keys())
-            .filter(name => name.trim().length > 0);
         const tabList = ungroupedTabs
             .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${sanitizeUrl(t.url)}"`)
             .join('\n');
 
+        const existingGroupsPrompt = this.constructExistingGroupsPrompt(existingGroups);
+
         const userPrompt = (
-            currentGroupNames.length > 0 ?
-                "<existing_groups>\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') + "\n</existing_groups>" : "")
+            existingGroupsPrompt.length > 0 ? existingGroupsPrompt + "\n" : "")
             + `\n<ungrouped_tabs>\n${tabList}\n</ungrouped_tabs>`;
 
         try {

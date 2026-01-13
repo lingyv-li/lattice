@@ -1,7 +1,6 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalProvider } from '../LocalProvider';
-import { GroupingRequest } from '../types';
+import { GroupingRequest, GroupContext } from '../types';
 
 // Mock specific logic for this test file
 const mockPrompt = vi.fn();
@@ -194,5 +193,37 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
         expect(createArgs).toHaveProperty('monitor');
         expect(createArgs.initialPrompts).toBeUndefined(); // ensureBaseSession shouldn't be called
         expect(mockDestroy).toHaveBeenCalledTimes(1); // destroy called immediately after download check
+    });
+
+    describe('Prompt Context', () => {
+        class TestLocalProvider extends LocalProvider {
+            public testConstructExistingGroupsPrompt(
+                groups: Map<string, GroupContext>
+            ): string {
+                return this.constructExistingGroupsPrompt(groups);
+            }
+        }
+
+        it('should NOT include tab details in existing groups prompt (context optimization)', () => {
+            const provider = new TestLocalProvider();
+            const groups = new Map<string, GroupContext>();
+            groups.set("Work", {
+                id: 1,
+                tabs: [{ id: 101, title: "GitHub", url: "https://github.com" }]
+            });
+
+            const prompt = provider.testConstructExistingGroupsPrompt(groups);
+
+            // Expecting standard BaseProvider implementation:
+            // <existing_groups>
+            // - "Work"
+            // </existing_groups>
+
+            expect(prompt).toContain('<existing_groups>');
+            expect(prompt).toContain('- "Work"');
+            expect(prompt).not.toContain('GitHub'); // Should NOT be present
+            expect(prompt).not.toContain('github.com'); // Should NOT be present
+            expect(prompt).toContain('</existing_groups>');
+        });
     });
 });

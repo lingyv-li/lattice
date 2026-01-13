@@ -201,22 +201,24 @@ export class WindowSnapshot {
         virtualGroups: Map<string, number>,
         customRules?: string
     ): GroupingRequest {
-        const windowGroupNameMap = new Map<string, number>();
+        const existingGroupsContext = new Map<string, { id: number; tabs: { id: number; title: string; url: string; }[] }>();
+        const groupIdToName = new Map<number, string>();
 
         // 1. Add existing groups from snapshot
         for (const group of this.groups) {
             if (group.title && group.title.trim().length > 0) {
-                if (!windowGroupNameMap.has(group.title)) {
-                    windowGroupNameMap.set(group.title, group.id);
+                if (!existingGroupsContext.has(group.title)) {
+                    existingGroupsContext.set(group.title, { id: group.id, tabs: [] });
+                    groupIdToName.set(group.id, group.title);
                 }
             }
         }
 
-        // 2. Add virtual groups (overriding existing if same name? or skipping? implementation choice)
-        // Previous logic was: if (!has) set. favoring existing groups.
+        // 2. Add virtual groups
         for (const [name, id] of virtualGroups) {
-            if (!windowGroupNameMap.has(name)) {
-                windowGroupNameMap.set(name, id);
+            if (!existingGroupsContext.has(name)) {
+                existingGroupsContext.set(name, { id, tabs: [] });
+                groupIdToName.set(id, name);
             }
         }
 
@@ -228,10 +230,57 @@ export class WindowSnapshot {
             url: t.url!
         }));
 
+        // 3. Populate existingGroups tabs with deterministic sampling
+        // Group tabs by their group name
+        const tabsByGroupName = new Map<string, chrome.tabs.Tab[]>();
+        for (const tab of this.allTabs) {
+            if (tab.groupId !== chrome.tabs.TAB_ID_NONE && tab.groupId !== undefined) {
+                const groupName = groupIdToName.get(tab.groupId);
+                if (groupName) {
+                    if (!tabsByGroupName.has(groupName)) {
+                        tabsByGroupName.set(groupName, []);
+                    }
+                    tabsByGroupName.get(groupName)!.push(tab);
+                }
+            }
+        }
+
+        // Sample up to 10 tabs per group deterministically using a hash
+        // This ensures a "random" distribution that is stable across calls
+        for (const [groupName, tabs] of tabsByGroupName) {
+            const sortedTabs = tabs.sort((a, b) => {
+                const hashA = WindowSnapshot.deterministicHash(`${a.id}:${a.url}`);
+                const hashB = WindowSnapshot.deterministicHash(`${b.id}:${b.url}`);
+                return hashA - hashB;
+            });
+
+            const sampledTabs = sortedTabs.slice(0, 10).map(t => ({
+                id: t.id!,
+                title: t.title!,
+                url: t.url!
+            }));
+
+            if (existingGroupsContext.has(groupName)) {
+                existingGroupsContext.get(groupName)!.tabs = sampledTabs;
+            }
+        }
+
         return {
             ungroupedTabs: simpleTabs,
-            existingGroups: windowGroupNameMap,
+            existingGroups: existingGroupsContext,
             customRules: customRules
         };
+    }
+
+    /**
+     * Simple deterministic hash function (djb2 implementation)
+     * Used for consistent random sampling of tabs.
+     */
+    public static deterministicHash(str: string): number {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i); /* hash * 33 + c */
+        }
+        return hash >>> 0;
     }
 }

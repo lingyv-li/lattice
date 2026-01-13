@@ -6,8 +6,13 @@ export interface TabData {
     url: string;
 }
 
+export interface GroupContext {
+    id: number;
+    tabs: TabData[];
+}
+
 export interface GroupingRequest {
-    existingGroups: Map<string, number>;
+    existingGroups: Map<string, GroupContext>;
     ungroupedTabs: TabData[];
     customRules?: string;
     signal?: AbortSignal;

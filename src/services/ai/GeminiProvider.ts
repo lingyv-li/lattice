@@ -1,6 +1,8 @@
 import { BaseProvider } from './BaseProvider';
+import { GroupContext } from './types';
 import { GoogleGenAI } from '@google/genai';
 import { AIProviderError, ConfigurationError, AbortError } from '../../utils/AppError';
+import { sanitizeUrl } from './sanitization';
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
@@ -10,6 +12,26 @@ export class GeminiProvider extends BaseProvider {
         private model: string
     ) {
         super();
+    }
+
+    protected constructExistingGroupsPrompt(
+        groups: Map<string, GroupContext>
+    ): string {
+        const currentGroups = Array.from(groups.keys()).filter(name => name.trim().length > 0);
+        if (currentGroups.length === 0) return "";
+
+        let prompt = "<existing_groups>\n";
+        for (const name of currentGroups) {
+            prompt += `- "${name}"`;
+            const context = groups.get(name);
+            if (context && context.tabs.length > 0) {
+                // Use nested list for clearer structure
+                prompt += "\n" + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
+            }
+            prompt += "\n";
+        }
+        prompt += "</existing_groups>";
+        return prompt;
     }
 
     protected async promptAI(
