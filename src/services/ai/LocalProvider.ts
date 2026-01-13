@@ -35,7 +35,7 @@ export class LocalProvider extends BaseProvider {
         return constructSystemPrompt(customRules, true);
     }
 
-    private async getSession(systemPrompt: string, signal?: AbortSignal): Promise<LanguageModel> {
+    private async getSession(systemPrompt: string, signal: AbortSignal): Promise<LanguageModel> {
         if (LocalProvider.cachedSession && LocalProvider.cachedSystemPrompt === systemPrompt) {
             const cloneStart = Date.now();
             const session = await LocalProvider.cachedSession.clone();
@@ -75,7 +75,7 @@ export class LocalProvider extends BaseProvider {
     protected async promptAI(
         userPrompt: string,
         systemPrompt: string,
-        signal?: AbortSignal
+        signal: AbortSignal
     ): Promise<string> {
         if (await LocalProvider.checkAvailability() !== 'available') {
             throw new AIProviderError("Local AI is not available.");

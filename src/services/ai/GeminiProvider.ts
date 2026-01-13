@@ -37,7 +37,7 @@ export class GeminiProvider extends BaseProvider {
     protected async promptAI(
         userPrompt: string,
         systemPrompt: string,
-        signal?: AbortSignal
+        signal: AbortSignal
     ): Promise<string> {
         if (!this.apiKey) throw new ConfigurationError("API Key is missing for Gemini Cloud.");
         if (!this.model) throw new ConfigurationError("Please select an AI model in Settings.");

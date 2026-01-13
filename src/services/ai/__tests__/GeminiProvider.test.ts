@@ -29,7 +29,8 @@ describe('GeminiProvider', () => {
         const noKeyProvider = new GeminiProvider('', 'gemini-pro');
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: new AbortController().signal
         };
 
         const result = await noKeyProvider.generateSuggestions(request);
@@ -43,7 +44,8 @@ describe('GeminiProvider', () => {
         const noModelProvider = new GeminiProvider('fake-key', '');
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: new AbortController().signal
         };
 
         const result = await noModelProvider.generateSuggestions(request);
@@ -61,7 +63,8 @@ describe('GeminiProvider', () => {
         ];
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: tabs
+            ungroupedTabs: tabs,
+            signal: new AbortController().signal
         };
 
         mockGenerateContent.mockResolvedValue({
@@ -86,7 +89,8 @@ describe('GeminiProvider', () => {
         const tabs = [{ id: 1, title: 'Work Doc', url: 'http://docs.com' }];
         const request: GroupingRequest = {
             existingGroups,
-            ungroupedTabs: tabs
+            ungroupedTabs: tabs,
+            signal: new AbortController().signal
         };
 
         mockGenerateContent.mockResolvedValue({
@@ -103,7 +107,8 @@ describe('GeminiProvider', () => {
     it('should handle malformed JSON response gracefully', async () => {
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: new AbortController().signal
         };
 
         mockGenerateContent.mockResolvedValue({
@@ -120,7 +125,8 @@ describe('GeminiProvider', () => {
     it('should collect error on empty response text', async () => {
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: new AbortController().signal
         };
 
         mockGenerateContent.mockResolvedValue({}); // No text
@@ -136,7 +142,8 @@ describe('GeminiProvider', () => {
         const gemmaProvider = new GeminiProvider('fake-key', 'gemma-2-9b-it');
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: new AbortController().signal
         };
 
         mockGenerateContent.mockResolvedValue({

@@ -73,7 +73,8 @@ describe('LocalProvider', () => {
     it('should initialize session on first call', async () => {
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Tab 1', url: 'http://tab1.com' }],
+            signal: new AbortController().signal
         };
 
         const responseText = `Here is some reasoning...
@@ -93,7 +94,8 @@ ${JSON.stringify([{ tabId: 1, groupName: 'Group 1' }])}`;
     it('should reuse cached session if prompts match', async () => {
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }]
+            ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }],
+            signal: new AbortController().signal
         };
         const responseText = `Reasoning...
 ####
@@ -116,12 +118,14 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         const requestA: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Tab', url: 'http://example.com' }],
-            customRules: 'Rule A'
+            customRules: 'Rule A',
+            signal: new AbortController().signal
         };
         const requestB: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 2, title: 'Tab', url: 'http://example.com' }],
-            customRules: 'Rule B'
+            customRules: 'Rule B',
+            signal: new AbortController().signal
         };
         const responseText = `Reasoning...
 ####
@@ -148,7 +152,8 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
         ];
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: tabs
+            ungroupedTabs: tabs,
+            signal: new AbortController().signal
         };
 
         const responseText = `Reasoning about Tab 1 and Tab 2...
@@ -175,7 +180,8 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
 
         const request: GroupingRequest = {
             existingGroups: new Map(),
-            ungroupedTabs: [{ id: 1, title: 'T', url: 'U' }]
+            ungroupedTabs: [{ id: 1, title: 'T', url: 'U' }],
+            signal: new AbortController().signal
         };
 
         const result = await provider.generateSuggestions(request);

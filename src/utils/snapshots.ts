@@ -200,7 +200,7 @@ export class WindowSnapshot {
         batchTabs: chrome.tabs.Tab[],
         virtualGroups: Map<string, number>,
         customRules?: string
-    ): GroupingRequest {
+    ): Omit<GroupingRequest, 'signal'> {
         const existingGroupsContext = new Map<string, { id: number; tabs: { id: number; title: string; url: string; }[] }>();
         const groupIdToName = new Map<number, string>();
 

@@ -19,7 +19,7 @@ export abstract class BaseProvider implements AIProvider {
     protected abstract promptAI(
         userPrompt: string,
         systemPrompt: string,
-        signal?: AbortSignal
+        signal: AbortSignal
     ): Promise<string>;
 
     protected getSystemPrompt(customRules?: string): string {
@@ -52,7 +52,7 @@ export abstract class BaseProvider implements AIProvider {
         const systemPrompt = this.getSystemPrompt(customRules);
 
         const tabList = ungroupedTabs
-            .map(t => `- [ID: ${t.id}] Title: "${t.title}", URL: "${sanitizeUrl(t.url)}"`)
+            .map(t => `- [ID: ${t.id}] [${t.title}](${sanitizeUrl(t.url)})`)
             .join('\n');
 
         const existingGroupsPrompt = this.constructExistingGroupsPrompt(existingGroups);

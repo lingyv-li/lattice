@@ -15,7 +15,7 @@ export interface GroupingRequest {
     existingGroups: Map<string, GroupContext>;
     ungroupedTabs: TabData[];
     customRules?: string;
-    signal?: AbortSignal;
+    signal: AbortSignal;
 }
 
 export interface SuggestionResult {
