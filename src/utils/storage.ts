@@ -111,6 +111,34 @@ export const SettingsStorage = {
         await Promise.all(promises);
     },
 
+    updateFeature: async (featureId: FeatureId, updates: Partial<FeatureSettings>): Promise<void> => {
+        // 1. Get latest state (force read from storage)
+        const settings = await SettingsStorage.get(false);
+        const current = settings.features?.[featureId] || { enabled: false, autopilot: false };
+
+        // 2. Prepare new state
+        const next = { ...current, ...updates };
+
+        // 3. Enforce Business Rules
+        // ENFORCE RULE: If enabled becomes false, autopilot must be false
+        if (updates.enabled === false) {
+            next.autopilot = false;
+        }
+        // ENFORCE RULE: Autopilot cannot be true if enabled is false.
+        if (updates.autopilot === true && !next.enabled) {
+            next.enabled = true;
+        }
+
+        // 4. Merge back into full settings object
+        const newFeatures = {
+            ...settings.features,
+            [featureId]: next
+        };
+
+        // 5. Write back
+        await SettingsStorage.set({ features: newFeatures });
+    },
+
     subscribe: (callback: (changes: SettingsChanges) => void): () => void => {
         const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
             if (areaName === 'sync' || areaName === 'local') {

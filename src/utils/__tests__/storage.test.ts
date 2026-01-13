@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SettingsStorage, DEFAULT_GROUPING_RULES, AIProviderType } from '../storage';
+import { FeatureId } from '../../types/features';
 
 // Mock chrome.storage
 const mockSyncGet = vi.fn();
@@ -91,6 +92,56 @@ describe('SettingsStorage', () => {
         expect(mockLocalSet).not.toHaveBeenCalledWith(
             expect.objectContaining({ customGroupingRules: expect.anything() }),
             expect.anything()
+        );
+    });
+    it('should update specific feature using read-modify-write', async () => {
+        // Setup initial state in sync storage
+        const initialFeatures = {
+            [FeatureId.TabGrouper]: { enabled: false, autopilot: false },
+            [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+        };
+
+        mockSyncGet.mockImplementation((_keys, callback) => {
+            callback({ features: initialFeatures });
+        });
+
+        // Update TabGrouper enabled -> true
+        await SettingsStorage.updateFeature(FeatureId.TabGrouper, { enabled: true });
+
+        // Expect set to be called with the merged object
+        expect(mockSyncSet).toHaveBeenCalledWith(
+            expect.objectContaining({
+                features: {
+                    [FeatureId.TabGrouper]: { enabled: true, autopilot: false },
+                    [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+                }
+            }),
+            expect.any(Function)
+        );
+    });
+
+    it('should enforce autopilot logic during updateFeature', async () => {
+        // Setup initial state: enabled=true, autopilot=true
+        const initialFeatures = {
+            [FeatureId.TabGrouper]: { enabled: true, autopilot: true },
+            [FeatureId.DuplicateCleaner]: { enabled: true, autopilot: false }
+        };
+
+        mockSyncGet.mockImplementation((_keys, callback) => {
+            callback({ features: initialFeatures });
+        });
+
+        // Disable the feature
+        await SettingsStorage.updateFeature(FeatureId.TabGrouper, { enabled: false });
+
+        // Expect autopilot to be forced to false
+        expect(mockSyncSet).toHaveBeenCalledWith(
+            expect.objectContaining({
+                features: expect.objectContaining({
+                    [FeatureId.TabGrouper]: { enabled: false, autopilot: false }
+                })
+            }),
+            expect.any(Function)
         );
     });
 });

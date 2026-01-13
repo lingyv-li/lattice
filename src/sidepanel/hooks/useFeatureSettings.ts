@@ -27,29 +27,24 @@ export const useFeatureSettings = () => {
         return () => unsubscribe();
     }, []);
 
-    // Persist selection changes
-    useEffect(() => {
-        SettingsStorage.set({ features });
-    }, [features]);
-
     const updateFeature = (id: FeatureId, updates: Partial<FeatureSettings>) => {
+        // 1. Optimistic UI update
         setFeatures(prev => {
             const current = prev[id];
             if (!current) return prev;
-
             const next = { ...current, ...updates };
 
-            // ENFORCE RULE: If enabled becomes false, autopilot must be false
-            if (updates.enabled === false) {
-                next.autopilot = false;
-            }
-
-            // ENFORCE RULE: Autopilot cannot be true if enabled is false.
-            if (updates.autopilot === true && !next.enabled) {
-                next.enabled = true;
-            }
+            // Replicate business rules for immediate feedback (autopilot/enabled)
+            if (updates.enabled === false) next.autopilot = false;
+            if (updates.autopilot === true && !next.enabled) next.enabled = true;
 
             return { ...prev, [id]: next };
+        });
+
+        // 2. Persist safely
+        SettingsStorage.updateFeature(id, updates).catch(err => {
+            console.error("Failed to update feature settings:", err);
+            // In a more robust system, we might revert optimistic update here
         });
     };
 
