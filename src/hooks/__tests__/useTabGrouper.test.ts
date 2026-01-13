@@ -396,4 +396,43 @@ describe('useTabGrouper', () => {
         // Verify optimistic updates
         expect(result.current.isBackgroundProcessing).toBe(true);
     });
+
+    it('should debounce tab update events', async () => {
+        // Use real timers for initialization to avoid waitFor timeouts
+        vi.useRealTimers();
+        const { result } = renderHook(() => useTabGrouper());
+
+        // Initial scan
+        await waitFor(() => {
+            expect(result.current.snapshot).not.toBeNull();
+        });
+
+        // Switch to fake timers for debounce testing
+        vi.useFakeTimers();
+
+        // Spy on WindowSnapshot.fetch or chrome.tabs.query
+        // WindowSnapshot.fetch calls chrome.tabs.query
+        const querySpy = vi.mocked(global.chrome.tabs.query);
+        querySpy.mockClear();
+
+        // Trigger multiple tab updates
+        const calls = vi.mocked(global.chrome.tabs.onUpdated.addListener).mock.calls;
+        const listener = calls[calls.length - 1][0];
+
+        act(() => {
+            listener(101, { status: 'loading' }, {} as chrome.tabs.Tab);
+            listener(101, { title: 'New Title' }, {} as chrome.tabs.Tab);
+            listener(101, { status: 'complete' }, {} as chrome.tabs.Tab);
+        });
+
+        // Should not have called yet due to debounce
+        expect(querySpy).not.toHaveBeenCalled();
+
+        // Advance timers
+        await vi.advanceTimersByTimeAsync(350);
+
+        expect(querySpy).toHaveBeenCalledTimes(1);
+
+        vi.useRealTimers();
+    });
 });
