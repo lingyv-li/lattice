@@ -28,8 +28,8 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         await context.setupWindow(WIN_ID);
 
         // Debug listener count
-        // @ts-expect-error - Accessing internal _events for testing
-        console.log(`[FlowTest] Tabs OnCreated Listeners: ${context.chrome._events.tabsOnCreated.hasListener((context.tabManager as any).listeners?.tabs?.onCreated) ?? 'unknown'} `);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        console.log(`[FlowTest] Tabs OnCreated Listeners: ${(context.chrome as any)._events.tabsOnCreated.hasListener((context.tabManager as any).listeners?.tabs?.onCreated) ?? 'unknown'} `);
 
         // 1. Add some tabs that should be grouped
         await context.addTab(WIN_ID, 'https://work.com/jira/1');
@@ -237,6 +237,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
             context.chrome.tabs = context.chrome.tabs.filter(t => t.windowId !== WIN_ID);
 
             // Trigger window removal event
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const events = (context.chrome as any)._events;
             // console.error("[Test] Dispatching windowsOnRemoved event");
             await events.windowsOnRemoved.dispatch(WIN_ID);

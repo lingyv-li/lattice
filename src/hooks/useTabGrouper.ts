@@ -249,15 +249,40 @@ export const useTabGrouper = () => {
             setInteractionStatus(OrganizerStatus.Success);
             setPreviewGroups(null);
             setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 3000);
-
-            // We do NOT reject unselected groups anymore, per "just unselect" instruction.
-            // They remain available for future grouping.
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : String(err) || "Failed to apply groups.");
             setInteractionStatus(OrganizerStatus.Idle);
         }
     };
+    const applyGroup = async (index: number) => {
+        if (!previewGroups || !previewGroups[index]) return;
+        setInteractionStatus(OrganizerStatus.Applying);
+        setError(null);
 
+        try {
+            const currentWindow = await chrome.windows.getCurrent();
+            const group = previewGroups[index];
+
+            if (group.tabIds.length > 0) {
+                const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
+
+                if (validTabIds.length > 0) {
+                    await applyTabGroup(
+                        validTabIds,
+                        group.groupName,
+                        group.existingGroupId,
+                        currentWindow.id!
+                    );
+                }
+            }
+            setInteractionStatus(OrganizerStatus.Success);
+            // We rely on background update to refresh suggestions
+            setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 1000);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err) || "Failed to apply group.");
+            setInteractionStatus(OrganizerStatus.Idle);
+        }
+    };
     const toggleGroupSelection = (idx: number) => {
         const newSet = new Set(selectedPreviewIndices);
         if (newSet.has(idx)) {
@@ -301,6 +326,7 @@ export const useTabGrouper = () => {
         snapshot,
         isBackgroundProcessing,
         applyGroups,
+        applyGroup,
         toggleGroupSelection,
         setAllGroupsSelected,
         regenerateSuggestions,

@@ -110,6 +110,7 @@ export class FakeChrome {
             removeListener: vi.fn((callback) => listeners.delete(callback)),
             hasListener: vi.fn((callback) => listeners.has(callback)),
             // Helper to trigger events
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             dispatch: async (...args: any[]) => {
                 for (const listener of listeners) {
                     await listener(...args);
@@ -134,6 +135,7 @@ export class FakeChrome {
 
         // Expose them so TestContext can use them
         // We attach them to the instance so we can access them in TestContext
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (this as any)._events = {
             tabsOnCreated,
             tabsOnUpdated,
@@ -257,13 +259,17 @@ export class FakeChrome {
                 },
                 session: {
                     get: vi.fn().mockImplementation(async (_key?: string) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         return (this as any)._sessionStorage || {};
                     }),
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     set: vi.fn().mockImplementation(async (items: any) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (this as any)._sessionStorage = { ...((this as any)._sessionStorage || {}), ...items };
                     }),
                     remove: vi.fn().mockImplementation(async (keys: string | string[]) => {
                         const k = Array.isArray(keys) ? keys : [keys];
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         const storage = (this as any)._sessionStorage || {};
                         for (const key of k) delete storage[key];
                     })
@@ -321,17 +327,20 @@ export class TestContext {
 
         // Mock AIService to return deterministic results
         vi.spyOn(AIService, 'getProvider').mockResolvedValue({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             generateSuggestions: async (request: any) => {
                 console.error("[MockAI] generateSuggestions called with", request.ungroupedTabs.length, "tabs");
                 // Determine groups based on URL keywords
-                const suggestions = [];
+                const suggestions: any[] = [];
                 const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const socialTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('social'));
 
                 if (workTabs.length > 0) {
                     console.error("[MockAI] Found work tabs, suggesting group");
                     suggestions.push({
                         groupName: 'Work',
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         tabIds: workTabs.map((t: any) => t.id),
                         confidence: 0.9
                     });
@@ -339,13 +348,14 @@ export class TestContext {
                 if (socialTabs.length > 0) {
                     suggestions.push({
                         groupName: 'Social',
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         tabIds: socialTabs.map((t: any) => t.id),
                         confidence: 0.8
                     });
                 }
                 return { suggestions };
             }
-        } as any);
+        } as unknown as any); // Mocking internal AI provider structure
     }
 
     async setupWindow(windowId: number) {
@@ -358,6 +368,7 @@ export class TestContext {
     async addTab(windowId: number, url: string) {
         const tab = this.chrome.createTab(windowId, url);
         // Simulate event via the mock we wired up in FakeChrome
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const events = (this.chrome as any)._events;
         await events.tabsOnCreated.dispatch(tab);
         return tab;
@@ -368,6 +379,7 @@ export class TestContext {
      */
     async removeTab(tabId: number, windowId: number) {
         this.chrome.removeTab(tabId);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const events = (this.chrome as any)._events;
         await events.tabsOnRemoved.dispatch(tabId, { windowId, isWindowClosing: false });
     }

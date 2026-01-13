@@ -114,9 +114,6 @@ chrome.runtime.onConnect.addListener((port) => {
     });
 });
 
-// Enable action button.
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
-
 // 7. Alarm for periodic checks
 const ALARM_NAME = 'periodic-grouping-check';
 chrome.alarms.get(ALARM_NAME, (alarm) => {

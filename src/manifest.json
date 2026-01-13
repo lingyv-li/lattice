@@ -8,13 +8,10 @@
         "storage",
         "tabs",
         "tabGroups",
-        "sidePanel",
         "alarms"
     ],
-    "side_panel": {
-        "default_path": "src/sidepanel/index.html"
-    },
     "action": {
+        "default_popup": "src/sidepanel/index.html",
         "default_title": "Open Lattice",
         "default_icon": {
             "16": "icon.png",

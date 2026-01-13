@@ -1,69 +1,41 @@
-import { useState, useEffect, useMemo } from 'react';
-import { TabGrouperCard } from './TabGrouperCard';
-import { DuplicateCleanerCard } from './DuplicateCleanerCard';
-import { ConfirmationModal } from './ConfirmationModal';
+import { useState, useEffect } from 'react';
 import { Header } from './Header';
-import { FloatingAction } from './FloatingAction';
-
-import { useTabGrouper } from '../../hooks/useTabGrouper';
-import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
-import { useFeatureSettings } from '../hooks/useFeatureSettings';
+import { SuggestionList } from './SuggestionList';
+import { ConfigurationSection } from './ConfigurationSection';
 import { SettingsStorage } from '../../utils/storage';
 import { ErrorStorage } from '../../utils/errorStorage';
 import { useToast } from '../../hooks/useToast';
-
-import { FeatureId } from '../../types/features';
-import { OrganizerStatus } from '../../types/organizer';
+import { useTabGrouper } from '../../hooks/useTabGrouper';
 
 export const Dashboard = () => {
     const { showToast } = useToast();
-    const { features, updateFeature } = useFeatureSettings();
-
-    // Modal State
-    const [modalConfig, setModalConfig] = useState<{
-        isOpen: boolean;
-        title: string;
-        description: string;
-        onConfirm: () => void;
-    }>({
-        isOpen: false,
-        title: "",
-        description: "",
-        onConfirm: () => { }
-    });
-
-    // Onboarding State
+    const { isBackgroundProcessing } = useTabGrouper();
     const [showOnboarding, setShowOnboarding] = useState(false);
 
     // Check if user has completed onboarding
     useEffect(() => {
-        // Initial check
         SettingsStorage.get().then(settings => {
             if (!settings.hasCompletedOnboarding) {
                 setShowOnboarding(true);
             }
         });
 
-        // Subscribe to changes (e.g. from Welcome page)
         const unsubscribe = SettingsStorage.subscribe((changes) => {
-            if (changes.hasCompletedOnboarding) {
-                if (changes.hasCompletedOnboarding.newValue === true) {
-                    setShowOnboarding(false);
-                }
+            if (changes.hasCompletedOnboarding?.newValue === true) {
+                setShowOnboarding(false);
             }
         });
 
         return () => unsubscribe();
     }, []);
 
-    // Listen for background errors via storage
+    // Listen for background errors
     useEffect(() => {
         const unsubscribe = ErrorStorage.subscribe((errors) => {
             errors.forEach(err => showToast(err.message, 'error'));
             ErrorStorage.clearErrors();
         });
 
-        // Check for persisted errors
         ErrorStorage.getErrors().then((errors) => {
             if (errors.length > 0) {
                 errors.forEach(err => showToast(err.message, 'error'));
@@ -73,95 +45,6 @@ export const Dashboard = () => {
 
         return () => unsubscribe();
     }, [showToast]);
-
-    // Hooks
-    const tabGrouper = useTabGrouper();
-    const duplicateCleaner = useDuplicateCleaner();
-
-    const toggleAutopilot = (cardId: FeatureId, checked: boolean) => {
-        if (checked) {
-            // User is turning ON autopilot -> Warn them
-            const isClosing = cardId === FeatureId.DuplicateCleaner;
-            const title = isClosing ? "Enable Auto-Removal?" : "Enable Auto-Grouping?";
-            const description = isClosing
-                ? "This will automatically close duplicate tabs in the background. Closed tabs cannot be restored."
-                : "This will automatically group new tabs as they open.";
-
-            setModalConfig({
-                isOpen: true,
-                title,
-                description,
-                onConfirm: () => {
-                    updateFeature(cardId, { autopilot: true });
-                }
-            });
-        } else {
-            // Turning OFF -> No warning needed
-            updateFeature(cardId, { autopilot: false });
-        }
-    };
-
-    // Declarative Selection State:
-    const effectiveSelectedCards = useMemo(() => {
-        const set = new Set<FeatureId>();
-        if (features[FeatureId.TabGrouper]?.enabled) set.add(FeatureId.TabGrouper);
-        if (features[FeatureId.DuplicateCleaner]?.enabled) set.add(FeatureId.DuplicateCleaner);
-        return set;
-    }, [features]);
-
-    const toggleCard = (id: FeatureId) => {
-        const isEnabled = features[id]?.enabled ?? false;
-
-        // Feature-specific side effects
-        if (id === FeatureId.TabGrouper) {
-            // We are about to toggle it. If it WAS enabled, it will become disabled.
-            // setAllGroupsSelected should reflect the NEW state.
-            tabGrouper.setAllGroupsSelected(!isEnabled);
-        }
-
-        updateFeature(id, { enabled: !isEnabled });
-    };
-
-    // Derived States uses effective set
-    const isApplying =
-        tabGrouper.status === OrganizerStatus.Applying ||
-        duplicateCleaner.status === OrganizerStatus.Applying;
-
-    const isActionable = !isApplying && (
-        (effectiveSelectedCards.has(FeatureId.TabGrouper) && (tabGrouper.previewGroups?.length || 0) > 0) ||
-        (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0)
-    );
-
-    // Handle Organize Action
-    const handleOrganize = async () => {
-        // 1. Duplicate Cleaner
-        if (effectiveSelectedCards.has(FeatureId.DuplicateCleaner) && duplicateCleaner.duplicateCount > 0) {
-            duplicateCleaner.closeDuplicates();
-        }
-
-        // 2. Tab Grouper
-        if (effectiveSelectedCards.has(FeatureId.TabGrouper)) {
-            if (tabGrouper.previewGroups) {
-                // If already previewing, applying
-                tabGrouper.applyGroups();
-            }
-        }
-    };
-
-    // Determine Button Label
-    const getButtonLabel = () => {
-        if (!isActionable) {
-            if (isApplying) return "Processing...";
-            if (tabGrouper.isBackgroundProcessing) return "Analyzing Tabs...";
-            return "No Actions Needed";
-        }
-
-        if (effectiveSelectedCards.has(FeatureId.TabGrouper) && tabGrouper.previewGroups) {
-            return "Apply Changes";
-        }
-
-        return "Organize";
-    };
 
     if (showOnboarding) {
         return (
@@ -184,42 +67,16 @@ export const Dashboard = () => {
     }
 
     return (
-        <div className="h-screen w-full bg-surface flex flex-col font-sans text-main">
-            <Header />
-
-            {/* Dashboard Content */}
-            <div className="flex-1 overflow-y-auto p-4 pb-24 space-y-3">
-                <TabGrouperCard
-                    isSelected={effectiveSelectedCards.has(FeatureId.TabGrouper)}
-                    onToggle={() => toggleCard(FeatureId.TabGrouper)}
-                    data={tabGrouper}
-                    autopilotEnabled={!!features[FeatureId.TabGrouper]?.autopilot}
-                    onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.TabGrouper, enabled)}
-                />
-                <DuplicateCleanerCard
-                    isSelected={effectiveSelectedCards.has(FeatureId.DuplicateCleaner)}
-                    onToggle={() => toggleCard(FeatureId.DuplicateCleaner)}
-                    data={duplicateCleaner}
-                    autopilotEnabled={!!features[FeatureId.DuplicateCleaner]?.autopilot}
-                    onAutopilotToggle={(enabled) => toggleAutopilot(FeatureId.DuplicateCleaner, enabled)}
-                />
+        <div className="w-full bg-surface flex flex-col font-sans text-main">
+            <Header isLoading={isBackgroundProcessing} />
+            <div className="flex-1 overflow-y-auto">
+                <SuggestionList />
             </div>
 
-            <FloatingAction
-                hasWork={!!isActionable}
-                isProcessing={isApplying}
-                buttonLabel={getButtonLabel()}
-                onOrganize={handleOrganize}
-            />
-
-            <ConfirmationModal
-                isOpen={modalConfig.isOpen}
-                onClose={() => setModalConfig(prev => ({ ...prev, isOpen: false }))}
-                onConfirm={modalConfig.onConfirm}
-                title={modalConfig.title}
-                description={modalConfig.description}
-                confirmLabel="Enable"
-            />
-        </div >
+            {/* Footer Configuration */}
+            <div className="p-3 bg-surface-dim/30 border-t border-border-subtle mt-auto">
+                <ConfigurationSection />
+            </div>
+        </div>
     );
 };
