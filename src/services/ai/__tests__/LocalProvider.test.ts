@@ -232,4 +232,38 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
             expect(prompt).toContain('</existing_groups>');
         });
     });
+    it('should abort inflight request when signal is triggered', async () => {
+        const controller = new AbortController();
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: controller.signal
+        };
+
+        // Mock prompt to be long-running and check signal
+        mockPrompt.mockImplementation(async (_prompt, options) => {
+            return new Promise((_resolve, reject) => {
+                if (options.signal?.aborted) {
+                    const error = new DOMException('Aborted', 'AbortError');
+                    reject(error);
+                    return;
+                }
+                options.signal?.addEventListener('abort', () => {
+                    const error = new DOMException('Aborted', 'AbortError');
+                    reject(error);
+                });
+            });
+        });
+
+        const promise = provider.generateSuggestions(request);
+
+        // Abort
+        controller.abort();
+
+        const result = await promise;
+
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].name).toBe('AbortError');
+    });
 });

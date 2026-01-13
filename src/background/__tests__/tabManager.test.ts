@@ -65,6 +65,7 @@ describe('TabManager', () => {
         mockWindows = {
             get: vi.fn(),
             getAll: vi.fn(),
+            onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
             WindowType: { NORMAL: 'normal' }
         };
         mockTabGroups = {

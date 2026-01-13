@@ -179,4 +179,184 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         // d) Tab2 may or may not be grouped depending on timing, that's OK
         // The important thing is that tab1 wasn't re-grouped by the extension
     });
+    it('Scenario 5: Window Closed during processing - Should abort AI call', async () => {
+        const WIN_ID = 5;
+        await context.setupWindow(WIN_ID);
+
+        let abortSignalTriggered = false;
+        let aiCallStarted = false;
+
+        // Mock delayed AI with abort check
+        vi.spyOn(await import('../../../services/ai/AIService'), 'AIService', 'get').mockReturnValue({
+            getProvider: vi.fn().mockResolvedValue({
+                generateSuggestions: async (request: any) => {
+                    aiCallStarted = true;
+                    console.error(`[MockAI-WinClose] Started, waiting...`);
+
+                    await new Promise<void>((resolve, reject) => {
+                        const timeout = setTimeout(() => resolve(), 200);
+                        if (request.signal) {
+                            request.signal.addEventListener('abort', () => {
+                                console.error(`[MockAI-WinClose] Abort triggered!`);
+                                abortSignalTriggered = true;
+                                clearTimeout(timeout);
+                                reject(new Error('Aborted'));
+                            });
+                        }
+                    });
+
+                    if (abortSignalTriggered) throw new Error('Aborted');
+
+                    return { suggestions: [] };
+                }
+            })
+        } as any);
+
+        // 1. Add tabs
+        await context.addTab(WIN_ID, 'https://work.com/a');
+        await context.addTab(WIN_ID, 'https://work.com/b');
+
+        // 2. Start processing
+        const processingPromise = context.tabManager.queueAndProcess();
+
+        // 3. Wait for AI to start
+        await new Promise(r => setTimeout(r, 50));
+
+        if (aiCallStarted) {
+            console.log("[Test] Closing window during AI call...");
+            // Simulate window closing.
+            // We remove the window and tabs from FakeChrome state to reflect the reality of a closed window.
+            // Then we dispatch the 'windows.onRemoved' event, which the QueueProcessor should be listening to
+            // in order to trigger the immediate abort of any ongoing processing for that window.
+
+            // Remove window from fake chrome
+            const targetWindowIndex = context.chrome.windows.findIndex(w => w.id === WIN_ID);
+            if (targetWindowIndex !== -1) context.chrome.windows.splice(targetWindowIndex, 1);
+
+            // Remove tabs from fake chrome
+            context.chrome.tabs = context.chrome.tabs.filter(t => t.windowId !== WIN_ID);
+
+            // Trigger window removal event
+            const events = (context.chrome as any)._events;
+            // console.error("[Test] Dispatching windowsOnRemoved event");
+            await events.windowsOnRemoved.dispatch(WIN_ID);
+
+            // This triggerRecalculation -> queueAndProcess -> enqueue -> onWindowRequeued -> checkFatalChange
+        }
+
+        // 4. Wait
+        await processingPromise.catch(() => { });
+        await context.waitForProcessing();
+
+        // 5. Verify
+        expect(abortSignalTriggered).toBe(true);
+    });
+
+    it('Scenario 4b: Smart Abort - Should NOT abort if a benign change (New Tab) occurs', async () => {
+        const WIN_ID = 402;
+        await context.setupWindow(WIN_ID);
+
+        let abortSignalTriggered = false;
+        let aiCallCount = 0;
+
+        // Mock Delayed AI
+        vi.spyOn(await import('../../../services/ai/AIService'), 'AIService', 'get').mockReturnValue({
+            getProvider: vi.fn().mockResolvedValue({
+                generateSuggestions: async (request: any) => {
+                    aiCallCount++;
+                    await new Promise<void>((resolve, reject) => {
+                        const timeout = setTimeout(() => resolve(), 200);
+                        if (request.signal) {
+                            request.signal.addEventListener('abort', () => {
+                                abortSignalTriggered = true;
+                                clearTimeout(timeout);
+                                reject(new Error('Aborted'));
+                            });
+                        }
+                    });
+
+                    const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
+                    return {
+                        suggestions: workTabs.length > 0 ? [{
+                            groupName: 'Work',
+                            tabIds: workTabs.map((t: any) => t.id),
+                            confidence: 0.9
+                        }] : []
+                    };
+                }
+            })
+        } as any);
+
+        // 1. Add tabs
+        await context.addTab(WIN_ID, 'https://work.com/1');
+        await context.addTab(WIN_ID, 'https://work.com/2');
+
+        // 2. Start processing
+        const processingPromise = context.tabManager.queueAndProcess();
+
+        // 3. Wait for AI delay
+        await new Promise(r => setTimeout(r, 50));
+
+        // 4. Introduce BENIGN change (new tab)
+        // This should trigger "window changed", but NOT be fatal
+        console.log("[Test] Adding new tab during AI processing (Benign change)");
+        await context.addTab(WIN_ID, 'https://new-stuff.com/1');
+
+        // Trigger loop update (simulating event listener)
+        // Enqueueing with isRequeue=true usually happens internally, but we can call it to force a check
+        // Or if we wait, the "onCreated" listener executes queueAndProcess -> enqueue.
+        // Let's rely on the natural "onCreated" flow which we mocked in TestContext.addTab
+        // We just need to wait for processing.
+
+        await processingPromise;
+        await context.waitForProcessing();
+
+        // 5. Verify
+        expect(abortSignalTriggered).toBe(false);
+        expect(aiCallCount).toBe(1); // Should not have restarted
+
+        // One group created 
+        expect(context.chrome.groups).toHaveLength(1);
+    });
+
+    it('Scenario 6: Autopilot OFF - Should generate suggestions but NOT modify tabs', async () => {
+        const WIN_ID = 6;
+        await context.setupWindow(WIN_ID);
+
+        // 1. Configure Autopilot OFF
+        vi.spyOn(SettingsStorage, 'get').mockResolvedValue({
+            aiProvider: AIProviderType.Gemini,
+            features: {
+                [FeatureId.TabGrouper]: {
+                    enabled: true,
+                    autopilot: false // OFF
+                }
+            },
+            hasCompletedOnboarding: true
+        } as any);
+
+        // 2. Add groupable tabs
+        await context.addTab(WIN_ID, 'https://work.com/a');
+        await context.addTab(WIN_ID, 'https://work.com/b');
+
+        // 3. Process
+        await context.tabManager.queueAndProcess();
+        await context.waitForProcessing();
+
+        // 4. Verify NO groups created in Chrome
+        expect(context.chrome.groups).toHaveLength(0);
+
+        // 5. Verify suggestions exist in storage
+        // Access StateService directly since TestContext doesn't expose it
+        const StateServiceRef = (await import('../../state')).StateService;
+        const suggestions = await StateServiceRef.getSuggestionCache(WIN_ID);
+
+        expect(suggestions.size).toBeGreaterThan(0);
+
+        // Convert to array to check content
+        const suggestionsList = Array.from(suggestions.values());
+        expect(suggestionsList[0].groupName).toBe('Work');
+    });
+
+
 });

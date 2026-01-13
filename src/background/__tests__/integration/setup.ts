@@ -254,6 +254,19 @@ export class FakeChrome {
                 local: {
                     get: vi.fn().mockResolvedValue({}),
                     set: vi.fn().mockResolvedValue(undefined)
+                },
+                session: {
+                    get: vi.fn().mockImplementation(async (_key?: string) => {
+                        return (this as any)._sessionStorage || {};
+                    }),
+                    set: vi.fn().mockImplementation(async (items: any) => {
+                        (this as any)._sessionStorage = { ...((this as any)._sessionStorage || {}), ...items };
+                    }),
+                    remove: vi.fn().mockImplementation(async (keys: string | string[]) => {
+                        const k = Array.isArray(keys) ? keys : [keys];
+                        const storage = (this as any)._sessionStorage || {};
+                        for (const key of k) delete storage[key];
+                    })
                 }
             },
             alarms: {

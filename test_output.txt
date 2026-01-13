@@ -1,0 +1,350 @@
+
+> lattice@0.5.3 test
+> vitest run src/background/__tests__/integration/flow.test.ts
+
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/Users/larry/dev/lattice[39m
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FakeChrome] addListener called () => this.triggerRecalculation("Group Updated")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Created")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Removed")
+[FakeChrome] addListener called async (tab) => {
+      if (tab.status !== "loading
+[FakeChrome] addListener called async (tabId, changeInfo) => {
+      await this.ha
+[FakeChrome] addListener called async (tabId) => {
+      await __vite_ssr_import_0
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FlowTest] Tabs OnCreated Listeners: false 
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FlowTest] Manually triggering queueAndProcess
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FakeChrome] windows.getAll returning 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[StateService] Failed to hydrate: TypeError: Cannot read properties of undefined (reading 'get')
+    at StateService.hydrate [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:32:55[90m)[39m
+    at StateService.getWindowSnapshot [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:157:20[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:61:55[90m)[39m
+[90m    at processTicksAndRejections (node:internal/process/task_queues:103:5)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:40:9
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[TabManager] Window 1 changed (Tabs: 2)
+[TabManager] Enqueuing window 1 for analysis.
+[ProcessingState] Status changed: false -> true (Active: 0, Queued: 1)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[TabManager] Processing queued windows
+[QueueProcessor] [2026-01-13T11:41:17.967Z] process() called (Items: true)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[ProcessingState] Acquired queue: 1 windows
+[QueueProcessor] [2026-01-13T11:41:17.967Z] Starting processing for 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[QueueProcessor] [2026-01-13T11:41:17.968Z] Prompting AI in window 1
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[MockAI] generateSuggestions called with [33m2[39m tabs
+[MockAI] Found work tabs, suggesting group
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[QueueProcessor] [2026-01-13T11:41:17.968Z] AI results for window 1: [ [32m'Work'[39m ] (took 0ms)
+[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[ProcessingState] Window 1 completed
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[ProcessingState] Status changed: true -> false (Active: 0, Queued: 0)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 1: Auto-Grouping - Should group tabs based on URL content
+[22m[39m[TestContext] Waiting for processing... State items: false, Processing: false
+[TestContext] Finished waiting. State items: false
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[FakeChrome] addListener called () => this.triggerRecalculation("Group Updated")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Created")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Removed")
+[FakeChrome] addListener called async (tab) => {
+      if (tab.status !== "loading
+[FakeChrome] addListener called async (tabId, changeInfo) => {
+      await this.ha
+[FakeChrome] addListener called async (tabId) => {
+      await __vite_ssr_import_0
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[StateService] Failed to hydrate: TypeError: Cannot read properties of undefined (reading 'get')
+    at StateService.hydrate [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:32:55[90m)[39m
+    at StateService.removeSuggestion [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:118:20[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:35:32
+    at Object.dispatch [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/setup.ts:115:27[90m)[39m
+    at TestContext.removeTab [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/setup.ts:359:36[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:64:23
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[FakeChrome] windows.getAll returning 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[FakeChrome] tabs.query returning 0 tabs
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[StateService] Failed to hydrate: TypeError: Cannot read properties of undefined (reading 'get')
+    at StateService.hydrate [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:32:55[90m)[39m
+    at StateService.getWindowSnapshot [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:157:20[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:61:55[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:67:9
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[TabManager] Window 2 changed (Tabs: 0)
+[TabManager] Window 2 has no ungrouped tabs. Marking as Organized (skipping analysis).
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 2: Smart Abort - Should handle gracefully when tab is removed before processing
+[22m[39m[TestContext] Waiting for processing... State items: false, Processing: false
+[TestContext] Finished waiting. State items: false
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[FakeChrome] addListener called () => this.triggerRecalculation("Group Updated")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Created")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Removed")
+[FakeChrome] addListener called async (tab) => {
+      if (tab.status !== "loading
+[FakeChrome] addListener called async (tabId, changeInfo) => {
+      await this.ha
+[FakeChrome] addListener called async (tabId) => {
+      await __vite_ssr_import_0
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[FakeChrome] windows.getAll returning 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[StateService] Failed to hydrate: TypeError: Cannot read properties of undefined (reading 'get')
+    at StateService.hydrate [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:32:55[90m)[39m
+    at StateService.getWindowSnapshot [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:157:20[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:61:55[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:82:9
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[TabManager] Window 3 changed (Tabs: 2)
+[TabManager] Enqueuing window 3 for analysis.
+[ProcessingState] Status changed: false -> true (Active: 0, Queued: 1)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[TabManager] Processing queued windows
+[QueueProcessor] [2026-01-13T11:41:17.991Z] process() called (Items: true)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[ProcessingState] Acquired queue: 1 windows
+[QueueProcessor] [2026-01-13T11:41:17.991Z] Starting processing for 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[QueueProcessor] [2026-01-13T11:41:17.991Z] Prompting AI in window 3
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[MockAI] generateSuggestions called with [33m2[39m tabs
+[MockAI] Found work tabs, suggesting group
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[QueueProcessor] [2026-01-13T11:41:17.991Z] AI results for window 3: [ [32m'Work'[39m, [32m'Social'[39m ] (took 0ms)
+[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[ProcessingState] Window 3 completed
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[ProcessingState] Status changed: true -> false (Active: 0, Queued: 0)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 3: Mixed content - Groups correctly
+[22m[39m[TestContext] Waiting for processing... State items: false, Processing: false
+[TestContext] Finished waiting. State items: false
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] addListener called () => this.triggerRecalculation("Group Updated")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Created")
+[FakeChrome] addListener called () => this.triggerRecalculation("Group Removed")
+[FakeChrome] addListener called async (tab) => {
+      if (tab.status !== "loading
+[FakeChrome] addListener called async (tabId, changeInfo) => {
+      await this.ha
+[FakeChrome] addListener called async (tabId) => {
+      await __vite_ssr_import_0
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] windows.getAll returning 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[StateService] Failed to hydrate: TypeError: Cannot read properties of undefined (reading 'get')
+    at StateService.hydrate [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:32:55[90m)[39m
+    at StateService.getWindowSnapshot [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/state.ts:157:20[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:61:55[90m)[39m
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[TabManager] Window 4 changed (Tabs: 2)
+[TabManager] Enqueuing window 4 for analysis.
+[ProcessingState] Status changed: false -> true (Active: 0, Queued: 1)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[TabManager] Processing queued windows
+[QueueProcessor] [2026-01-13T11:41:18.004Z] process() called (Items: true)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Acquired queue: 1 windows
+[QueueProcessor] [2026-01-13T11:41:18.004Z] Starting processing for 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[QueueProcessor] [2026-01-13T11:41:18.004Z] Prompting AI in window 4
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[MockAI-Delayed] AI call #1 started, waiting 200ms...
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[Test] AI call started, now simulating fatal change (manual group)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[QueueProcessor] Window 4 re-queued while active. Checking for fatal changes...
+[WindowSnapshot] Fatal: Tab 100 was manually grouped (gid: 999).
+[QueueProcessor] [2026-01-13T11:41:18.054Z] Fatal change detected for window 4. Aborting AI request.
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[QueueProcessor] AI Error in window 4: Error: Aborted
+    at AbortSignal.<anonymous> [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:118:40[90m)[39m
+[90m    at AbortSignal.[nodejs.internal.kHybridDispatch] (node:internal/event_target:845:20)[39m
+[90m    at AbortSignal.dispatchEvent (node:internal/event_target:778:26)[39m
+[90m    at runAbort (node:internal/abort_controller:488:10)[39m
+[90m    at abortSignal (node:internal/abort_controller:459:3)[39m
+[90m    at AbortController.abort (node:internal/abort_controller:507:5)[39m
+    at QueueProcessor.checkFatalChange [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:45:32[90m)[39m
+    at ProcessingState.QueueProcessor.state.onWindowRequeued [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:27:58[90m)[39m
+    at ProcessingState.enqueue [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/processing.ts:137:22[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:155:43
+Failed to get errors from storage TypeError: Cannot read properties of undefined (reading 'get')
+    at Object.getErrors [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/utils/errorStorage.ts:19:58[90m)[39m
+    at Object.addError [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/utils/errorStorage.ts:32:47[90m)[39m
+    at QueueProcessor.processWindowBatch [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:262:36[90m)[39m
+    at QueueProcessor.process [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:105:40[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:84:13[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:162:9
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39mFailed to add error to storage TypeError: Cannot read properties of undefined (reading 'set')
+    at Object.addError [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/utils/errorStorage.ts:38:42[90m)[39m
+    at QueueProcessor.processWindowBatch [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:262:17[90m)[39m
+    at QueueProcessor.process [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/queueProcessor.ts:105:40[90m)[39m
+    at TabManager.queueAndProcess [90m(/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/tabManager.ts:84:13[90m)[39m
+    at [90m/Users/larry/dev/lattice/[39m.workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts:162:9
+    at [90mfile:///Users/larry/dev/lattice/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:20
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Window 4 completed
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Window 4 is queued again, keeping state.
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Acquired queue: 1 windows
+[QueueProcessor] [2026-01-13T11:41:18.056Z] Starting processing for 1 windows
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[QueueProcessor] [2026-01-13T11:41:18.056Z] Prompting AI in window 4
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[MockAI-Delayed] AI call #2 started, waiting 200ms...
+
+[90mstderr[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[MockAI-Delayed] AI call #2 completed (not aborted)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[QueueProcessor] [2026-01-13T11:41:18.257Z] AI results for window 4: [ [32m'Work'[39m ] (took 201ms)
+[FakeChrome] tabs.query returning 2 tabs
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Window 4 completed
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[ProcessingState] Status changed: true -> false (Active: 0, Queued: 0)
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[TestContext] Waiting for processing... State items: false, Processing: false
+[TestContext] Finished waiting. State items: false
+
+[90mstdout[2m | .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts[2m > [22m[2mIntegration Flow: Auto-Grouping & Smart Abort[2m > [22m[2mScenario 4: Smart Abort - Should abort AI call when fatal change detected during processing
+[22m[39m[Test] Abort signal triggered: true, AI started: true, AI call count: 2
+
+ [32m✓[39m .workspaces/url-sanitization-fix/src/background/__tests__/integration/flow.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 307[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/background/__tests__/integration/flow.test.ts[2m [ src/background/__tests__/integration/flow.test.ts ][22m
+[31m[1mError[22m: Transform failed with 2 errors:
+/Users/larry/dev/lattice/src/background/__tests__/integration/flow.test.ts:261:18: ERROR: The symbol "winIdx" has already been declared
+/Users/larry/dev/lattice/src/background/__tests__/integration/flow.test.ts:275:18: ERROR: The symbol "events" has already been declared[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36m/Users/larry/dev/lattice/src/background/__tests__/integration/flow.test.ts[39m:261:18
+[33m  
+  The symbol "winIdx" has already been declared
+  259|  
+  260|              // Remove window from fake chrome
+  261|              const winIdx = context.chrome.windows.findIndex(w => w.id === WIN_ID);
+     |                    ^
+  262|              if (winIdx !== -1) context.chrome.windows.splice(winIdx, 1);
+  263|  
+  
+  The symbol "events" has already been declared
+  273|              // TabManager listens to `tabs.onRemoved`.
+  274|              // So let's trigger that.
+  275|              const events = (context.chrome as any)._events;
+     |                    ^
+  276|              // Trigger for one tab is enough to cause recalc
+  277|              await events.tabsOnRemoved.dispatch(100, { windowId: WIN_ID, isWindowClosing: true });
+  [39m
+[90m [2m❯[22m failureErrorWithLog node_modules/esbuild/lib/main.js:[2m1467:15[22m[39m
+[90m [2m❯[22m node_modules/esbuild/lib/main.js:[2m736:50[22m[39m
+[90m [2m❯[22m responseCallbacks.<computed> node_modules/esbuild/lib/main.js:[2m603:9[22m[39m
+[90m [2m❯[22m handleIncomingPacket node_modules/esbuild/lib/main.js:[2m658:12[22m[39m
+[90m [2m❯[22m Socket.readFromStdout node_modules/esbuild/lib/main.js:[2m581:7[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 22:41:16
+[2m   Duration [22m 1.42s[2m (transform 160ms, setup 319ms, import 167ms, tests 307ms, environment 1.36s)[22m
+
+Copied manifest.json and converted icon.svg to dist/icon.png
+Copied manifest.json and converted icon.svg to dist/icon.png
+Copied manifest.json and converted icon.svg to dist/icon.png

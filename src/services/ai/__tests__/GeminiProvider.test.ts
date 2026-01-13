@@ -208,4 +208,30 @@ describe('GeminiProvider', () => {
 </existing_groups>`);
         });
     });
+
+    it('should abort inflight request when signal is triggered', async () => {
+        const controller = new AbortController();
+        const request: GroupingRequest = {
+            existingGroups: new Map(),
+            ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
+            signal: controller.signal
+        };
+
+        // Mock a long running request
+        mockGenerateContent.mockImplementation(async () => {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return { text: "Should not be returned" };
+        });
+
+        const promise = provider.generateSuggestions(request);
+
+        // Abort immediately
+        controller.abort();
+
+        const result = await promise;
+
+        expect(result.suggestions).toEqual([]);
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].name).toBe('AbortError');
+    });
 });

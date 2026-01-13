@@ -259,7 +259,8 @@ describe('QueueProcessor', () => {
 
         // enqueue() is now called with windowId, snapshot, and highPriority
         expect(mockState.enqueue).toHaveBeenCalledWith(1, expect.any(Object), true);
-        expect(mockState.completeWindow).not.toHaveBeenCalled();
+        // completeWindow IS called now to ensure we release active lock
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
     it('should NOT cache negative results for missing tabs', async () => {
@@ -408,10 +409,21 @@ describe('QueueProcessor', () => {
 
             // 2. Mock AI to hang/delay so we can simulate interruption
             let resolveAI: any;
-            const aiPromise = new Promise(resolve => resolveAI = resolve);
             const mockProvider = {
                 id: 'mock',
-                generateSuggestions: vi.fn().mockImplementation(() => aiPromise)
+                generateSuggestions: vi.fn().mockImplementation(async ({ signal }) => {
+                    if (signal.aborted) throw new AbortError('Already aborted');
+
+                    // Listen for abort to verify it happens
+                    return new Promise((resolve, reject) => {
+                        if (signal.aborted) reject(new AbortError('Aborted'));
+                        signal.addEventListener('abort', () => {
+                            reject(new AbortError('Aborted'));
+                        });
+                        // Also allow manual resolve if needed (though we expect abort)
+                        resolveAI = resolve;
+                    });
+                })
             };
             vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
 

@@ -33,8 +33,12 @@ export class TabManager {
         });
         chrome.tabs.onRemoved.addListener(async (tabId) => {
             await StateService.removeSuggestion(tabId);
-            processingState.remove(tabId);
             this.triggerRecalculation('Tab Removed')
+        });
+
+        chrome.windows.onRemoved.addListener((windowId) => {
+            // console.log(`[TabManager] Window ${windowId} closed. Removing from processing state.`);
+            this.processingState.remove(windowId);
         });
     }
 

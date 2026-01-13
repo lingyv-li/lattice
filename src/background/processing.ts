@@ -189,6 +189,11 @@ export class ProcessingState {
         return workQueue;
     }
 
+    // Callback for when a window is removed (e.g. closed by user)
+    public onWindowRemoved: ((windowId: number) => void) | null = null;
+
+    // ...
+
     remove(windowId: number): boolean {
         let changed = false;
         const index = this.windowQueue.indexOf(windowId);
@@ -197,15 +202,17 @@ export class ProcessingState {
             changed = true;
         }
         if (this.activeWindows.has(windowId)) {
+            // If it was active, we should notify listener (QueueProcessor) to abort!
             this.activeWindows.delete(windowId);
+            if (this.onWindowRemoved) {
+                this.onWindowRemoved(windowId);
+            }
             changed = true;
         }
 
         // Also remove the state object so has() returns false
         if (this.windowStates.has(windowId)) {
             this.windowStates.delete(windowId);
-            // If it was in windowStates but not queue/active, changed might not be true yet?
-            // Usually it is at least in one of them if in windowStates.
         }
 
         if (changed) {

@@ -23,6 +23,18 @@ export class QueueProcessor {
     constructor(private state: ProcessingState) {
         // Subscribe to re-queue events to check for fatal changes
         this.state.onWindowRequeued = (windowId) => this.checkFatalChange(windowId);
+        // Subscribe to removal events to abort processing
+        this.state.onWindowRemoved = (windowId) => this.handleWindowRemoved(windowId);
+    }
+
+    private handleWindowRemoved(windowId: number) {
+        const context = this.processingContext.get(windowId);
+        if (context) {
+            // console.log(`[QueueProcessor] Window ${windowId} removed from state (Closed?). Aborting AI request.`);
+            context.controller.abort();
+            this.processingContext.delete(windowId);
+            this.windowAbortControllers.delete(windowId);
+        }
     }
 
     private checkFatalChange(windowId: number) {
@@ -110,8 +122,6 @@ export class QueueProcessor {
                     }
 
                     const groupIdManager = new GroupIdManager();
-                    let windowProcessingAborted = false;
-
                     for (const batchTabs of batches) {
                         const result = await this.processWindowBatch(
                             windowId,
@@ -125,15 +135,14 @@ export class QueueProcessor {
                         }
 
                         if (result.aborted) {
-                            windowProcessingAborted = true;
                             break;
                         }
                     }
 
-                    // Complete window if not aborted (snapshot already persisted above)
-                    if (!windowProcessingAborted) {
-                        await this.state.completeWindow(windowId);
-                    }
+                    // Complete window (mark processing done, persist state if needed)
+                    // Even if aborted, we must release the 'active' lock on this window.
+                    // If it was re-queued, completeWindow handles keeping the state.
+                    await this.state.completeWindow(windowId);
 
                     // Clean up abort controller
                     this.windowAbortControllers.delete(windowId);
