@@ -117,12 +117,15 @@ describe('OnboardingModal', () => {
         const skipBtn = screen.getByText('Skip setup (configure later)');
         fireEvent.click(skipBtn);
 
+        // Provider is set to None, now proceed
+        fireEvent.click(screen.getByText('Next'));
+
         await waitFor(() => {
             expect(screen.getByText("You're All Set!")).toBeInTheDocument();
         });
 
         // Complete -> Finish
-        fireEvent.click(screen.getByText('Next'));
+        fireEvent.click(screen.getByText('Finish'));
         expect(mockOnComplete).toHaveBeenCalled();
     });
 });
