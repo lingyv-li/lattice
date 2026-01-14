@@ -36,8 +36,17 @@ export const TabGroupPreview = ({
             {previewGroups.map((group, idx) => (
                 <div
                     key={idx}
+                    role="checkbox"
+                    aria-checked={selectedPreviewIndices.has(idx)}
+                    tabIndex={0}
                     onClick={() => onToggleSelection(idx)}
-                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 ${selectedPreviewIndices.has(idx)
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            onToggleSelection(idx);
+                        }
+                    }}
+                    className={`p-[var(--spacing-list-padding)] rounded-lg border cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${selectedPreviewIndices.has(idx)
                         ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800'
                         : 'bg-surface border-border-subtle hover:bg-surface-dim'
                         }`}
