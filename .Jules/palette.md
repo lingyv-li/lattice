@@ -1,0 +1,3 @@
+## 2024-05-23 - Card Selection Accessibility
+**Learning:** Nested interactive elements in card-like components challenge standard "whole card is a button" accessibility patterns.
+**Action:** When a card contains multiple interactive elements (buttons, links), avoid making the entire card a button. Instead, expose the primary selection action as a dedicated, accessible control (like a checkbox or toggle button) inside the card that keyboard users can easily reach and operate. Use `aria-labelledby` to associate it with the card title.
