@@ -1,0 +1,363 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`SuggestionItem > renders correctly 1`] = `
+<DocumentFragment>
+  <div
+    class="
+            w-full group relative overflow-hidden
+            bg-surface border rounded-lg transition-all duration-200
+            hover:border-action hover:bg-surface-highlight border-border-subtle
+        "
+  >
+    <div
+      class="flex items-center gap-2 p-2 cursor-pointer"
+    >
+      <div
+        class="
+                    p-1.5 rounded-md shrink-0
+                    bg-indigo-500/10 text-indigo-500
+                "
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-sparkles w-4 h-4"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"
+          />
+          <path
+            d="M20 2v4"
+          />
+          <path
+            d="M22 4h-4"
+          />
+          <circle
+            cx="4"
+            cy="20"
+            r="2"
+          />
+        </svg>
+      </div>
+      <div
+        class="flex-1 min-w-0"
+      >
+        <h3
+          class="font-medium text-main truncate text-sm leading-tight"
+        >
+          Test Suggestion
+        </h3>
+        <p
+          class="text-[10px] text-muted truncate leading-tight"
+        >
+          Test Description
+        </p>
+      </div>
+      <div
+        class="
+                    flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200
+                    text-muted group-hover:text-action group-hover:bg-action/10
+                    
+                "
+      >
+        <span
+          class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
+        >
+          Apply
+        </span>
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-arrow-right w-3.5 h-3.5"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M5 12h14"
+          />
+          <path
+            d="m12 5 7 7-7 7"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="px-2 pb-2 pl-9 space-y-0.5"
+    >
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon1.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 1
+        </span>
+      </div>
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon2.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 2
+        </span>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`SuggestionItem > renders disabled state 1`] = `
+<DocumentFragment>
+  <div
+    class="
+            w-full group relative overflow-hidden
+            bg-surface border rounded-lg transition-all duration-200
+            opacity-50 pointer-events-none
+        "
+  >
+    <div
+      class="flex items-center gap-2 p-2 cursor-pointer"
+    >
+      <div
+        class="
+                    p-1.5 rounded-md shrink-0
+                    bg-indigo-500/10 text-indigo-500
+                "
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-sparkles w-4 h-4"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"
+          />
+          <path
+            d="M20 2v4"
+          />
+          <path
+            d="M22 4h-4"
+          />
+          <circle
+            cx="4"
+            cy="20"
+            r="2"
+          />
+        </svg>
+      </div>
+      <div
+        class="flex-1 min-w-0"
+      >
+        <h3
+          class="font-medium text-main truncate text-sm leading-tight"
+        >
+          Test Suggestion
+        </h3>
+        <p
+          class="text-[10px] text-muted truncate leading-tight"
+        >
+          Test Description
+        </p>
+      </div>
+      <div
+        class="
+                    flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200
+                    text-muted group-hover:text-action group-hover:bg-action/10
+                    
+                "
+      >
+        <span
+          class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
+        >
+          Apply
+        </span>
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-arrow-right w-3.5 h-3.5"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M5 12h14"
+          />
+          <path
+            d="m12 5 7 7-7 7"
+          />
+        </svg>
+      </div>
+    </div>
+    <div
+      class="px-2 pb-2 pl-9 space-y-0.5"
+    >
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon1.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 1
+        </span>
+      </div>
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon2.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 2
+        </span>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
+
+exports[`SuggestionItem > renders loading state 1`] = `
+<DocumentFragment>
+  <div
+    class="
+            w-full group relative overflow-hidden
+            bg-surface border rounded-lg transition-all duration-200
+            hover:border-action hover:bg-surface-highlight border-border-subtle
+        "
+  >
+    <div
+      class="flex items-center gap-2 p-2 cursor-pointer"
+    >
+      <div
+        class="
+                    p-1.5 rounded-md shrink-0
+                    bg-indigo-500/10 text-indigo-500
+                "
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-loader-circle w-4 h-4 animate-spin"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M21 12a9 9 0 1 1-6.219-8.56"
+          />
+        </svg>
+      </div>
+      <div
+        class="flex-1 min-w-0"
+      >
+        <h3
+          class="font-medium text-main truncate text-sm leading-tight"
+        >
+          Test Suggestion
+        </h3>
+        <p
+          class="text-[10px] text-muted truncate leading-tight"
+        >
+          Test Description
+        </p>
+      </div>
+      <div
+        class="
+                    flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200
+                    text-muted group-hover:text-action group-hover:bg-action/10
+                    opacity-0
+                "
+      >
+        <span
+          class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
+        >
+          Apply
+        </span>
+      </div>
+    </div>
+    <div
+      class="px-2 pb-2 pl-9 space-y-0.5"
+    >
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon1.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 1
+        </span>
+      </div>
+      <div
+        class="flex items-center gap-2 overflow-hidden opacity-80"
+      >
+        <img
+          alt=""
+          class="w-3 h-3 shrink-0"
+          src="https://example.com/icon2.png"
+        />
+        <span
+          class="truncate text-[11px] text-muted leading-tight flex-1"
+        >
+          Tab 2
+        </span>
+      </div>
+    </div>
+  </div>
+</DocumentFragment>
+`;
