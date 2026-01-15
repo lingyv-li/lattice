@@ -67,4 +67,57 @@ describe('SelectionCard', () => {
 
         expect(onToggle).toHaveBeenCalledTimes(1);
     });
+
+    it('should be keyboard accessible', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="Test Card"
+                icon={Check}
+            >
+                <div />
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+
+        // Check accessibility attributes
+        expect(card).toHaveAttribute('aria-checked', 'false');
+        expect(card).toHaveAttribute('tabIndex', '0');
+
+        // Test Enter key
+        fireEvent.keyDown(card, { key: 'Enter' });
+        expect(onToggle).toHaveBeenCalledTimes(1);
+
+        // Test Space key
+        fireEvent.keyDown(card, { key: ' ' });
+        expect(onToggle).toHaveBeenCalledTimes(2);
+    });
+
+    it('should show correct accessibility state when disabled', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="Test Card"
+                icon={Check}
+                disabled={true}
+            >
+                <div />
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+
+        // Check accessibility attributes for disabled state
+        expect(card).toHaveAttribute('aria-disabled', 'true');
+        expect(card).toHaveAttribute('tabIndex', '-1');
+
+        // Should not toggle on keyboard
+        fireEvent.keyDown(card, { key: 'Enter' });
+        expect(onToggle).not.toHaveBeenCalled();
+    });
 });
