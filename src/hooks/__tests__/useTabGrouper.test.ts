@@ -4,6 +4,7 @@ import { useTabGrouper } from '../useTabGrouper';
 import { OrganizerStatus } from '../../types/organizer';
 import { AIProviderType } from '../../utils/storage';
 import { StateService } from '../../background/state';
+import { WindowSnapshot } from '../../utils/snapshots';
 
 // --- Mocks ---
 // Mocks are handled in setupTests.ts
@@ -395,5 +396,42 @@ describe('useTabGrouper', () => {
 
         // Verify optimistic updates
         expect(result.current.isBackgroundProcessing).toBe(true);
+    });
+
+    it('should debounce tab events to avoid excessive snapshot fetching', async () => {
+        vi.useFakeTimers();
+        const fetchSpy = vi.spyOn(WindowSnapshot, 'fetch');
+
+        renderHook(() => useTabGrouper());
+
+        // Wait for initial useEffect
+        await act(async () => {
+            await Promise.resolve(); // flush promises
+        });
+
+        // Initial scan call
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
+        fetchSpy.mockClear();
+
+        // Get the registered listener
+        const onUpdatedListener = vi.mocked(global.chrome.tabs.onUpdated.addListener).mock.calls[0][0];
+
+        // Simulate rapid events
+        act(() => {
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+        });
+
+        // Before debounce fires: Should be 0 calls
+        expect(fetchSpy).toHaveBeenCalledTimes(0);
+
+        // Advance timers
+        await act(async () => {
+            vi.advanceTimersByTime(350);
+        });
+
+        // After debounce fires: Should be 1 call
+        expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 });
