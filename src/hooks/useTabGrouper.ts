@@ -6,6 +6,8 @@ import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
+
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -130,7 +132,10 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        // OPTIMIZATION: Debounce the scan to prevent excessive IPC calls during rapid tab updates
+        const debouncedScan = debounce(() => scanUngrouped(), 300);
+
+        const handleTabEvent = () => debouncedScan();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
@@ -143,6 +148,8 @@ export const useTabGrouper = () => {
             chrome.tabs.onUpdated.removeListener(handleTabEvent);
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
+
+            debouncedScan.cancel();
         };
     }, [scanUngrouped]);
 
