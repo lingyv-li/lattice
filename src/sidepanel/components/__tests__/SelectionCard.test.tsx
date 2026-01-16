@@ -67,4 +67,68 @@ describe('SelectionCard', () => {
 
         expect(onToggle).toHaveBeenCalledTimes(1);
     });
+
+    it('should have correct accessibility attributes', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={true}
+                onToggle={onToggle}
+                title="Test Card"
+                icon={Check}
+                disabled={false}
+            >
+                <div />
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+        expect(card).toBeInTheDocument();
+        expect(card).toHaveAttribute('aria-checked', 'true');
+        expect(card).toHaveAttribute('tabIndex', '0');
+    });
+
+    it('should toggle when pressing Space or Enter', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="Test Card"
+                icon={Check}
+            >
+                <div />
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+        card.focus();
+
+        fireEvent.keyDown(card, { key: 'Enter' });
+        expect(onToggle).toHaveBeenCalledTimes(1);
+
+        fireEvent.keyDown(card, { key: ' ' });
+        expect(onToggle).toHaveBeenCalledTimes(2);
+    });
+
+    it('should NOT toggle when pressing keys on an interactive child', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={true}
+                onToggle={onToggle}
+                title="Test Card"
+                icon={Check}
+            >
+                <button data-testid="inner-button">Inner</button>
+            </SelectionCard>
+        );
+
+        const button = screen.getByTestId('inner-button');
+        button.focus();
+
+        // KeyDown bubbles, but our handler checks target === currentTarget
+        fireEvent.keyDown(button, { key: 'Enter' });
+        expect(onToggle).not.toHaveBeenCalled();
+    });
 });
