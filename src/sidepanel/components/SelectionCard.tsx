@@ -31,9 +31,23 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
 }) => {
     return (
         <div
+            role="checkbox"
+            aria-checked={isSelected}
+            aria-disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
             onClick={!disabled ? onToggle : undefined}
+            onKeyDown={(e) => {
+                if (disabled) return;
+                // Only toggle if the card itself is focused to avoid trapping nested interactive elements
+                if (e.target !== e.currentTarget) return;
+
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onToggle();
+                }
+            }}
             className={`
-                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:outline-none
                 ${disabled ? 'opacity-50 cursor-not-allowed bg-surface-dim border-border-subtle' : ''}
                 ${isSelected && !disabled
                     ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-500 shadow-sm ring-1 ring-purple-500/20'
