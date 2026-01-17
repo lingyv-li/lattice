@@ -1,0 +1,3 @@
+## 2026-01-17 - TypeScript Inference on Debounced Event Listeners
+**Learning:** When using a generic `debounce` function for Chrome extension event listeners (like `chrome.tabs.onUpdated`), TypeScript infers the arguments from the passed function. If the passed function is `() => void` (ignoring args), TypeScript infers `[]` as the argument tuple. This causes a type error when trying to attach the debounced function to the listener, which expects specific arguments (e.g., `(tabId, changeInfo, tab)`).
+**Action:** Explicitly type the arguments of the debounced function (e.g., `(...args: unknown[]) => ...`) to ensure the returned function signature matches the event listener's requirement, or ensure the `debounce` utility allows for argument flexibility.
