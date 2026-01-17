@@ -29,11 +29,23 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     autopilot,
     spinIcon = false
 }) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onToggle();
+        }
+    };
+
     return (
         <div
+            role="checkbox"
+            aria-checked={isSelected}
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={handleKeyDown}
             onClick={!disabled ? onToggle : undefined}
             className={`
-                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:border-purple-500
                 ${disabled ? 'opacity-50 cursor-not-allowed bg-surface-dim border-border-subtle' : ''}
                 ${isSelected && !disabled
                     ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-500 shadow-sm ring-1 ring-purple-500/20'
