@@ -61,49 +61,76 @@ export abstract class BaseProvider implements AIProvider {
             existingGroupsPrompt.length > 0 ? existingGroupsPrompt + "\n" : "")
             + `\n<ungrouped_tabs>\n${tabList}\n</ungrouped_tabs>`;
 
-        try {
-            const responseText = await this.promptAI(userPrompt, systemPrompt, signal);
-            console.log(`[${this.id}] [${new Date().toISOString()}] Parsing AI response`);
-            const parsed = cleanAndParseJson(responseText);
+        const MAX_RETRIES = 3;
+        const BASE_DELAY = 1000;
 
-            if (Array.isArray(parsed)) {
-                for (const assignment of parsed) {
-                    const { tabId, groupName } = assignment;
-                    // Verify tabId exists in the requested tabs
-                    if (!ungroupedTabs.find(t => t.id === tabId)) continue;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                const responseText = await this.promptAI(userPrompt, systemPrompt, signal);
+                console.log(`[${this.id}] [${new Date().toISOString()}] Parsing AI response (Attempt ${attempt}/${MAX_RETRIES})`);
+                const parsed = cleanAndParseJson(responseText);
 
-                    nextNewGroupId = handleAssignment(
-                        groupName,
-                        tabId,
-                        groupNameMap,
-                        suggestions,
-                        nextNewGroupId
-                    );
-                }
-            } else if (typeof parsed === 'object' && parsed !== null) {
-                // Dictionary format: { "Group Name": [1, 2, 3] }
-                for (const [groupName, tabIds] of Object.entries(parsed)) {
-                    if (Array.isArray(tabIds)) {
-                        for (const tabId of tabIds) {
-                            // Verify tabId exists in the requested tabs
-                            // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
-                            if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+                if (Array.isArray(parsed)) {
+                    for (const assignment of parsed) {
+                        const { tabId, groupName } = assignment;
+                        // Verify tabId exists in the requested tabs
+                        if (!ungroupedTabs.find(t => t.id === tabId)) continue;
 
-                            nextNewGroupId = handleAssignment(
-                                groupName,
-                                Number(tabId),
-                                groupNameMap,
-                                suggestions,
-                                nextNewGroupId
-                            );
+                        nextNewGroupId = handleAssignment(
+                            groupName,
+                            tabId,
+                            groupNameMap,
+                            suggestions,
+                            nextNewGroupId
+                        );
+                    }
+                } else if (typeof parsed === 'object' && parsed !== null) {
+                    // Dictionary format: { "Group Name": [1, 2, 3] }
+                    for (const [groupName, tabIds] of Object.entries(parsed)) {
+                        if (Array.isArray(tabIds)) {
+                            for (const tabId of tabIds) {
+                                // Verify tabId exists in the requested tabs
+                                // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
+                                if (!ungroupedTabs.find(t => t.id == tabId)) continue;
+
+                                nextNewGroupId = handleAssignment(
+                                    groupName,
+                                    Number(tabId),
+                                    groupNameMap,
+                                    suggestions,
+                                    nextNewGroupId
+                                );
+                            }
                         }
                     }
                 }
+
+                // If we got here, success! Break the retry loop.
+                break;
+
+            } catch (err) {
+                const error = err instanceof Error ? err : new Error(String(err));
+
+                // Don't retry if aborted
+                // check for 'AbortError' name or message includes 'aborted'
+                if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                    console.log(`[${this.id}] Request aborted, stopping retries.`);
+                    errors.push(error);
+                    break;
+                }
+
+                console.warn(`[${this.id}] Attempt ${attempt} failed:`, error.message);
+
+                if (attempt === MAX_RETRIES) {
+                    console.error(`[${this.id}] All ${MAX_RETRIES} attempts failed. Giving up.`);
+                    errors.push(error);
+                } else {
+                    // Exponential backoff: 1s, 2s, 4s...
+                    const delay = BASE_DELAY * Math.pow(2, attempt - 1);
+                    console.log(`[${this.id}] Retrying in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
             }
-        } catch (err) {
-            const error = err instanceof Error ? err : new Error(String(err));
-            console.error(`[${this.id}] [${new Date().toISOString()}] Prompt failed`, error);
-            errors.push(error);
         }
 
         const duration = Date.now() - startTime;

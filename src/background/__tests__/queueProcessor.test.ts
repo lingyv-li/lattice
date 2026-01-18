@@ -351,6 +351,25 @@ describe('QueueProcessor', () => {
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
+    it('should log errors returned by AI service in results', async () => {
+        const mockProvider = {
+            id: 'mock',
+            generateSuggestions: vi.fn().mockResolvedValue({
+                suggestions: [],
+                errors: [new Error('Partial failure')]
+            })
+        };
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
+
+        // Import mocked storage to check calls
+        const { ErrorStorage } = await import('../../utils/errorStorage');
+
+        await processor.process();
+
+        expect(ErrorStorage.addError).toHaveBeenCalledWith(expect.stringContaining('Partial failure'));
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+    });
+
     it('should track virtual group IDs when creating new groups in autopilot', async () => {
         mockSettings({
             features: {

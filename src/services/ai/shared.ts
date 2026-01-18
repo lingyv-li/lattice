@@ -44,42 +44,37 @@ export const handleAssignment = (
 };
 
 export const cleanAndParseJson = (responseText: string): unknown => {
-    try {
-        let cleanResponse = responseText.trim();
+    let cleanResponse = responseText.trim();
 
-        // Check for Markdown code blocks first
-        const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/g;
-        const matches = [...cleanResponse.matchAll(jsonBlockRegex)];
+    // Check for Markdown code blocks first
+    const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/g;
+    const matches = [...cleanResponse.matchAll(jsonBlockRegex)];
 
-        if (matches.length > 0) {
-            // Use the last JSON block if multiple exist
-            cleanResponse = matches[matches.length - 1][1].trim();
-        } else {
-            // No markdown block? Try to find the JSON structure directly
-            // We favor Objects '{}' now, but keep Array '[]' support just in case
-            const firstBracket = cleanResponse.indexOf('[');
-            const firstBrace = cleanResponse.indexOf('{');
-            let start = -1;
-            if (firstBracket !== -1 && firstBrace !== -1) start = Math.min(firstBracket, firstBrace);
-            else if (firstBracket !== -1) start = firstBracket;
-            else if (firstBrace !== -1) start = firstBrace;
+    if (matches.length > 0) {
+        // Use the last JSON block if multiple exist
+        cleanResponse = matches[matches.length - 1][1].trim();
+    } else {
+        // No markdown block? Try to find the JSON structure directly
+        // We favor Objects '{}' now, but keep Array '[]' support just in case
+        const firstBracket = cleanResponse.indexOf('[');
+        const firstBrace = cleanResponse.indexOf('{');
+        let start = -1;
+        if (firstBracket !== -1 && firstBrace !== -1) start = Math.min(firstBracket, firstBrace);
+        else if (firstBracket !== -1) start = firstBracket;
+        else if (firstBrace !== -1) start = firstBrace;
 
-            const lastBracket = cleanResponse.lastIndexOf(']');
-            const lastBrace = cleanResponse.lastIndexOf('}');
-            let end = -1;
-            end = Math.max(lastBracket, lastBrace);
+        const lastBracket = cleanResponse.lastIndexOf(']');
+        const lastBrace = cleanResponse.lastIndexOf('}');
+        let end = -1;
+        end = Math.max(lastBracket, lastBrace);
 
-            if (start !== -1 && end !== -1 && end > start) {
-                cleanResponse = cleanResponse.substring(start, end + 1).trim();
-
-            }
+        if (start !== -1 && end !== -1 && end > start) {
+            cleanResponse = cleanResponse.substring(start, end + 1).trim();
         }
-
-        return JSON5.parse(cleanResponse);
-    } catch (e) {
-        console.error("Failed to parse AI JSON response", e);
-        return {};
     }
+
+    // This will throw if invalid
+    return JSON5.parse(cleanResponse);
 };
 
 // =============================================================================

@@ -82,10 +82,9 @@ describe('AIService', () => {
             expect(result[0].id).toBe('gemini-1.5-pro-latest');
         });
 
-        it('should handle API errors gracefully', async () => {
+        it('should propagate API errors', async () => {
             mockList.mockRejectedValue(new Error("API Error"));
-            const models = await AIService.listGeminiModels('key');
-            expect(models).toEqual([]);
+            await expect(AIService.listGeminiModels('key')).rejects.toThrow("API Error");
         });
     });
 });

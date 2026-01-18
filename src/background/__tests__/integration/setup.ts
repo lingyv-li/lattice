@@ -255,7 +255,21 @@ export class FakeChrome {
             storage: {
                 local: {
                     get: vi.fn().mockResolvedValue({}),
-                    set: vi.fn().mockResolvedValue(undefined)
+                    set: vi.fn().mockImplementation(async (items: any) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (this as any)._localStorage = { ...((this as any)._localStorage || {}), ...items };
+
+                        // Dispatch onChanged
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const changes: any = {};
+                        for (const key of Object.keys(items)) {
+                            changes[key] = { newValue: items[key] };
+                        }
+                        const events = (global.chrome.storage.onChanged as any);
+                        if (events && events.dispatch) {
+                            await events.dispatch(changes, 'local');
+                        }
+                    })
                 },
                 session: {
                     get: vi.fn().mockImplementation(async (_key?: string) => {
@@ -266,6 +280,17 @@ export class FakeChrome {
                     set: vi.fn().mockImplementation(async (items: any) => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         (this as any)._sessionStorage = { ...((this as any)._sessionStorage || {}), ...items };
+
+                        // Dispatch onChanged
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const changes: any = {};
+                        for (const key of Object.keys(items)) {
+                            changes[key] = { newValue: items[key] };
+                        }
+                        const events = (global.chrome.storage.onChanged as any);
+                        if (events && events.dispatch) {
+                            await events.dispatch(changes, 'session');
+                        }
                     }),
                     remove: vi.fn().mockImplementation(async (keys: string | string[]) => {
                         const k = Array.isArray(keys) ? keys : [keys];
@@ -273,7 +298,8 @@ export class FakeChrome {
                         const storage = (this as any)._sessionStorage || {};
                         for (const key of k) delete storage[key];
                     })
-                }
+                },
+                onChanged: this.createListenerMock()
             },
             alarms: {
                 create: vi.fn(),
@@ -288,6 +314,12 @@ export class FakeChrome {
                 setBadgeBackgroundColor: vi.fn()
             }
         } as unknown as typeof chrome;
+
+        // Expose action mocks for testing
+        (this as any).actionMocks = {
+            setBadgeText: (global.chrome.action.setBadgeText as any),
+            setBadgeBackgroundColor: (global.chrome.action.setBadgeBackgroundColor as any)
+        };
     }
 }
 
@@ -321,7 +353,14 @@ export class TestContext {
             aiModel: ''
         });
 
-        vi.spyOn(StateService, 'clearProcessingStatus').mockResolvedValue();
+        // Initialize BadgeService subscription (mimicking index.ts)
+        StateService.subscribeGlobal(async () => {
+            // Import dynamically to avoid circular deps if any, or just use class
+            const { BadgeService } = await import('../../../services/BadgeService');
+            await BadgeService.performBadgeUpdate(this.processingState);
+        });
+
+        // vi.spyOn(StateService, 'clearProcessingStatus').mockResolvedValue(); // Allow real logic
         vi.spyOn(StateService, 'setProcessingWindows').mockResolvedValue();
         vi.spyOn(StateService, 'updateWindowSnapshot').mockResolvedValue();
 

@@ -359,5 +359,52 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         expect(suggestionsList[0].groupName).toBe('Work');
     });
 
+    it('Scenario 7: Error Propagation - Invalid API Key should store user friendly error', async () => {
+        const WIN_ID = 7;
+        await context.setupWindow(WIN_ID);
+
+        // 1. Mock AI Failure with API Key Error
+        vi.spyOn(await import('../../../services/ai/AIService'), 'AIService', 'get').mockReturnValue({
+            getProvider: vi.fn().mockResolvedValue({
+                generateSuggestions: async () => {
+                    // Simulate API Key Error from Google GenAI SDK (often 400 or just message)
+                    throw new Error('[400 Bad Request] API key not valid. Please pass a valid API key.');
+                }
+            })
+        } as any);
+
+        // 2. Add tabs and ensure one is active
+        const tab = await context.addTab(WIN_ID, 'https://work.com/a');
+        tab.active = true; // Manually set active for FakeChrome query
+
+        // 3. Process
+        await context.tabManager.queueAndProcess();
+        await context.waitForProcessing();
+
+        // 4. Verify Error Storage contains friendly message
+        const ErrorStorageRef = (await import('../../../utils/errorStorage')).ErrorStorage;
+        const errors = await ErrorStorageRef.getErrors();
+
+        expect(errors.length).toBeGreaterThan(0);
+        expect(errors[0].message).toContain('Invalid Gemini API key');
+        expect(errors[0].message).not.toContain('400 Bad Request'); // Should be cleaned up
+
+        // 5. Verify Badge Update (ERR)
+        // Access exposed mocks from FakeChrome
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const setBadgeText = (context.chrome as any).actionMocks.setBadgeText;
+
+        // We expect setBadgeText to have been called with "ERR"
+        // Note: It might be called multiple times (processing "...", then "ERR")
+        const calls = setBadgeText.mock.calls;
+        const errCall = calls.find((c: any) => c[0].text === 'ERR');
+        expect(errCall).toBeDefined();
+        // Should also set correct color
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const setBadgeColor = (context.chrome as any).actionMocks.setBadgeBackgroundColor;
+        const colorCalls = setBadgeColor.mock.calls;
+        const redCall = colorCalls.find((c: any) => c[0].color === '#D93025');
+        expect(redCall).toBeDefined();
+    });
 
 });

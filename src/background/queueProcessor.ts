@@ -206,6 +206,15 @@ export class QueueProcessor {
             const batchDuration = Date.now() - batchStartTime;
             console.log(`[QueueProcessor] [${new Date().toISOString()}] AI results for window ${windowId}:`, results.suggestions.map(s => s.groupName), `(took ${batchDuration}ms)`);
 
+            if (results.errors && results.errors.length > 0) {
+                console.error(`[QueueProcessor] [${new Date().toISOString()}] AI reported errors:`, results.errors);
+                // Log the first unique error to storage for the user
+                const uniqueErrors = new Set(results.errors.map(e => getUserFriendlyError(e)));
+                for (const msg of uniqueErrors) {
+                    await ErrorStorage.addError(msg);
+                }
+            }
+
             const autopilotEnabled = settings.features?.[FeatureId.TabGrouper]?.autopilot ?? false;
             const groupedTabIds = new Set<number>();
             const suggestionsToCache = [];

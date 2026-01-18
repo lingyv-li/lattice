@@ -28,10 +28,9 @@ describe('shared utilities', () => {
             expect(result).toEqual({ "Group": [1] });
         });
 
-        it('should return empty object on completely malformed input', () => {
+        it('should throw error on completely malformed input', () => {
             const input = 'This is just plain text with no brackets';
-            const result = cleanAndParseJson(input);
-            expect(result).toEqual({});
+            expect(() => cleanAndParseJson(input)).toThrow();
         });
 
         // JSON5 Specific Tests

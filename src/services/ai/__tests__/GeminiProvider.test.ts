@@ -26,6 +26,7 @@ describe('GeminiProvider', () => {
     });
 
     it('should collect error if API key is missing', async () => {
+        vi.useFakeTimers();
         const noKeyProvider = new GeminiProvider('', 'gemini-pro');
         const request: GroupingRequest = {
             existingGroups: new Map(),
@@ -33,14 +34,18 @@ describe('GeminiProvider', () => {
             signal: new AbortController().signal
         };
 
-        const result = await noKeyProvider.generateSuggestions(request);
+        const promise = noKeyProvider.generateSuggestions(request);
+        await vi.runAllTimersAsync();
+        const result = await promise;
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].message).toContain('API Key is missing');
+        vi.useRealTimers();
     });
 
     it('should collect error if model is missing', async () => {
+        vi.useFakeTimers();
         const noModelProvider = new GeminiProvider('fake-key', '');
         const request: GroupingRequest = {
             existingGroups: new Map(),
@@ -48,12 +53,15 @@ describe('GeminiProvider', () => {
             signal: new AbortController().signal
         };
 
-        const result = await noModelProvider.generateSuggestions(request);
+        const promise = noModelProvider.generateSuggestions(request);
+        await vi.runAllTimersAsync();
+        const result = await promise;
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].name).toBe('ConfigurationError');
         expect(result.errors[0].message).toBe('Please select an AI model in Settings.');
+        vi.useRealTimers();
     });
 
     it('should correctly handle assignments and group mapping', async () => {
@@ -105,6 +113,7 @@ describe('GeminiProvider', () => {
     });
 
     it('should handle malformed JSON response gracefully', async () => {
+        vi.useFakeTimers();
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
@@ -115,14 +124,22 @@ describe('GeminiProvider', () => {
             text: "This is not JSON"
         });
 
-        const result = await provider.generateSuggestions(request);
+        const promise = provider.generateSuggestions(request);
+
+        // Fast-forward through retries
+        await vi.runAllTimersAsync();
+
+        const result = await promise;
 
         expect(result.suggestions).toEqual([]);
-        // Malformed JSON doesn't throw, it's handled gracefully
-        expect(result.errors).toHaveLength(0);
+        // Malformed JSON should now be caught and returned as an error
+        expect(result.errors).toHaveLength(1);
+        expect(result.errors[0].message).toMatch(/JSON5|invalid|Unexpected/i);
+        vi.useRealTimers();
     });
 
     it('should collect error on empty response text', async () => {
+        vi.useFakeTimers();
         const request: GroupingRequest = {
             existingGroups: new Map(),
             ungroupedTabs: [{ id: 1, title: 'Test', url: 'http://test.com' }],
@@ -131,11 +148,14 @@ describe('GeminiProvider', () => {
 
         mockGenerateContent.mockResolvedValue({}); // No text
 
-        const result = await provider.generateSuggestions(request);
+        const promise = provider.generateSuggestions(request);
+        await vi.runAllTimersAsync();
+        const result = await promise;
 
         expect(result.suggestions).toEqual([]);
         expect(result.errors).toHaveLength(1);
         expect(result.errors[0].message).toContain('No response text');
+        vi.useRealTimers();
     });
 
     it('should handle Gemma models differently (no system instruction in config)', async () => {

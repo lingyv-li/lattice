@@ -129,12 +129,20 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         // If Gemini selected, fetch available models
         if (provider === AIProviderType.Gemini && geminiApiKey) {
             setIsLoadingModels(true);
-            const models = await AIService.listGeminiModels(geminiApiKey);
-            setAvailableModels(models);
-            if (models.length > 0) {
-                setSelectedModel(models[0].id);
+            setError(null);
+            try {
+                const models = await AIService.listGeminiModels(geminiApiKey);
+                setAvailableModels(models);
+                if (models.length > 0) {
+                    setSelectedModel(models[0].id);
+                }
+            } catch (e) {
+                console.error("Failed to list models", e);
+                setError(e instanceof Error ? e.message : "Failed to fetch models");
+                setAvailableModels([]);
+            } finally {
+                setIsLoadingModels(false);
             }
-            setIsLoadingModels(false);
         }
     };
 
@@ -144,12 +152,22 @@ export const OnboardingModal = ({ onComplete }: OnboardingModalProps) => {
         // Auto-fetch models when API key is entered
         if (key.length > 20 && selectedProvider === AIProviderType.Gemini) {
             setIsLoadingModels(true);
-            const models = await AIService.listGeminiModels(key);
-            setAvailableModels(models);
-            if (models.length > 0) {
-                setSelectedModel(models[0].id);
+            setError(null);
+            try {
+                const models = await AIService.listGeminiModels(key);
+                setAvailableModels(models);
+                if (models.length > 0) {
+                    setSelectedModel(models[0].id);
+                }
+            } catch (e) {
+                console.error("Failed to list models", e);
+                // Don't show error immediately while typing, unless it's a specific API error?
+                // Actually, if the key is > 20 chars, we are attempting a fetch. If it fails, we should probably show why.
+                setError(e instanceof Error ? e.message : "Failed to fetch models");
+                setAvailableModels([]);
+            } finally {
+                setIsLoadingModels(false);
             }
-            setIsLoadingModels(false);
         }
     };
 
