@@ -67,4 +67,52 @@ describe('SelectionCard', () => {
 
         expect(onToggle).toHaveBeenCalledTimes(1);
     });
+
+    it('should have correct accessibility attributes', () => {
+        render(
+            <SelectionCard
+                isSelected={true}
+                onToggle={() => {}}
+                title="A11y Card"
+                icon={Check}
+            >
+                <div>Content</div>
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+        expect(card).toBeInTheDocument();
+        expect(card).toHaveAttribute('aria-checked', 'true');
+        expect(card).toHaveAttribute('tabIndex', '0');
+        expect(card).toHaveAttribute('aria-labelledby');
+    });
+
+    it('should support keyboard navigation', () => {
+        const onToggle = vi.fn();
+        render(
+            <SelectionCard
+                isSelected={false}
+                onToggle={onToggle}
+                title="Keyboard Card"
+                icon={Check}
+            >
+                <div>Content</div>
+            </SelectionCard>
+        );
+
+        const card = screen.getByRole('checkbox');
+
+        // Focus and press Space
+        card.focus();
+        fireEvent.keyDown(card, { key: ' ' });
+        expect(onToggle).toHaveBeenCalledTimes(1);
+
+        // Press Enter
+        fireEvent.keyDown(card, { key: 'Enter' });
+        expect(onToggle).toHaveBeenCalledTimes(2);
+
+        // Press other key (should not toggle)
+        fireEvent.keyDown(card, { key: 'a' });
+        expect(onToggle).toHaveBeenCalledTimes(2);
+    });
 });

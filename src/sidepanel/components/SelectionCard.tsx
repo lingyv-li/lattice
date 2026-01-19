@@ -1,5 +1,5 @@
 import { Check, Zap } from 'lucide-react';
-import { Children } from 'react';
+import { Children, useId, KeyboardEvent } from 'react';
 
 interface SelectionCardProps {
     isSelected: boolean;
@@ -29,11 +29,27 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
     autopilot,
     spinIcon = false
 }) => {
+    const titleId = useId();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (disabled) return;
+        if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            onToggle();
+        }
+    };
+
     return (
         <div
+            role="checkbox"
+            aria-checked={isSelected}
+            aria-disabled={disabled}
+            aria-labelledby={titleId}
+            tabIndex={disabled ? -1 : 0}
             onClick={!disabled ? onToggle : undefined}
+            onKeyDown={handleKeyDown}
             className={`
-                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden
+                group relative rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2
                 ${disabled ? 'opacity-50 cursor-not-allowed bg-surface-dim border-border-subtle' : ''}
                 ${isSelected && !disabled
                     ? 'bg-purple-50/50 dark:bg-purple-900/10 border-purple-500 shadow-sm ring-1 ring-purple-500/20'
@@ -59,7 +75,7 @@ export const SelectionCard: React.FC<SelectionCardProps> = ({
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <Icon className={`w-4 h-4 ${isSelected ? 'text-purple-500' : 'text-muted'} ${spinIcon ? 'animate-spin' : ''}`} />
-                            <h3 className={`font-semibold text-sm ${isSelected ? 'text-purple-600 dark:text-purple-400' : 'text-main'}`}>
+                            <h3 id={titleId} className={`font-semibold text-sm ${isSelected ? 'text-purple-600 dark:text-purple-400' : 'text-main'}`}>
                                 {title}
                             </h3>
                         </div>
