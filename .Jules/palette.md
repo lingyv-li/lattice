@@ -1,0 +1,3 @@
+## 2025-02-13 - [Keyboard Accessibility for Interactive Cards]
+**Learning:** Custom interactive cards (like checkboxes/radios) implemented as `div`s are invisible to keyboard and screen reader users unless they explicitly implement the "Checkbox" pattern (`role="checkbox"`, `aria-checked`, `tabIndex`, and `onKeyDown` for Space/Enter).
+**Action:** When creating or modifying selectable cards, always wrap them in a semantic role or add `role="checkbox"`/`role="button"`, manage `tabIndex`, and implement `onKeyDown` handlers that mirror click behavior (while preventing default scrolling for Space). Use `useId` for robust label association.
