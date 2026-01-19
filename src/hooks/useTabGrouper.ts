@@ -3,6 +3,7 @@ import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
+import { debounce } from '../utils/debounce';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
@@ -130,7 +131,10 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        const handleTabEvent = debounce((..._args: unknown[]) => {
+            scanUngrouped();
+        }, 500);
+
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
@@ -140,6 +144,7 @@ export const useTabGrouper = () => {
             if (portRef.current) {
                 portRef.current.disconnect();
             }
+            handleTabEvent.cancel();
             chrome.tabs.onUpdated.removeListener(handleTabEvent);
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
