@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Lattice Tabs - AI Tab Manager",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "description": "AI-powered tab organization with privacy-first design.",
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuuxzdViPKnWEdhVlNliZDsj8POg4zb7x3TONSnfzhVBgIdlbF+IMoIeSOvMYFi6aUn1cfCM5l6RJySYUmU6zag5nswLQ1A5GLVT8Br5KGghbanerFT67E7kP7iWjvoiqXhuLAs3/CuzOxKm0pgozU23w3Ai8g/C32wHQEnfCwu90+9GkAonkTzyia+QwKAAak7GoU7mtrZVLhvAxHr6SATs5/w5Hs07Lpt38D6cS7jeK2tFNpCSFKoA18jYN5nETKA2a9Qkyl/RM/n9t1UI232mb7vlmqayjutfaxb0+azgmsLBLruKTyYMwcwiDJH9I72t3RM/WB17QGSy9zLyClwIDAQAB",
     "permissions": [
