@@ -6,6 +6,8 @@ import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
+
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -130,19 +132,25 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
-        chrome.tabs.onUpdated.addListener(handleTabEvent);
-        chrome.tabs.onCreated.addListener(handleTabEvent);
-        chrome.tabs.onRemoved.addListener(handleTabEvent);
+        // Debounce scanner to prevent excessive calls during rapid tab changes (e.g. session restore)
+        const handleTabEvent = debounce(() => scanUngrouped(), 500);
+
+        // Cast to any to satisfy specific event listener signatures (args are ignored)
+        const listener = handleTabEvent as unknown as (...args: any[]) => void;
+
+        chrome.tabs.onUpdated.addListener(listener);
+        chrome.tabs.onCreated.addListener(listener);
+        chrome.tabs.onRemoved.addListener(listener);
 
         return () => {
+            handleTabEvent.cancel();
             clearTimeout(reconnectTimeout);
             if (portRef.current) {
                 portRef.current.disconnect();
             }
-            chrome.tabs.onUpdated.removeListener(handleTabEvent);
-            chrome.tabs.onCreated.removeListener(handleTabEvent);
-            chrome.tabs.onRemoved.removeListener(handleTabEvent);
+            chrome.tabs.onUpdated.removeListener(listener);
+            chrome.tabs.onCreated.removeListener(listener);
+            chrome.tabs.onRemoved.removeListener(listener);
         };
     }, [scanUngrouped]);
 
