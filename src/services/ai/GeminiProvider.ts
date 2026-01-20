@@ -17,13 +17,30 @@ export class GeminiProvider extends BaseProvider {
     protected constructExistingGroupsPrompt(
         groups: Map<string, GroupContext>
     ): string {
-        const currentGroups = Array.from(groups.keys()).filter(name => name.trim().length > 0);
-        if (currentGroups.length === 0) return "";
+        const sortedGroups = Array.from(groups.entries())
+            .filter(([name]) => name.trim().length > 0)
+            .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
+
+        if (sortedGroups.length === 0) return "";
+
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        const now = Date.now();
 
         let prompt = "<existing_groups>\n";
-        for (const name of currentGroups) {
-            prompt += `- "${name}"`;
-            const context = groups.get(name);
+        for (const [name, context] of sortedGroups) {
+            let label = "";
+            if (context.lastActive) {
+                const diff = now - context.lastActive;
+                if (diff > 7 * ONE_DAY_MS) {
+                    label = ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
+                } else if (diff > ONE_DAY_MS) {
+                    label = ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
+                } else {
+                    label = ` (Active today)`;
+                }
+            }
+
+            prompt += `- "${name}"${label}`;
             if (context && context.tabs.length > 0) {
                 // Use nested list for clearer structure
                 prompt += "\n" + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');

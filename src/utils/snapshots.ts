@@ -1,4 +1,4 @@
-import { GroupingRequest } from '../services';
+import { GroupingRequest, GroupContext } from '../services/ai/types';
 import { isGroupableTab } from './tabFilter';
 
 /**
@@ -201,14 +201,29 @@ export class WindowSnapshot {
         virtualGroups: Map<string, number>,
         customRules?: string
     ): Omit<GroupingRequest, 'signal'> {
-        const existingGroupsContext = new Map<string, { id: number; tabs: { id: number; title: string; url: string; }[] }>();
+        const existingGroupsContext = new Map<string, GroupContext>();
         const groupIdToName = new Map<number, string>();
 
         // 1. Add existing groups from snapshot
         for (const group of this.groups) {
             if (group.title && group.title.trim().length > 0) {
                 if (!existingGroupsContext.has(group.title)) {
-                    existingGroupsContext.set(group.title, { id: group.id, tabs: [] });
+                    // Find all tabs belonging to this group to calculate lastActive
+                    // Note: this.allTabs contains all tabs
+                    const groupTabs = this.allTabs.filter(t => t.groupId === group.id);
+                    // Calculate max lastAccessed
+                    let maxLastAccessed = 0;
+                    for (const t of groupTabs) {
+                        if (t.lastAccessed && t.lastAccessed > maxLastAccessed) {
+                            maxLastAccessed = t.lastAccessed;
+                        }
+                    }
+
+                    existingGroupsContext.set(group.title, {
+                        id: group.id,
+                        tabs: [],
+                        lastActive: maxLastAccessed > 0 ? maxLastAccessed : undefined
+                    });
                     groupIdToName.set(group.id, group.title);
                 }
             }
@@ -217,7 +232,7 @@ export class WindowSnapshot {
         // 2. Add virtual groups
         for (const [name, id] of virtualGroups) {
             if (!existingGroupsContext.has(name)) {
-                existingGroupsContext.set(name, { id, tabs: [] });
+                existingGroupsContext.set(name, { id, tabs: [], lastActive: Date.now() }); // Virtual groups are considered active now
                 groupIdToName.set(id, name);
             }
         }

@@ -66,7 +66,6 @@ You are an expert Information Architect and Productivity Assistant.
 Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
 ## Rules
-- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
 - Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
@@ -109,7 +108,6 @@ You are an expert Information Architect and Productivity Assistant.
 Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
 ## Rules
-- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
 - Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 
@@ -165,7 +163,6 @@ You are an expert Information Architect and Productivity Assistant.
 Organize the user's chaotic browser session into semantically coherent, context-aware groups.
 
 ## Rules
-- Check <existing_groups> first. If a tab fits an existing group, you MUST use that EXACT group name.
 - Use EXACT SAME group name for all tabs in the same group (e.g., "Tech" and "Technology" → pick one).
 - New group names: 1-2 words, Title Case, no generic names like "Other" or "Misc".
 Rule 1: Be cool.

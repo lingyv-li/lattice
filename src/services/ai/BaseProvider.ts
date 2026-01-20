@@ -29,9 +29,32 @@ export abstract class BaseProvider implements AIProvider {
     protected constructExistingGroupsPrompt(
         groups: Map<string, GroupContext>
     ): string {
-        const currentGroupNames = Array.from(groups.keys()).filter(name => name.trim().length > 0);
-        if (currentGroupNames.length === 0) return "";
-        return "<existing_groups>\n" + currentGroupNames.map(name => `- "${name}"`).join('\n') + "\n</existing_groups>";
+        const sortedGroups = Array.from(groups.entries())
+            .filter(([name]) => name.trim().length > 0)
+            // Sort by recency (newest first)
+            .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
+
+        if (sortedGroups.length === 0) return "";
+
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        const groupLines = sortedGroups.map(([name, context]) => {
+            let label = "";
+            if (context.lastActive) {
+                const diff = now - context.lastActive;
+                if (diff > 7 * ONE_DAY_MS) {
+                    label = ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
+                } else if (diff > ONE_DAY_MS) {
+                    label = ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
+                } else {
+                    label = ` (Active today)`;
+                }
+            }
+            return `- "${name}"${label}`;
+        });
+
+        return "<existing_groups>\n" + groupLines.join('\n') + "\n</existing_groups>";
     }
 
     async generateSuggestions(

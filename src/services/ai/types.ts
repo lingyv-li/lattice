@@ -9,6 +9,7 @@ export interface TabData {
 export interface GroupContext {
     id: number;
     tabs: TabData[];
+    lastActive?: number;
 }
 
 export interface GroupingRequest {
