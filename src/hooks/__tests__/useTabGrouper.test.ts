@@ -396,4 +396,41 @@ describe('useTabGrouper', () => {
         // Verify optimistic updates
         expect(result.current.isBackgroundProcessing).toBe(true);
     });
+
+    it('should debounce rapid tab updates', async () => {
+        renderHook(() => useTabGrouper());
+
+        // Wait for initial scan to complete (Real timers)
+        await waitFor(() => {
+            expect(global.chrome.tabs.query).toHaveBeenCalledTimes(1);
+        });
+
+        // Switch to fake timers
+        vi.useFakeTimers();
+
+        // Clear mock history to focus on update events
+        vi.mocked(global.chrome.tabs.query).mockClear();
+
+        // Get the registered listener
+        const onUpdatedCalls = vi.mocked(global.chrome.tabs.onUpdated.addListener).mock.calls;
+        const onUpdatedListener = onUpdatedCalls[onUpdatedCalls.length - 1][0];
+
+        // Simulate 5 rapid updates
+        await act(async () => {
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+            onUpdatedListener(101, {}, {} as chrome.tabs.Tab);
+        });
+
+        // Advance timers to trigger debounce if present
+        await act(async () => {
+            vi.runAllTimers();
+        });
+
+        const callCount = vi.mocked(global.chrome.tabs.query).mock.calls.length;
+
+        expect(callCount).toBe(1);
+    });
 });

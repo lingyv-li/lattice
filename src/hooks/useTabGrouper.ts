@@ -6,6 +6,7 @@ import { AIProviderType, SettingsStorage } from '../utils/storage';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -88,6 +89,10 @@ export const useTabGrouper = () => {
         return snap;
     }, []);
 
+    const debouncedScan = useMemo(() => debounce(() => {
+        scanUngrouped();
+    }, 500), [scanUngrouped]);
+
     useEffect(() => {
         // Initial scan - intentionally sets state on mount
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -130,12 +135,13 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        const handleTabEvent = () => debouncedScan();
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
 
         return () => {
+            debouncedScan.cancel();
             clearTimeout(reconnectTimeout);
             if (portRef.current) {
                 portRef.current.disconnect();
@@ -144,7 +150,7 @@ export const useTabGrouper = () => {
             chrome.tabs.onCreated.removeListener(handleTabEvent);
             chrome.tabs.onRemoved.removeListener(handleTabEvent);
         };
-    }, [scanUngrouped]);
+    }, [scanUngrouped, debouncedScan]);
 
     // Process suggestions and update state
     const processSuggestions = async (cache: Map<number, TabSuggestionCache>) => {
