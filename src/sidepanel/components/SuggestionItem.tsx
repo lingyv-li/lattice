@@ -49,9 +49,11 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
             ${disabled ? 'opacity-50 pointer-events-none' : 'hover:border-action hover:bg-surface-highlight border-border-subtle'}
         `} >
             {/* Header / Action Area */}
-            < div
-                className="flex items-center gap-2 p-2 cursor-pointer"
+            <button
+                type="button"
+                className="w-full text-left flex items-center gap-2 p-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:rounded-md cursor-pointer disabled:cursor-not-allowed"
                 onClick={onClick}
+                disabled={disabled || isLoading}
             >
                 <div className={`
                     p-1.5 rounded-md shrink-0
@@ -75,7 +77,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                     </span>
                     {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
                 </div>
-            </div >
+            </button>
 
             {/* Tab List - Always Visible & Compact */}
             {
