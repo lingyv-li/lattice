@@ -13,7 +13,7 @@ interface SuggestionItemProps {
     tabs?: SuggestionTab[];
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({
+export const SuggestionItem: React.FC<SuggestionItemProps> = React.memo(({
     title,
     description,
     icon: Icon,
@@ -103,4 +103,4 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
             }
         </div >
     );
-};
+});
