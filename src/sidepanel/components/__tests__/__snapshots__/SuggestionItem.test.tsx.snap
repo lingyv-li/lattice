@@ -9,8 +9,9 @@ exports[`SuggestionItem > renders correctly 1`] = `
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
   >
-    <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+    <button
+      class="w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:outline-none rounded-md"
+      type="button"
     >
       <div
         class="
@@ -94,7 +95,7 @@ exports[`SuggestionItem > renders correctly 1`] = `
           />
         </svg>
       </div>
-    </div>
+    </button>
     <div
       class="px-2 pb-2 pl-9 space-y-0.5"
     >
@@ -140,8 +141,10 @@ exports[`SuggestionItem > renders disabled state 1`] = `
             opacity-50 pointer-events-none
         "
   >
-    <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+    <button
+      class="w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:outline-none rounded-md"
+      disabled=""
+      type="button"
     >
       <div
         class="
@@ -225,7 +228,7 @@ exports[`SuggestionItem > renders disabled state 1`] = `
           />
         </svg>
       </div>
-    </div>
+    </button>
     <div
       class="px-2 pb-2 pl-9 space-y-0.5"
     >
@@ -271,8 +274,10 @@ exports[`SuggestionItem > renders loading state 1`] = `
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
   >
-    <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+    <button
+      class="w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:outline-none rounded-md"
+      disabled=""
+      type="button"
     >
       <div
         class="
@@ -325,7 +330,7 @@ exports[`SuggestionItem > renders loading state 1`] = `
           Apply
         </span>
       </div>
-    </div>
+    </button>
     <div
       class="px-2 pb-2 pl-9 space-y-0.5"
     >
