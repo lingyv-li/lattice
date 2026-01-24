@@ -10,7 +10,9 @@ describe('SuggestionItem', () => {
         description: 'Test Description',
         icon: Sparkles,
         type: SuggestionType.Group,
-        onClick: vi.fn(),
+        id: 'test-id',
+        onAction: vi.fn(),
+        action: vi.fn(),
         tabs: [
             { title: 'Tab 1', url: 'https://example.com/1', favIconUrl: 'https://example.com/icon1.png' },
             { title: 'Tab 2', url: 'https://example.com/2', favIconUrl: 'https://example.com/icon2.png' }
@@ -35,7 +37,7 @@ describe('SuggestionItem', () => {
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
         fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
-        expect(defaultProps.onClick).toHaveBeenCalled();
+        expect(defaultProps.onAction).toHaveBeenCalledWith('test-id', defaultProps.action);
     });
 
     it('groups identical tabs visually', () => {
