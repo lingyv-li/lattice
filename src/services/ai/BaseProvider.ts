@@ -2,6 +2,7 @@ import { AIProvider, GroupingRequest, SuggestionResult, GroupContext } from './t
 import { TabGroupSuggestion } from '../../types/tabGrouper';
 import { handleAssignment, cleanAndParseJson, constructSystemPrompt } from './shared';
 import { sanitizeUrl } from './sanitization';
+import { AbortError } from '../../utils/AppError';
 
 /**
  * Abstract base class for AI providers with shared batch processing logic.
@@ -135,8 +136,7 @@ export abstract class BaseProvider implements AIProvider {
                 const error = err instanceof Error ? err : new Error(String(err));
 
                 // Don't retry if aborted
-                // check for 'AbortError' name or message includes 'aborted'
-                if (error.name === 'AbortError' || error.message.includes('aborted')) {
+                if (error instanceof AbortError) {
                     console.log(`[${this.id}] Request aborted, stopping retries.`);
                     errors.push(error);
                     break;

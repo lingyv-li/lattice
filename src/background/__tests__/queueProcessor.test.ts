@@ -23,7 +23,8 @@ vi.mock('../../services/ai/shared', () => ({
 vi.mock('../../utils/errorStorage', () => ({
     ErrorStorage: {
         addError: vi.fn(),
-        getErrors: vi.fn().mockResolvedValue([])
+        getErrors: vi.fn().mockResolvedValue([]),
+        clearErrors: vi.fn()
     }
 }));
 vi.mock('../../utils/storage');
@@ -367,6 +368,40 @@ describe('QueueProcessor', () => {
         await processor.process();
 
         expect(ErrorStorage.addError).toHaveBeenCalledWith(expect.stringContaining('Partial failure'));
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+    });
+
+    it('should NOT log AbortError returned by AI service in results', async () => {
+        const mockProvider = {
+            id: 'mock',
+            generateSuggestions: vi.fn().mockResolvedValue({
+                suggestions: [],
+                errors: [new AbortError('Request aborted')]
+            })
+        };
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
+        const { ErrorStorage } = await import('../../utils/errorStorage');
+
+        await processor.process();
+
+        expect(ErrorStorage.addError).not.toHaveBeenCalled();
+        expect(mockState.completeWindow).toHaveBeenCalledWith(1);
+    });
+
+    it('should clear previous errors on successful generation', async () => {
+        const mockProvider = {
+            id: 'mock',
+            generateSuggestions: vi.fn().mockResolvedValue({
+                suggestions: [{ groupName: 'New Group', tabIds: [101] }],
+                errors: []
+            })
+        };
+        vi.mocked(AIService.getProvider).mockResolvedValue(mockProvider as unknown as AIProvider);
+        const { ErrorStorage } = await import('../../utils/errorStorage');
+
+        await processor.process();
+
+        expect(ErrorStorage.clearErrors).toHaveBeenCalled();
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
