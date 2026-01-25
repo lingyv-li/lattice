@@ -1,0 +1,3 @@
+## 2026-01-25 - Semantic Elements facilitate Testing and Accessibility
+**Learning:** Replacing interactive `div` elements with semantic `<button>` elements not only improves accessibility (keyboard navigation, screen reader support) but also makes tests more robust by allowing the use of accessible selectors like `getByRole('button')` instead of fragile DOM traversal like `closest('div')`.
+**Action:** Always prefer semantic elements for interactive components. When refactoring legacy components, check associated tests and update selectors to use `getByRole` to enforce accessibility best practices.
