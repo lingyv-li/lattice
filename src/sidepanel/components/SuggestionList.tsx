@@ -1,10 +1,10 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
 import { SuggestionItem } from './SuggestionItem';
-import { SuggestionType } from '../../types/suggestions';
+import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface UnifiedSuggestion {
     id: string;
@@ -13,7 +13,7 @@ interface UnifiedSuggestion {
     description: string;
     icon: LucideIcon;
     onClick: () => Promise<void>;
-    tabs: chrome.tabs.Tab[];
+    tabs: SuggestionTab[];
 }
 
 export const SuggestionList: React.FC = () => {
@@ -22,7 +22,8 @@ export const SuggestionList: React.FC = () => {
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
 
-    const handleAction = async (id: string, action: () => Promise<void>) => {
+    // Stable handler to prevent function recreation on every render
+    const handleAction = useCallback(async (id: string, action: () => Promise<void>) => {
         if (processingId || isAcceptingAll) return;
         setProcessingId(id);
         try {
@@ -30,8 +31,9 @@ export const SuggestionList: React.FC = () => {
         } finally {
             setProcessingId(null);
         }
-    };
+    }, [processingId, isAcceptingAll]);
 
+    // optimize: Memoize the suggestion list construction to avoid re-mapping tabs on every render
     const suggestions = useMemo(() => {
         const list: UnifiedSuggestion[] = [];
 
@@ -54,7 +56,7 @@ export const SuggestionList: React.FC = () => {
                     description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
                     icon: Trash2,
                     onClick: async () => closeDuplicateGroup(url),
-                    tabs: duplicateTabs
+                    tabs: duplicateTabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))
                 });
             }
         });
@@ -78,13 +80,21 @@ export const SuggestionList: React.FC = () => {
                     description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
                     icon: Group,
                     onClick: async () => applyGroup(index),
-                    tabs: groupTabs
+                    tabs: groupTabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))
                 });
             });
         }
 
         return list;
     }, [previewGroups, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
+
+    // Stable callback wrapper that looks up the action by ID, maintaining referential stability for child components
+    const handleItemAction = useCallback((id: string) => {
+        const item = suggestions.find(s => s.id === id);
+        if (item) {
+            handleAction(id, item.onClick);
+        }
+    }, [suggestions, handleAction]);
 
     const handleAcceptAll = async () => {
         setIsAcceptingAll(true);
@@ -148,14 +158,15 @@ export const SuggestionList: React.FC = () => {
             {suggestions.map(item => (
                 <SuggestionItem
                     key={item.id}
+                    id={item.id}
                     title={item.title}
                     description={item.description}
                     icon={item.icon}
                     type={item.type}
-                    onClick={() => handleAction(item.id, item.onClick)}
+                    onAction={handleItemAction}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))}
+                    tabs={item.tabs}
                 />
             ))}
         </div>
