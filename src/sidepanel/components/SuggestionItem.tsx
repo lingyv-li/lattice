@@ -3,22 +3,26 @@ import { LucideIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface SuggestionItemProps {
+    id: string;
     title: string;
     description: string;
     icon: LucideIcon;
     type: SuggestionType;
-    onClick: () => void;
+    action: () => Promise<void>;
+    onAction: (id: string, action: () => Promise<void>) => void;
     isLoading?: boolean;
     disabled?: boolean;
     tabs?: SuggestionTab[];
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({
+export const SuggestionItem: React.FC<SuggestionItemProps> = React.memo(({
+    id,
     title,
     description,
     icon: Icon,
     type,
-    onClick,
+    action,
+    onAction,
     isLoading,
     disabled,
     tabs
@@ -51,7 +55,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
             {/* Header / Action Area */}
             < div
                 className="flex items-center gap-2 p-2 cursor-pointer"
-                onClick={onClick}
+                onClick={() => onAction(id, action)}
             >
                 <div className={`
                     p-1.5 rounded-md shrink-0
@@ -103,4 +107,4 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
             }
         </div >
     );
-};
+});

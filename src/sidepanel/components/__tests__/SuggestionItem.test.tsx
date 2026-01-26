@@ -6,11 +6,13 @@ import { Sparkles } from 'lucide-react';
 
 describe('SuggestionItem', () => {
     const defaultProps = {
+        id: 'test-id',
         title: 'Test Suggestion',
         description: 'Test Description',
         icon: Sparkles,
         type: SuggestionType.Group,
-        onClick: vi.fn(),
+        action: vi.fn(),
+        onAction: vi.fn(),
         tabs: [
             { title: 'Tab 1', url: 'https://example.com/1', favIconUrl: 'https://example.com/icon1.png' },
             { title: 'Tab 2', url: 'https://example.com/2', favIconUrl: 'https://example.com/icon2.png' }
@@ -34,8 +36,14 @@ describe('SuggestionItem', () => {
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
-        expect(defaultProps.onClick).toHaveBeenCalled();
+        // Click the clickable container. Logic: Title is inside the clickable div.
+        // H3 parent is div, that div's parent is the clickable row.
+        const titleElement = screen.getByText('Test Suggestion');
+        const clickableRow = titleElement.closest('div')!.parentElement!;
+
+        fireEvent.click(clickableRow);
+
+        expect(defaultProps.onAction).toHaveBeenCalledWith('test-id', defaultProps.action);
     });
 
     it('groups identical tabs visually', () => {
