@@ -43,15 +43,20 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
     }, [tabs]);
 
     return (
-        <div className={`
-            w-full group relative overflow-hidden
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            aria-busy={isLoading}
+            className={`
+            w-full text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset
+            group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
             ${disabled ? 'opacity-50 pointer-events-none' : 'hover:border-action hover:bg-surface-highlight border-border-subtle'}
         `} >
             {/* Header / Action Area */}
-            < div
-                className="flex items-center gap-2 p-2 cursor-pointer"
-                onClick={onClick}
+            <div
+                className="flex items-center gap-2 p-2"
             >
                 <div className={`
                     p-1.5 rounded-md shrink-0
@@ -61,7 +66,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-main truncate text-sm leading-tight">{title}</h3>
+                    <div className="font-medium text-main truncate text-sm leading-tight">{title}</div>
                     <p className="text-[10px] text-muted truncate leading-tight">{description}</p>
                 </div>
 
@@ -75,7 +80,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                     </span>
                     {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
                 </div>
-            </div >
+            </div>
 
             {/* Tab List - Always Visible & Compact */}
             {
@@ -101,6 +106,6 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                     </div>
                 )
             }
-        </div >
+        </button>
     );
 };

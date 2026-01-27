@@ -2,15 +2,17 @@
 
 exports[`SuggestionItem > renders correctly 1`] = `
 <DocumentFragment>
-  <div
+  <button
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset
+            group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+    type="button"
   >
     <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -50,11 +52,11 @@ exports[`SuggestionItem > renders correctly 1`] = `
       <div
         class="flex-1 min-w-0"
       >
-        <h3
+        <div
           class="font-medium text-main truncate text-sm leading-tight"
         >
           Test Suggestion
-        </h3>
+        </div>
         <p
           class="text-[10px] text-muted truncate leading-tight"
         >
@@ -127,21 +129,24 @@ exports[`SuggestionItem > renders correctly 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;
 
 exports[`SuggestionItem > renders disabled state 1`] = `
 <DocumentFragment>
-  <div
+  <button
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset
+            group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
             opacity-50 pointer-events-none
         "
+    disabled=""
+    type="button"
   >
     <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -181,11 +186,11 @@ exports[`SuggestionItem > renders disabled state 1`] = `
       <div
         class="flex-1 min-w-0"
       >
-        <h3
+        <div
           class="font-medium text-main truncate text-sm leading-tight"
         >
           Test Suggestion
-        </h3>
+        </div>
         <p
           class="text-[10px] text-muted truncate leading-tight"
         >
@@ -258,21 +263,24 @@ exports[`SuggestionItem > renders disabled state 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;
 
 exports[`SuggestionItem > renders loading state 1`] = `
 <DocumentFragment>
-  <div
+  <button
+    aria-busy="true"
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset
+            group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+    type="button"
   >
     <div
-      class="flex items-center gap-2 p-2 cursor-pointer"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -301,11 +309,11 @@ exports[`SuggestionItem > renders loading state 1`] = `
       <div
         class="flex-1 min-w-0"
       >
-        <h3
+        <div
           class="font-medium text-main truncate text-sm leading-tight"
         >
           Test Suggestion
-        </h3>
+        </div>
         <p
           class="text-[10px] text-muted truncate leading-tight"
         >
@@ -358,6 +366,6 @@ exports[`SuggestionItem > renders loading state 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;
