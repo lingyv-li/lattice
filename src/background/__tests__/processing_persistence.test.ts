@@ -8,7 +8,7 @@ vi.mock('../state', () => ({
     StateService: {
         updateWindowSnapshot: vi.fn().mockResolvedValue(undefined),
         setProcessingWindows: vi.fn().mockResolvedValue(undefined), // Needed for updateStatus
-        getWindowState: vi.fn(),
+        getWindowState: vi.fn()
     }
 }));
 vi.mock('../../utils/snapshots');
@@ -68,13 +68,13 @@ describe('ProcessingState Persistence', () => {
         const windowId = 1;
         const snapshot1 = {
             fingerprint: 'hash-1',
-            equals: vi.fn().mockImplementation((other) => other.fingerprint === 'hash-1'),
+            equals: vi.fn().mockImplementation(other => other.fingerprint === 'hash-1'),
             update: vi.fn()
         } as unknown as WindowSnapshot;
 
         const snapshot2 = {
             fingerprint: 'hash-1', // SAME fingerprint
-            equals: vi.fn().mockImplementation((other) => other.fingerprint === 'hash-1')
+            equals: vi.fn().mockImplementation(other => other.fingerprint === 'hash-1')
         } as unknown as WindowSnapshot;
 
         // First enqueue
@@ -98,13 +98,13 @@ describe('ProcessingState Persistence', () => {
         const windowId = 1;
         const snapshot1 = {
             fingerprint: 'hash-1',
-            equals: vi.fn().mockImplementation((other) => other.fingerprint === 'hash-1'),
+            equals: vi.fn().mockImplementation(other => other.fingerprint === 'hash-1'),
             update: vi.fn()
         } as unknown as WindowSnapshot;
 
         const snapshot2 = {
             fingerprint: 'hash-2', // DIFFERENT fingerprint
-            equals: vi.fn().mockImplementation((other) => other.fingerprint === 'hash-2')
+            equals: vi.fn().mockImplementation(other => other.fingerprint === 'hash-2')
         } as unknown as WindowSnapshot;
 
         // First enqueue
@@ -116,7 +116,7 @@ describe('ProcessingState Persistence', () => {
         // Should check existing state
         const storedState = processingState.getWindowState(windowId);
         expect(storedState).toBeDefined();
-        // Since we mock WindowState in the real code, we can't easily spy on the 'update' method of the real class instance 
+        // Since we mock WindowState in the real code, we can't easily spy on the 'update' method of the real class instance
         // unless we spy on the prototype or inspect the result.
         // But in our mock above, `snapshot1` was passed to the constructor.
         // Wait, ProcessingState instantiates `new WindowState`. We didn't mock WindowState class, only dependencies.

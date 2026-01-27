@@ -6,14 +6,14 @@ import { LocalProvider } from '../../../services/ai/LocalProvider';
 import { AIService } from '../../../services/ai/AIService';
 
 // Mock dependencies
-vi.mock('../../../utils/storage', async (importOriginal) => {
+vi.mock('../../../utils/storage', async importOriginal => {
     const actual = await importOriginal<any>();
     return {
         ...actual,
         SettingsStorage: {
             get: vi.fn(),
             set: vi.fn(),
-            subscribe: vi.fn(() => () => { })
+            subscribe: vi.fn(() => () => {})
         }
     };
 });
@@ -78,16 +78,16 @@ describe('OnboardingModal', () => {
 
         await waitFor(() => {
             expect(LocalProvider.downloadModel).toHaveBeenCalled();
-            expect(SettingsStorage.set).toHaveBeenCalledWith(expect.objectContaining({
-                aiProvider: AIProviderType.Local
-            }));
+            expect(SettingsStorage.set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    aiProvider: AIProviderType.Local
+                })
+            );
         });
     });
 
     it('handles Gemini AI selection and API key input', async () => {
-        vi.mocked(AIService.listGeminiModels).mockResolvedValue([
-            { id: 'gemini-pro', displayName: 'Gemini Pro' }
-        ] as any);
+        vi.mocked(AIService.listGeminiModels).mockResolvedValue([{ id: 'gemini-pro', displayName: 'Gemini Pro' }] as any);
 
         render(<OnboardingModal onComplete={mockOnComplete} />);
 

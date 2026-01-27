@@ -18,7 +18,7 @@ export const useFeatureSettings = () => {
         });
 
         // Subscribe to changes
-        const unsubscribe = SettingsStorage.subscribe((changes) => {
+        const unsubscribe = SettingsStorage.subscribe(changes => {
             if (changes.features && changes.features.newValue) {
                 setFeatures(changes.features.newValue as Record<FeatureId, FeatureSettings>);
             }
@@ -43,7 +43,7 @@ export const useFeatureSettings = () => {
 
         // 2. Persist safely
         SettingsStorage.updateFeature(id, updates).catch(err => {
-            console.error("Failed to update feature settings:", err);
+            console.error('Failed to update feature settings:', err);
             // In a more robust system, we might revert optimistic update here
         });
     };

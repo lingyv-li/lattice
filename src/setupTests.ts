@@ -17,11 +17,11 @@ const chromeMock = {
         onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
         onCreated: { addListener: vi.fn(), removeListener: vi.fn() },
         onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
-        group: vi.fn().mockResolvedValue(1),
+        group: vi.fn().mockResolvedValue(1)
     },
     tabGroups: {
         update: vi.fn(),
-        query: vi.fn().mockResolvedValue([]),
+        query: vi.fn().mockResolvedValue([])
     },
     windows: {
         get: vi.fn(),
@@ -62,7 +62,7 @@ const chromeMock = {
         sync: {
             get: vi.fn().mockImplementation((_defaults, callback) => {
                 // If defaults passed, return them as result for simplicity in tests
-                const result = (typeof _defaults === 'object') ? _defaults : {};
+                const result = typeof _defaults === 'object' ? _defaults : {};
                 if (callback) callback(result);
                 return Promise.resolve(result);
             }),
@@ -88,7 +88,6 @@ const chromeMock = {
         onClicked: { addListener: vi.fn() }
     }
 };
-
 
 global.chrome = chromeMock as unknown as typeof chrome;
 

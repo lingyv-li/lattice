@@ -10,7 +10,7 @@ vi.mock('../../utils/storage');
 vi.mock('../../utils/snapshots');
 vi.mock('../../services/ai/AIService');
 vi.mock('../../utils/tabs', () => ({
-    applyTabGroup: vi.fn(),
+    applyTabGroup: vi.fn()
 }));
 vi.mock('../GroupIdManager');
 
@@ -31,7 +31,7 @@ describe('QueueProcessor Batch Sizing', () => {
             getWindowState: vi.fn(),
             completeWindow: vi.fn(),
             enqueue: vi.fn(),
-            onWindowRequeued: null,
+            onWindowRequeued: null
         } as any;
 
         Object.defineProperty(mockState, 'hasItems', {
@@ -42,7 +42,7 @@ describe('QueueProcessor Batch Sizing', () => {
 
         // Mock Provider
         mockProvider = {
-            generateSuggestions: vi.fn().mockResolvedValue({ suggestions: [], errors: [] }),
+            generateSuggestions: vi.fn().mockResolvedValue({ suggestions: [], errors: [] })
         };
         (AIService.getProvider as any).mockResolvedValue(mockProvider);
 
@@ -52,7 +52,7 @@ describe('QueueProcessor Batch Sizing', () => {
                 get: vi.fn().mockResolvedValue({ type: 'normal' }),
                 WindowType: { NORMAL: 'normal' }
             },
-            tabs: {},
+            tabs: {}
         } as any;
     });
 
@@ -77,7 +77,7 @@ describe('QueueProcessor Batch Sizing', () => {
             getBatches: vi.fn().mockReturnValue([]), // We just want to check the call argument
             verifySnapshot: vi.fn().mockResolvedValue(true),
             isFatalChange: vi.fn().mockReturnValue(false),
-            equals: vi.fn().mockReturnValue(true),
+            equals: vi.fn().mockReturnValue(true)
         };
         (mockState.getWindowState as any).mockReturnValue({
             inputSnapshot: mockSnapshot,
@@ -107,7 +107,7 @@ describe('QueueProcessor Batch Sizing', () => {
             getBatches: vi.fn().mockReturnValue([]),
             verifySnapshot: vi.fn().mockResolvedValue(true),
             isFatalChange: vi.fn().mockReturnValue(false),
-            equals: vi.fn().mockReturnValue(true),
+            equals: vi.fn().mockReturnValue(true)
         };
         (mockState.getWindowState as any).mockReturnValue({
             inputSnapshot: mockSnapshot,

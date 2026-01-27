@@ -1,4 +1,3 @@
-
 import { TabSuggestionCache } from '../types/tabGrouper';
 import { WindowSnapshot } from '../utils/snapshots';
 
@@ -31,7 +30,7 @@ export class StateService {
         if (this.isHydrated) return;
 
         try {
-            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts']) as Partial<StorageSchema>;
+            const data = (await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts'])) as Partial<StorageSchema>;
             this.cache = new Map();
 
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
@@ -63,7 +62,7 @@ export class StateService {
 
             this.isHydrated = true;
         } catch (e) {
-            console.error("[StateService] Failed to hydrate:", e);
+            console.error('[StateService] Failed to hydrate:', e);
             this.cache = new Map();
         }
     }
@@ -292,7 +291,7 @@ export class StateService {
 
             if (changes.processingWindowIds?.newValue) {
                 const rawData = changes.processingWindowIds.newValue as number[];
-                const oldRawData = changes.processingWindowIds.oldValue as number[] || [];
+                const oldRawData = (changes.processingWindowIds.oldValue as number[]) || [];
 
                 this.processingWindows = new Set(rawData);
                 this.isHydrated = true;
@@ -308,7 +307,7 @@ export class StateService {
 
             if (changes.duplicateCounts?.newValue) {
                 const rawData = changes.duplicateCounts.newValue as Record<number, number>;
-                const oldRawData = changes.duplicateCounts.oldValue as Record<number, number> || {};
+                const oldRawData = (changes.duplicateCounts.oldValue as Record<number, number>) || {};
 
                 this.duplicateCounts = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
                 this.isHydrated = true;
@@ -365,7 +364,7 @@ export class StateService {
             update.duplicateCounts = Object.fromEntries(this.duplicateCounts.entries());
             await chrome.storage.session.set(update);
         } catch (e) {
-            console.error("[StateService] Failed to persist:", e);
+            console.error('[StateService] Failed to persist:', e);
         }
     }
 }

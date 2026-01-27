@@ -12,7 +12,9 @@ import { StateService } from '../../background/state';
 const setupMocks = () => {
     // Default: 1 window, 2 tabs
     // @ts-expect-error - overload issue
-    vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({ id: 1 } as chrome.windows.Window);
+    vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({
+        id: 1
+    } as chrome.windows.Window);
     // @ts-expect-error - overload issue
     vi.mocked(global.chrome.tabs.query).mockResolvedValue([
         { id: 101, title: 'Google', url: 'https://google.com', groupId: -1 },
@@ -40,7 +42,6 @@ const setupMocks = () => {
     };
     vi.mocked(global.chrome.runtime.connect).mockReturnValue(mockPort as unknown as chrome.runtime.Port);
 };
-
 
 describe('useTabGrouper', () => {
     beforeEach(() => {
@@ -74,7 +75,13 @@ describe('useTabGrouper', () => {
         // @ts-expect-error - overload issue
         vi.mocked(global.chrome.storage.session.get).mockResolvedValue({
             suggestionCache: [
-                { tabId: 101, windowId: 1, groupName: 'Search', existingGroupId: null, timestamp: 123 },
+                {
+                    tabId: 101,
+                    windowId: 1,
+                    groupName: 'Search',
+                    existingGroupId: null,
+                    timestamp: 123
+                },
                 { tabId: 102, windowId: 1, groupName: 'Dev', existingGroupId: null, timestamp: 123 }
             ]
         });
@@ -87,11 +94,14 @@ describe('useTabGrouper', () => {
         });
 
         // Verify state update (longer timeout or debug)
-        await waitFor(() => {
-            expect(result.current.previewGroups).not.toBeNull();
-            // Status should remain Idle or derived from interaction, but Reviewing is gone.
-            expect(result.current.status).toBe(OrganizerStatus.Idle);
-        }, { timeout: 2000 });
+        await waitFor(
+            () => {
+                expect(result.current.previewGroups).not.toBeNull();
+                // Status should remain Idle or derived from interaction, but Reviewing is gone.
+                expect(result.current.status).toBe(OrganizerStatus.Idle);
+            },
+            { timeout: 2000 }
+        );
 
         expect(result.current.previewGroups).toHaveLength(2);
         expect(result.current.previewGroups![0].groupName).toBe('Search');
@@ -114,18 +124,32 @@ describe('useTabGrouper', () => {
         const storageListener = calls[calls.length - 1][0];
 
         act(() => {
-            storageListener({
-                suggestionCache: {
-                    newValue: [{ tabId: 101, windowId: 1, groupName: 'Async Group', existingGroupId: null, timestamp: 456 }],
-                    oldValue: undefined
-                }
-            }, 'session');
+            storageListener(
+                {
+                    suggestionCache: {
+                        newValue: [
+                            {
+                                tabId: 101,
+                                windowId: 1,
+                                groupName: 'Async Group',
+                                existingGroupId: null,
+                                timestamp: 456
+                            }
+                        ],
+                        oldValue: undefined
+                    }
+                },
+                'session'
+            );
         });
 
-        await waitFor(() => {
-            expect(result.current.previewGroups).not.toBeNull();
-            expect(result.current.status).toBe(OrganizerStatus.Idle);
-        }, { timeout: 2000 });
+        await waitFor(
+            () => {
+                expect(result.current.previewGroups).not.toBeNull();
+                expect(result.current.status).toBe(OrganizerStatus.Idle);
+            },
+            { timeout: 2000 }
+        );
 
         expect(result.current.previewGroups).toHaveLength(1);
         expect(result.current.previewGroups![0].groupName).toBe('Async Group');
@@ -179,14 +203,28 @@ describe('useTabGrouper', () => {
         // @ts-expect-error - overload issue
         vi.mocked(global.chrome.storage.session.get).mockResolvedValue({
             suggestionCache: [
-                { tabId: 101, windowId: 1, groupName: 'Window1Group', existingGroupId: null, timestamp: 123 },
-                { tabId: 201, windowId: 2, groupName: 'Window2Group', existingGroupId: null, timestamp: 123 }
+                {
+                    tabId: 101,
+                    windowId: 1,
+                    groupName: 'Window1Group',
+                    existingGroupId: null,
+                    timestamp: 123
+                },
+                {
+                    tabId: 201,
+                    windowId: 2,
+                    groupName: 'Window2Group',
+                    existingGroupId: null,
+                    timestamp: 123
+                }
             ]
         });
 
         // Current window is 1
         // @ts-expect-error - overload issue
-        vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({ id: 1 } as chrome.windows.Window);
+        vi.mocked(global.chrome.windows.getCurrent).mockResolvedValue({
+            id: 1
+        } as chrome.windows.Window);
 
         const { result } = renderHook(() => useTabGrouper());
 
@@ -214,9 +252,12 @@ describe('useTabGrouper', () => {
             const calls = vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls;
             const listener = calls[calls.length - 1][0];
             act(() => {
-                listener({
-                    suggestionCache: { newValue: newVal, oldValue: undefined }
-                }, 'session');
+                listener(
+                    {
+                        suggestionCache: { newValue: newVal, oldValue: undefined }
+                    },
+                    'session'
+                );
             });
         };
 
@@ -263,9 +304,12 @@ describe('useTabGrouper', () => {
             const calls = vi.mocked(global.chrome.storage.onChanged.addListener).mock.calls;
             const listener = calls[calls.length - 1][0];
             act(() => {
-                listener({
-                    suggestionCache: { newValue: newVal, oldValue: undefined }
-                }, 'session');
+                listener(
+                    {
+                        suggestionCache: { newValue: newVal, oldValue: undefined }
+                    },
+                    'session'
+                );
             });
         };
 
@@ -292,7 +336,13 @@ describe('useTabGrouper', () => {
         // New group
         const newSuggestions = [
             ...suggestions,
-            { tabId: 103, windowId: 1, groupName: 'New Group', existingGroupId: null, timestamp: 999 }
+            {
+                tabId: 103,
+                windowId: 1,
+                groupName: 'New Group',
+                existingGroupId: null,
+                timestamp: 999
+            }
         ];
 
         // @ts-expect-error - overload issue

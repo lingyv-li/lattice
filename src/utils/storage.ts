@@ -29,8 +29,8 @@ export const DEFAULT_GROUPING_RULES = `- ALWAYS start group names with a relevan
 - Avoid generic names (e.g., don't use 'General', 'Miscellaneous', or 'Tabs').`;
 
 export const DEFAULT_SYNCED_SETTINGS: SyncedSettings = {
-    customGroupingRules: "",
-    geminiApiKey: "",
+    customGroupingRules: '',
+    geminiApiKey: '',
     hasCompletedOnboarding: false,
     features: {
         [FeatureId.TabGrouper]: { enabled: false, autopilot: false },
@@ -57,11 +57,11 @@ const LOCAL_KEYS: (keyof LocalSettings)[] = ['aiProvider', 'aiModel'];
 export const SettingsStorage = {
     get: async (resolveDefaults: boolean = true): Promise<AppSettings> => {
         const [syncItems, localItems] = await Promise.all([
-            new Promise<Partial<SyncedSettings>>((resolve) => {
-                chrome.storage.sync.get(null, (items) => resolve(items as Partial<SyncedSettings>));
+            new Promise<Partial<SyncedSettings>>(resolve => {
+                chrome.storage.sync.get(null, items => resolve(items as Partial<SyncedSettings>));
             }),
-            new Promise<Partial<LocalSettings>>((resolve) => {
-                chrome.storage.local.get(null, (items) => resolve(items as Partial<LocalSettings>));
+            new Promise<Partial<LocalSettings>>(resolve => {
+                chrome.storage.local.get(null, items => resolve(items as Partial<LocalSettings>));
             })
         ]);
 
@@ -86,7 +86,7 @@ export const SettingsStorage = {
             return LOCAL_KEYS.includes(key as keyof LocalSettings);
         };
 
-        (Object.keys(settings) as Array<keyof AppSettings>).forEach((key) => {
+        (Object.keys(settings) as Array<keyof AppSettings>).forEach(key => {
             if (isLocalKey(key)) {
                 // @ts-expect-error - key mapping is loose
                 localUpdates[key] = settings[key];
@@ -98,14 +98,18 @@ export const SettingsStorage = {
 
         const promises: Promise<void>[] = [];
         if (Object.keys(syncUpdates).length > 0) {
-            promises.push(new Promise((resolve) => {
-                chrome.storage.sync.set(syncUpdates, () => resolve());
-            }));
+            promises.push(
+                new Promise(resolve => {
+                    chrome.storage.sync.set(syncUpdates, () => resolve());
+                })
+            );
         }
         if (Object.keys(localUpdates).length > 0) {
-            promises.push(new Promise((resolve) => {
-                chrome.storage.local.set(localUpdates, () => resolve());
-            }));
+            promises.push(
+                new Promise(resolve => {
+                    chrome.storage.local.set(localUpdates, () => resolve());
+                })
+            );
         }
 
         await Promise.all(promises);
@@ -139,7 +143,7 @@ export const SettingsStorage = {
         await SettingsStorage.set({ features: newFeatures });
     },
 
-    subscribe: (callback: (changes: SettingsChanges) => void): () => void => {
+    subscribe: (callback: (changes: SettingsChanges) => void): (() => void) => {
         const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
             if (areaName === 'sync' || areaName === 'local') {
                 // We just pass the changes through. The consumer doesn't care source.

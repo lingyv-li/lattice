@@ -2,22 +2,34 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 import sharp from 'sharp';
 
-// Custom plugin to copy manifest and process icons
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Custom plugin to copy manifest (with version from package.json) and process icons
 const copyManifest = () => {
     return {
         name: 'copy-manifest',
         closeBundle: async () => {
-            fs.copyFileSync('src/manifest.json', 'dist/manifest.json');
+            const pkg = JSON.parse(
+                fs.readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
+            );
+            const manifestPath = resolve(__dirname, 'src/manifest.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
+            manifest.version = pkg.version;
+            fs.writeFileSync(
+                resolve(__dirname, 'dist/manifest.json'),
+                JSON.stringify(manifest, null, 4)
+            );
 
-            await sharp('public/icon.svg')
+            await sharp(resolve(__dirname, 'public/icon.svg'))
                 .png()
                 .resize(128, 128)
-                .toFile('dist/icon.png');
+                .toFile(resolve(__dirname, 'dist/icon.png'));
 
             console.log('Copied manifest.json and converted icon.svg to dist/icon.png');
         }
@@ -39,12 +51,22 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name]-[hash].js',
                 assetFileNames: 'assets/[name]-[hash].[ext]',
             }
-        }, // Added missing closing brace for rollupOptions
+        },
         outDir: 'dist',
         emptyOutDir: true
     },
     test: {
         environment: 'jsdom',
-        setupFiles: ['./src/setupTests.ts']
+        setupFiles: ['./src/setupTests.ts'],
+        coverage: {
+            provider: 'v8',
+            reporter: ['text', 'json', 'html'],
+            exclude: [
+                'node_modules/',
+                'src/setupTests.ts',
+                '**/*.test.{ts,tsx}',
+                '**/__tests__/**'
+            ]
+        }
     }
 });

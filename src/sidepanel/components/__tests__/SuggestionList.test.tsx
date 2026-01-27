@@ -49,13 +49,16 @@ describe('SuggestionList', () => {
 
     it('renders grouping suggestions', () => {
         const mockSnapshot = {
-            getTabData: vi.fn((id) => ({ id, title: `Tab ${id}`, url: 'http://e.com', favIconUrl: '' }))
+            getTabData: vi.fn(id => ({
+                id,
+                title: `Tab ${id}`,
+                url: 'http://e.com',
+                favIconUrl: ''
+            }))
         };
 
         vi.mocked(useTabGrouper).mockReturnValue({
-            previewGroups: [
-                { groupName: 'Work', tabIds: [1, 2], existingGroupId: null }
-            ],
+            previewGroups: [{ groupName: 'Work', tabIds: [1, 2], existingGroupId: null }],
             snapshot: mockSnapshot as any,
             applyGroup: mockApplyGroup,
             isBackgroundProcessing: false

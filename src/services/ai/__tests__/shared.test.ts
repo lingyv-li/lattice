@@ -13,19 +13,19 @@ describe('shared utilities', () => {
         it('should parse raw JSON dictionary (new format)', () => {
             const input = '{"Test Group": [1, 2, 3]}';
             const result = cleanAndParseJson(input);
-            expect(result).toEqual({ "Test Group": [1, 2, 3] });
+            expect(result).toEqual({ 'Test Group': [1, 2, 3] });
         });
 
         it('should parse JSON wrapped in markdown code blocks', () => {
             const input = '```json\n{"Test Group": [1]}\n```';
             const result = cleanAndParseJson(input);
-            expect(result).toEqual({ "Test Group": [1] });
+            expect(result).toEqual({ 'Test Group': [1] });
         });
 
         it('should preferred earlier JSON object if multiple technically exist but find the structure correctly', () => {
             const input = 'Prefix { "Group": [1] } Suffix';
             const result = cleanAndParseJson(input);
-            expect(result).toEqual({ "Group": [1] });
+            expect(result).toEqual({ Group: [1] });
         });
 
         it('should throw error on completely malformed input', () => {
@@ -98,7 +98,7 @@ Organize the user's chaotic browser session into semantically coherent, context-
 
     describe('constructSystemPrompt (CoD)', () => {
         it('should match the golden prompt structure for readability', () => {
-            const prompt = constructSystemPrompt("", true);
+            const prompt = constructSystemPrompt('', true);
 
             // Golden test - ensure prompt structure stays consistent
             const expected = `## Role
@@ -154,7 +154,7 @@ Thoughts:
         });
 
         it('should match the golden prompt structure with custom rules', () => {
-            const prompt = constructSystemPrompt("Rule 1: Be cool.\nRule 2: Have fun.", true);
+            const prompt = constructSystemPrompt('Rule 1: Be cool.\nRule 2: Have fun.', true);
 
             const expected = `## Role
 You are an expert Information Architect and Productivity Assistant.

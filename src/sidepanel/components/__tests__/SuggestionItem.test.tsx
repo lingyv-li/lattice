@@ -12,8 +12,16 @@ describe('SuggestionItem', () => {
         type: SuggestionType.Group,
         onClick: vi.fn(),
         tabs: [
-            { title: 'Tab 1', url: 'https://example.com/1', favIconUrl: 'https://example.com/icon1.png' },
-            { title: 'Tab 2', url: 'https://example.com/2', favIconUrl: 'https://example.com/icon2.png' }
+            {
+                title: 'Tab 1',
+                url: 'https://example.com/1',
+                favIconUrl: 'https://example.com/icon1.png'
+            },
+            {
+                title: 'Tab 2',
+                url: 'https://example.com/2',
+                favIconUrl: 'https://example.com/icon2.png'
+            }
         ]
     };
 

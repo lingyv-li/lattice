@@ -14,21 +14,19 @@ export class GeminiProvider extends BaseProvider {
         super();
     }
 
-    protected constructExistingGroupsPrompt(
-        groups: Map<string, GroupContext>
-    ): string {
+    protected constructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
         const sortedGroups = Array.from(groups.entries())
             .filter(([name]) => name.trim().length > 0)
             .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
 
-        if (sortedGroups.length === 0) return "";
+        if (sortedGroups.length === 0) return '';
 
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         const now = Date.now();
 
-        let prompt = "<existing_groups>\n";
+        let prompt = '<existing_groups>\n';
         for (const [name, context] of sortedGroups) {
-            let label = "";
+            let label = '';
             if (context.lastActive) {
                 const diff = now - context.lastActive;
                 if (diff > 7 * ONE_DAY_MS) {
@@ -43,35 +41,31 @@ export class GeminiProvider extends BaseProvider {
             prompt += `- "${name}"${label}`;
             if (context && context.tabs.length > 0) {
                 // Use nested list for clearer structure
-                prompt += "\n" + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
+                prompt += '\n' + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
             }
-            prompt += "\n";
+            prompt += '\n';
         }
-        prompt += "</existing_groups>";
+        prompt += '</existing_groups>';
         return prompt;
     }
 
-    protected async promptAI(
-        userPrompt: string,
-        systemPrompt: string,
-        signal: AbortSignal
-    ): Promise<string> {
-        if (!this.apiKey) throw new ConfigurationError("API Key is missing for Gemini Cloud.");
-        if (!this.model) throw new ConfigurationError("Please select an AI model in Settings.");
+    protected async promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal): Promise<string> {
+        if (!this.apiKey) throw new ConfigurationError('API Key is missing for Gemini Cloud.');
+        if (!this.model) throw new ConfigurationError('Please select an AI model in Settings.');
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Prompting model: ${this.model}`);
 
         const client = new GoogleGenAI({ apiKey: this.apiKey });
         const isGemma = this.model.includes('gemma');
 
-        const config = isGemma ? {} : {
-            responseMimeType: 'application/json',
-            systemInstruction: systemPrompt,
-        };
+        const config = isGemma
+            ? {}
+            : {
+                  responseMimeType: 'application/json',
+                  systemInstruction: systemPrompt
+              };
 
-        const finalUserPrompt = isGemma
-            ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
-            : userPrompt;
+        const finalUserPrompt = isGemma ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}` : userPrompt;
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Sending request to ${this.model}${isGemma ? ' (Gemma mode)' : ''}`);
 
@@ -90,16 +84,16 @@ export class GeminiProvider extends BaseProvider {
         // Race the request against the abort signal
         const response = signal
             ? await Promise.race([
-                requestPromise,
-                new Promise<never>((_, reject) => {
-                    if (signal.aborted) {
-                        reject(new AbortError('Request aborted'));
-                    }
-                    signal.addEventListener('abort', () => {
-                        reject(new AbortError('Request aborted'));
-                    });
-                })
-            ])
+                  requestPromise,
+                  new Promise<never>((_, reject) => {
+                      if (signal.aborted) {
+                          reject(new AbortError('Request aborted'));
+                      }
+                      signal.addEventListener('abort', () => {
+                          reject(new AbortError('Request aborted'));
+                      });
+                  })
+              ])
             : await requestPromise;
 
         if (response.text) {
@@ -114,6 +108,6 @@ export class GeminiProvider extends BaseProvider {
         }
 
         console.error(`[GeminiProvider] [${new Date().toISOString()}] No response text from Gemini`);
-        throw new AIProviderError("No response text from Gemini");
+        throw new AIProviderError('No response text from Gemini');
     }
 }

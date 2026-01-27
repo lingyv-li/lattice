@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from 'vitest';
 import { GeminiProvider } from '../GeminiProvider';
 import { GroupContext } from '../types';
@@ -14,7 +13,9 @@ class TestGeminiProvider extends GeminiProvider {
     }
 
     // Abstract methods implementation for instantiation
-    protected async promptAI(): Promise<string> { return ""; }
+    protected async promptAI(): Promise<string> {
+        return '';
+    }
 }
 
 describe('Prompts with Staleness Logic', () => {
@@ -46,12 +47,12 @@ describe('Prompts with Staleness Logic', () => {
         const ONE_DAY = 24 * 60 * 60 * 1000;
 
         groups.set('Active Today', { id: 1, tabs: [], lastActive: now - 1000 });
-        groups.set('Active Yesterday', { id: 2, tabs: [], lastActive: now - (2 * ONE_DAY) });
-        groups.set('Stale Group', { id: 3, tabs: [], lastActive: now - (10 * ONE_DAY) });
+        groups.set('Active Yesterday', { id: 2, tabs: [], lastActive: now - 2 * ONE_DAY });
+        groups.set('Stale Group', { id: 3, tabs: [], lastActive: now - 10 * ONE_DAY });
 
         const prompt = provider.testConstructExistingGroupsPrompt(groups);
 
-        console.log("Checking prompt:\n", prompt);
+        console.log('Checking prompt:\n', prompt);
 
         expect(prompt).toContain('- "Active Today" (Active today)');
         expect(prompt).toContain(`- "Active Yesterday" (Active 2d ago)`);

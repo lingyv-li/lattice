@@ -1,4 +1,3 @@
-
 export type ToastType = 'success' | 'error' | 'info';
 
 export interface Toast {

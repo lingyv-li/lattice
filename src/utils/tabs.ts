@@ -1,18 +1,12 @@
-
 /**
  * Applies a tab group suggestion to a set of tabs.
  * If an existingGroupId is provided, tries to add tabs to that group.
  * If that fails or no existingGroupId is provided, creates a new group.
- * 
+ *
  * @param windowId - The window ID to create the group in.
  * @returns The groupId of the group (existing or new)
  */
-export const applyTabGroup = async (
-    tabIds: number[],
-    groupName: string,
-    existingGroupId: number | null | undefined,
-    windowId: number
-): Promise<number | undefined> => {
+export const applyTabGroup = async (tabIds: number[], groupName: string, existingGroupId: number | null | undefined, windowId: number): Promise<number | undefined> => {
     if (!tabIds || tabIds.length === 0) return undefined;
 
     // Validate window type and get tabs in single API call
@@ -45,7 +39,7 @@ export const applyTabGroup = async (
         } catch (e: unknown) {
             // Check for specific error message regarding missing group
             const message = e instanceof Error ? e.message : String(e);
-            if (message.includes("No group with id")) {
+            if (message.includes('No group with id')) {
                 // Fallback: Create a new group in the specified window
                 const groupId = await chrome.tabs.group({
                     tabIds: tabIdsToGroup,

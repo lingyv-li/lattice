@@ -6,13 +6,13 @@ describe('sanitizeUrl Performance Benchmark', () => {
         const ITERATIONS = 10000;
 
         const datasets = {
-            fastShort: "https://example.com/short",
-            fastSeparators: "https://example.com/my-very-long-article-title-with-dashes",
-            fastUnicode: "https://example.com/über-unsere-produkte",
-            knownId: "https://example.com/e5f8a9b2-2930-4b2c-8d1e-2f3a4b5c6d7e", // UUID
-            ambiguousNatural: "https://example.com/MyTop10BestMoviesOf2025SoFar", // Low entropy
-            ambiguousJunk: "https://example.com/d7Bv9X2z1K5m3Q8j4N6w0L9p2R5t8Y", // High entropy
-            veryLongInput: "https://example.com/" + "a".repeat(2000), // Max length truncation test
+            fastShort: 'https://example.com/short',
+            fastSeparators: 'https://example.com/my-very-long-article-title-with-dashes',
+            fastUnicode: 'https://example.com/über-unsere-produkte',
+            knownId: 'https://example.com/e5f8a9b2-2930-4b2c-8d1e-2f3a4b5c6d7e', // UUID
+            ambiguousNatural: 'https://example.com/MyTop10BestMoviesOf2025SoFar', // Low entropy
+            ambiguousJunk: 'https://example.com/d7Bv9X2z1K5m3Q8j4N6w0L9p2R5t8Y', // High entropy
+            veryLongInput: 'https://example.com/' + 'a'.repeat(2000) // Max length truncation test
         };
 
         const results: Record<string, number> = {};

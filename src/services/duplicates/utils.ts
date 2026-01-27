@@ -1,4 +1,3 @@
-
 /**
  * Shared utility for detecting and cleaning duplicate tabs.
  */
@@ -27,7 +26,7 @@ export const findDuplicates = (tabs: chrome.tabs.Tab[]): Map<string, chrome.tabs
  */
 export const countDuplicates = (urlMap: Map<string, chrome.tabs.Tab[]>): number => {
     let count = 0;
-    urlMap.forEach((group) => {
+    urlMap.forEach(group => {
         if (group.length > 1) {
             count += group.length - 1;
         }
@@ -42,7 +41,7 @@ export const countDuplicates = (urlMap: Map<string, chrome.tabs.Tab[]>): number 
 export const getTabsToRemove = (urlMap: Map<string, chrome.tabs.Tab[]>): number[] => {
     const tabsToRemove: number[] = [];
 
-    urlMap.forEach((group) => {
+    urlMap.forEach(group => {
         if (group.length > 1) {
             // Sort to find the one to KEEP (which will be at index 0)
             // Criteria for determining the BEST tab to KEEP:

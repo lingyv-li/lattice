@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { updateWindowBadge } from '../badge';
 
@@ -28,13 +27,13 @@ describe('badge utils', () => {
             await updateWindowBadge(123, true, 0, 0, false);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
-            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "...", tabId: 99 });
-            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#A855F7", tabId: 99 });
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: '...', tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: '#A855F7', tabId: 99 });
         });
 
         it('should show total count', async () => {
             // Mock active tab for window
-            queryMock.mockImplementation((query) => {
+            queryMock.mockImplementation(query => {
                 if (query.active) return Promise.resolve([{ id: 99 }]); // Active tab
                 return Promise.resolve([]);
             });
@@ -43,8 +42,8 @@ describe('badge utils', () => {
             await updateWindowBadge(123, false, 2, 1, false);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
-            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "3", tabId: 99 });
-            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#22C55E", tabId: 99 });
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: '3', tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: '#22C55E', tabId: 99 });
         });
 
         it('should do nothing if no active tab in window', async () => {
@@ -60,17 +59,17 @@ describe('badge utils', () => {
             await updateWindowBadge(123, false, 0, 0, true);
 
             expect(queryMock).toHaveBeenCalledWith({ windowId: 123, active: true });
-            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "ERR", tabId: 99 });
-            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#D93025", tabId: 99 });
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: 'ERR', tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: '#D93025', tabId: 99 });
         });
 
         it('should show custom text', async () => {
             queryMock.mockResolvedValue([{ id: 99 }]);
 
-            await updateWindowBadge(123, false, 0, 0, false, "!", "#FFA500");
+            await updateWindowBadge(123, false, 0, 0, false, '!', '#FFA500');
 
-            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: "!", tabId: 99 });
-            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: "#FFA500", tabId: 99 });
+            expect(setBadgeTextMock).toHaveBeenCalledWith({ text: '!', tabId: 99 });
+            expect(setBadgeBgMock).toHaveBeenCalledWith({ color: '#FFA500', tabId: 99 });
         });
     });
 });

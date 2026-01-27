@@ -22,7 +22,7 @@ export class TabManager {
 
         // Tab creation/removal also needs to trigger recalc (though potentially benign)
 
-        chrome.tabs.onCreated.addListener(async (tab) => {
+        chrome.tabs.onCreated.addListener(async tab => {
             // If tab is not complete, triggerRecalculation will handle it via debounce.
             if (tab.status !== 'loading') {
                 this.triggerRecalculation(`Tab Created ${tab.id}`);
@@ -31,12 +31,12 @@ export class TabManager {
         chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
             await this.handleTabUpdated(tabId, changeInfo);
         });
-        chrome.tabs.onRemoved.addListener(async (tabId) => {
+        chrome.tabs.onRemoved.addListener(async tabId => {
             await StateService.removeSuggestion(tabId);
-            this.triggerRecalculation('Tab Removed')
+            this.triggerRecalculation('Tab Removed');
         });
 
-        chrome.windows.onRemoved.addListener((windowId) => {
+        chrome.windows.onRemoved.addListener(windowId => {
             // console.log(`[TabManager] Window ${windowId} closed. Removing from processing state.`);
             this.processingState.remove(windowId);
         });
@@ -53,12 +53,14 @@ export class TabManager {
     async queueAndProcess() {
         const settings = await SettingsStorage.get();
         if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
-            console.log("[TabManager] Tab Grouper is disabled, skipping processing");
+            console.log('[TabManager] Tab Grouper is disabled, skipping processing');
             return;
         }
 
         // Efficiently get snapshots for all NORMAL windows
-        const snapshots = await WindowSnapshot.fetchAll({ windowTypes: [chrome.windows.WindowType.NORMAL] });
+        const snapshots = await WindowSnapshot.fetchAll({
+            windowTypes: [chrome.windows.WindowType.NORMAL]
+        });
 
         for (const [windowId, currentSnapshot] of snapshots) {
             // Calculate and update duplicates regardless of whether we process AI
@@ -88,7 +90,7 @@ export class TabManager {
 
         // Process immediately if we have windows queued in ProcessingState
         if (this.processingState.hasItems) {
-            console.log("[TabManager] Processing queued windows");
+            console.log('[TabManager] Processing queued windows');
             await this.queueProcessor.process();
         }
     }
@@ -116,7 +118,7 @@ export class TabManager {
                         }
                     }
                 } catch (e) {
-                    console.error("[TabManager] Error checking duplicates:", e);
+                    console.error('[TabManager] Error checking duplicates:', e);
                 }
             }
         }

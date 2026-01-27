@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StateService } from '../state';
 import { TabSuggestionCache } from '../../types/tabGrouper';
@@ -10,8 +9,8 @@ const mockStorage: Record<string, unknown> = {};
 // Mock listeners
 const listeners: Set<(changes: Record<string, chrome.storage.StorageChange>, areaName: string) => void> = new Set();
 const mockOnChanged = {
-    addListener: vi.fn((cb) => listeners.add(cb)),
-    removeListener: vi.fn((cb) => listeners.delete(cb))
+    addListener: vi.fn(cb => listeners.add(cb)),
+    removeListener: vi.fn(cb => listeners.delete(cb))
 };
 
 const notifyListeners = (changes: Record<string, chrome.storage.StorageChange>) => {
@@ -25,7 +24,9 @@ const mockSession = {
         }
         if (Array.isArray(keys)) {
             const res: Record<string, unknown> = {};
-            keys.forEach(k => { res[k] = mockStorage[k]; });
+            keys.forEach(k => {
+                res[k] = mockStorage[k];
+            });
             return Promise.resolve(res);
         }
         return Promise.resolve(mockStorage);
@@ -77,7 +78,13 @@ describe('StateService', () => {
 
     it('should hydrate from storage', async () => {
         const testData: TabSuggestionCache[] = [
-            { tabId: 1, windowId: WINDOW_ID, groupName: 'Test', existingGroupId: null, timestamp: 123 }
+            {
+                tabId: 1,
+                windowId: WINDOW_ID,
+                groupName: 'Test',
+                existingGroupId: null,
+                timestamp: 123
+            }
         ];
         mockStorage['suggestionCache'] = testData;
 

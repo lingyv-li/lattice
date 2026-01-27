@@ -1,7 +1,7 @@
 /**
  * Manages group IDs for tab grouping, handling both virtual IDs (negative, temporary)
  * and real Chrome group IDs (positive, persistent).
- * 
+ *
  * Virtual IDs are used during batch processing to maintain consistency across batches
  * before groups are actually created in Chrome.
  */

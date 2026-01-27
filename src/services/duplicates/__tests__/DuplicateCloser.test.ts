@@ -4,11 +4,11 @@ import { DuplicateCloser } from '../DuplicateCloser';
 // Mock chrome API
 const mockTabs = {
     query: vi.fn(),
-    remove: vi.fn(),
+    remove: vi.fn()
 };
 
 global.chrome = {
-    tabs: mockTabs,
+    tabs: mockTabs
 } as unknown as typeof chrome;
 
 describe('DuplicateCloser', () => {
@@ -21,7 +21,7 @@ describe('DuplicateCloser', () => {
             mockTabs.query.mockResolvedValue([
                 { id: 1, url: 'https://example.com' },
                 { id: 2, url: 'https://example.com' }, // duplicate
-                { id: 3, url: 'https://other.com' },
+                { id: 3, url: 'https://other.com' }
             ]);
             mockTabs.remove.mockResolvedValue(undefined);
 
@@ -36,7 +36,7 @@ describe('DuplicateCloser', () => {
         it('should return empty result when no duplicates exist', async () => {
             mockTabs.query.mockResolvedValue([
                 { id: 1, url: 'https://example.com' },
-                { id: 2, url: 'https://other.com' },
+                { id: 2, url: 'https://other.com' }
             ]);
 
             const result = await DuplicateCloser.closeDuplicates();
@@ -47,9 +47,7 @@ describe('DuplicateCloser', () => {
         });
 
         it('should use windowId when provided', async () => {
-            mockTabs.query.mockResolvedValue([
-                { id: 1, url: 'https://example.com' },
-            ]);
+            mockTabs.query.mockResolvedValue([{ id: 1, url: 'https://example.com' }]);
 
             await DuplicateCloser.closeDuplicates(123);
 
@@ -62,7 +60,7 @@ describe('DuplicateCloser', () => {
             mockTabs.query.mockResolvedValue([
                 { id: 10, url: 'https://a.com' },
                 { id: 11, url: 'https://a.com' }, // duplicate
-                { id: 12, url: 'https://a.com' }, // duplicate
+                { id: 12, url: 'https://a.com' } // duplicate
             ]);
             mockTabs.remove.mockResolvedValue(undefined);
 
@@ -77,7 +75,7 @@ describe('DuplicateCloser', () => {
         it('should keep pinned tabs over unpinned duplicates', async () => {
             mockTabs.query.mockResolvedValue([
                 { id: 1, url: 'https://example.com', pinned: false },
-                { id: 2, url: 'https://example.com', pinned: true }, // should be kept
+                { id: 2, url: 'https://example.com', pinned: true } // should be kept
             ]);
             mockTabs.remove.mockResolvedValue(undefined);
 
@@ -91,7 +89,7 @@ describe('DuplicateCloser', () => {
         it('should keep active tab over inactive duplicates', async () => {
             mockTabs.query.mockResolvedValue([
                 { id: 1, url: 'https://example.com', active: false },
-                { id: 2, url: 'https://example.com', active: true }, // should be kept
+                { id: 2, url: 'https://example.com', active: true } // should be kept
             ]);
             mockTabs.remove.mockResolvedValue(undefined);
 

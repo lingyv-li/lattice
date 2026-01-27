@@ -17,31 +17,25 @@ export abstract class BaseProvider implements AIProvider {
      * @param customRules Optional custom grouping rules
      * @param signal Optional AbortSignal for cancellation
      */
-    protected abstract promptAI(
-        userPrompt: string,
-        systemPrompt: string,
-        signal: AbortSignal
-    ): Promise<string>;
+    protected abstract promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal): Promise<string>;
 
     protected getSystemPrompt(customRules?: string): string {
         return constructSystemPrompt(customRules);
     }
 
-    protected constructExistingGroupsPrompt(
-        groups: Map<string, GroupContext>
-    ): string {
+    protected constructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
         const sortedGroups = Array.from(groups.entries())
             .filter(([name]) => name.trim().length > 0)
             // Sort by recency (newest first)
             .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
 
-        if (sortedGroups.length === 0) return "";
+        if (sortedGroups.length === 0) return '';
 
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
         const now = Date.now();
 
         const groupLines = sortedGroups.map(([name, context]) => {
-            let label = "";
+            let label = '';
             if (context.lastActive) {
                 const diff = now - context.lastActive;
                 if (diff > 7 * ONE_DAY_MS) {
@@ -55,12 +49,10 @@ export abstract class BaseProvider implements AIProvider {
             return `- "${name}"${label}`;
         });
 
-        return "<existing_groups>\n" + groupLines.join('\n') + "\n</existing_groups>";
+        return '<existing_groups>\n' + groupLines.join('\n') + '\n</existing_groups>';
     }
 
-    async generateSuggestions(
-        request: GroupingRequest
-    ): Promise<SuggestionResult> {
+    async generateSuggestions(request: GroupingRequest): Promise<SuggestionResult> {
         const { ungroupedTabs, existingGroups, customRules, signal } = request;
         const groupNameMap = new Map<string, number>();
         for (const [name, context] of existingGroups) {
@@ -75,15 +67,11 @@ export abstract class BaseProvider implements AIProvider {
 
         const systemPrompt = this.getSystemPrompt(customRules);
 
-        const tabList = ungroupedTabs
-            .map(t => `- [ID: ${t.id}] [${t.title}](${sanitizeUrl(t.url)})`)
-            .join('\n');
+        const tabList = ungroupedTabs.map(t => `- [ID: ${t.id}] [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
 
         const existingGroupsPrompt = this.constructExistingGroupsPrompt(existingGroups);
 
-        const userPrompt = (
-            existingGroupsPrompt.length > 0 ? existingGroupsPrompt + "\n" : "")
-            + `\n<ungrouped_tabs>\n${tabList}\n</ungrouped_tabs>`;
+        const userPrompt = (existingGroupsPrompt.length > 0 ? existingGroupsPrompt + '\n' : '') + `\n<ungrouped_tabs>\n${tabList}\n</ungrouped_tabs>`;
 
         const MAX_RETRIES = 3;
         const BASE_DELAY = 1000;
@@ -100,13 +88,7 @@ export abstract class BaseProvider implements AIProvider {
                         // Verify tabId exists in the requested tabs
                         if (!ungroupedTabs.find(t => t.id === tabId)) continue;
 
-                        nextNewGroupId = handleAssignment(
-                            groupName,
-                            tabId,
-                            groupNameMap,
-                            suggestions,
-                            nextNewGroupId
-                        );
+                        nextNewGroupId = handleAssignment(groupName, tabId, groupNameMap, suggestions, nextNewGroupId);
                     }
                 } else if (typeof parsed === 'object' && parsed !== null) {
                     // Dictionary format: { "Group Name": [1, 2, 3] }
@@ -117,13 +99,7 @@ export abstract class BaseProvider implements AIProvider {
                                 // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
                                 if (!ungroupedTabs.find(t => t.id == tabId)) continue;
 
-                                nextNewGroupId = handleAssignment(
-                                    groupName,
-                                    Number(tabId),
-                                    groupNameMap,
-                                    suggestions,
-                                    nextNewGroupId
-                                );
+                                nextNewGroupId = handleAssignment(groupName, Number(tabId), groupNameMap, suggestions, nextNewGroupId);
                             }
                         }
                     }
@@ -131,7 +107,6 @@ export abstract class BaseProvider implements AIProvider {
 
                 // If we got here, success! Break the retry loop.
                 break;
-
             } catch (err) {
                 const error = err instanceof Error ? err : new Error(String(err));
 

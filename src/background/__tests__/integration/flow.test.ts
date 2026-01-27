@@ -28,7 +28,6 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         await context.setupWindow(WIN_ID);
 
         // Debug listener count
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         console.log(`[FlowTest] Tabs OnCreated Listeners: ${(context.chrome as any)._events.tabsOnCreated.hasListener((context.tabManager as any).listeners?.tabs?.onCreated) ?? 'unknown'} `);
 
         // 1. Add some tabs that should be grouped
@@ -36,7 +35,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         await context.addTab(WIN_ID, 'https://work.com/docs/2');
 
         // 2. Trigger processing manually (bypass debounce)
-        console.log("[FlowTest] Manually triggering queueAndProcess");
+        console.log('[FlowTest] Manually triggering queueAndProcess');
         await context.tabManager.queueAndProcess();
 
         await context.waitForProcessing();
@@ -125,11 +124,16 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
                     // Return work group suggestion
                     const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
                     return {
-                        suggestions: workTabs.length > 0 ? [{
-                            groupName: 'Work',
-                            tabIds: workTabs.map((t: any) => t.id),
-                            confidence: 0.9
-                        }] : []
+                        suggestions:
+                            workTabs.length > 0
+                                ? [
+                                      {
+                                          groupName: 'Work',
+                                          tabIds: workTabs.map((t: any) => t.id),
+                                          confidence: 0.9
+                                      }
+                                  ]
+                                : []
                     };
                 }
             })
@@ -146,27 +150,28 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         await new Promise(r => setTimeout(r, 50));
 
         if (aiCallStarted) {
-            console.log("[Test] AI call started, now simulating fatal change (manual group)");
+            console.log('[Test] AI call started, now simulating fatal change (manual group)');
             // Simulate user manually grouping a tab - this is a fatal change
             // We do this by modifying the tab's groupId directly and triggering re-queue
             tab1.groupId = 999; // User manually grouped this tab
 
             // Trigger the re-queue which should detect fatal change and abort
-            await context.processingState.enqueue(WIN_ID,
+            await context.processingState.enqueue(
+                WIN_ID,
                 await (await import('../../../utils/snapshots')).WindowSnapshot.fetch(WIN_ID),
                 true // isRequeue
             );
         }
 
         // 4. Wait for processing to complete (or abort)
-        await processingPromise.catch(() => { }); // Ignore abort errors
+        await processingPromise.catch(() => {}); // Ignore abort errors
         await context.waitForProcessing();
 
         // 5. Verify abort behavior:
         console.log(`[Test] Abort signal triggered: ${abortSignalTriggered}, AI started: ${aiCallStarted}, AI call count: ${aiCallCount}`);
 
         // Key assertions:
-        // a) The abort signal was triggered  
+        // a) The abort signal was triggered
         expect(abortSignalTriggered).toBe(true);
 
         // b) The AI was called at least twice (first aborted, second for re-process)
@@ -223,7 +228,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         await new Promise(r => setTimeout(r, 50));
 
         if (aiCallStarted) {
-            console.log("[Test] Closing window during AI call...");
+            console.log('[Test] Closing window during AI call...');
             // Simulate window closing.
             // We remove the window and tabs from FakeChrome state to reflect the reality of a closed window.
             // Then we dispatch the 'windows.onRemoved' event, which the QueueProcessor should be listening to
@@ -246,7 +251,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         }
 
         // 4. Wait
-        await processingPromise.catch(() => { });
+        await processingPromise.catch(() => {});
         await context.waitForProcessing();
 
         // 5. Verify
@@ -278,11 +283,16 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
 
                     const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
                     return {
-                        suggestions: workTabs.length > 0 ? [{
-                            groupName: 'Work',
-                            tabIds: workTabs.map((t: any) => t.id),
-                            confidence: 0.9
-                        }] : []
+                        suggestions:
+                            workTabs.length > 0
+                                ? [
+                                      {
+                                          groupName: 'Work',
+                                          tabIds: workTabs.map((t: any) => t.id),
+                                          confidence: 0.9
+                                      }
+                                  ]
+                                : []
                     };
                 }
             })
@@ -300,7 +310,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
 
         // 4. Introduce BENIGN change (new tab)
         // This should trigger "window changed", but NOT be fatal
-        console.log("[Test] Adding new tab during AI processing (Benign change)");
+        console.log('[Test] Adding new tab during AI processing (Benign change)');
         await context.addTab(WIN_ID, 'https://new-stuff.com/1');
 
         // Trigger loop update (simulating event listener)
@@ -316,7 +326,7 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         expect(abortSignalTriggered).toBe(false);
         expect(aiCallCount).toBe(1); // Should not have restarted
 
-        // One group created 
+        // One group created
         expect(context.chrome.groups).toHaveLength(1);
     });
 
@@ -406,5 +416,4 @@ describe('Integration Flow: Auto-Grouping & Smart Abort', () => {
         const redCall = colorCalls.find((c: any) => c[0].color === '#D93025');
         expect(redCall).toBeDefined();
     });
-
 });

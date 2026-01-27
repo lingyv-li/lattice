@@ -1,4 +1,3 @@
-
 const analyzeTokenStats = (str: string) => {
     // 1. Split on separators (hyphen, underscore, plus, space, dot, colon, equals)
     let clean = str.replace(/[-_+. :=]/g, ' ');

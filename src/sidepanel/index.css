@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @theme {
     --color-surface: var(--surface);
@@ -47,7 +47,6 @@
     --color-status-neutral-fg: var(--status-neutral-fg);
     --color-status-ai-bg: var(--status-ai-bg);
     --color-status-ai-fg: var(--status-ai-fg);
-
 
     /* Sizing & Spacing */
     --spacing-card-padding: var(--spacing-card-padding);
@@ -243,7 +242,6 @@
         --status-ai-fg: #c084fc;
         /* purple-400 */
     }
-
 }
 
 body {

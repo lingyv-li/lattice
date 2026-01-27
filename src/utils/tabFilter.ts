@@ -2,12 +2,7 @@
  * Checks if a URL is an empty new tab page.
  */
 export const isEmptyNewTab = (url: string): boolean => {
-    return (
-        url === 'chrome://newtab/' ||
-        url === 'chrome://new-tab-page/' ||
-        url === 'about:blank' ||
-        url === 'edge://newtab/'
-    );
+    return url === 'chrome://newtab/' || url === 'chrome://new-tab-page/' || url === 'about:blank' || url === 'edge://newtab/';
 };
 
 /**
@@ -35,4 +30,4 @@ export function isGroupableTab(tab: chrome.tabs.Tab): boolean {
     }
 
     return true;
-};
+}

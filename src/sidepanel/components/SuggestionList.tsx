@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
@@ -67,9 +66,7 @@ export const SuggestionList: React.FC = () => {
                 const id = `group-${index}-${group.groupName}`;
 
                 // Resolve tab objects from snapshot
-                const groupTabs = group.tabIds
-                    .map(tid => snapshot?.getTabData(tid))
-                    .filter((t): t is chrome.tabs.Tab => !!t);
+                const groupTabs = group.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
 
                 list.push({
                     id,
@@ -97,7 +94,7 @@ export const SuggestionList: React.FC = () => {
                     // Small delay to allow state updates/animations
                     await new Promise(r => setTimeout(r, 200));
                 } catch (e) {
-                    console.error("Failed to apply suggestion", item.title, e);
+                    console.error('Failed to apply suggestion', item.title, e);
                 }
             }
         } finally {
@@ -110,37 +107,37 @@ export const SuggestionList: React.FC = () => {
     if (suggestions.length === 0) {
         if (isBackgroundProcessing) {
             return (
-                <div className="flex flex-col items-center justify-center p-8 text-center h-full animate-pulse">
-                    <div className="w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4">
-                        <Loader2 className="w-6 h-6 text-action animate-spin" />
+                <div className='flex flex-col items-center justify-center p-8 text-center h-full animate-pulse'>
+                    <div className='w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4'>
+                        <Loader2 className='w-6 h-6 text-action animate-spin' />
                     </div>
-                    <h3 className="text-main font-medium mb-1">Scanning Tabs...</h3>
-                    <p className="text-muted text-sm">Looking for ways to organize your workspace.</p>
+                    <h3 className='text-main font-medium mb-1'>Scanning Tabs...</h3>
+                    <p className='text-muted text-sm'>Looking for ways to organize your workspace.</p>
                 </div>
             );
         }
 
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-center h-full">
-                <div className="w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4">
-                    <Sparkles className="w-6 h-6 text-muted" />
+            <div className='flex flex-col items-center justify-center p-8 text-center h-full'>
+                <div className='w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4'>
+                    <Sparkles className='w-6 h-6 text-muted' />
                 </div>
-                <h3 className="text-main font-medium mb-1">All Caught Up</h3>
-                <p className="text-muted text-sm">No organization suggestions at the moment.</p>
+                <h3 className='text-main font-medium mb-1'>All Caught Up</h3>
+                <p className='text-muted text-sm'>No organization suggestions at the moment.</p>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-2 p-3">
+        <div className='flex flex-col gap-2 p-3'>
             {/* Accept All Button */}
             {suggestions.length > 1 && (
                 <button
                     onClick={handleAcceptAll}
                     disabled={isAcceptingAll || processingId !== null}
-                    className="w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
+                    className='w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2'
                 >
-                    {isAcceptingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isAcceptingAll ? <Loader2 className='w-4 h-4 animate-spin' /> : <Sparkles className='w-4 h-4' />}
                     <span>Accept All ({suggestions.length})</span>
                 </button>
             )}
@@ -155,7 +152,11 @@ export const SuggestionList: React.FC = () => {
                     onClick={() => handleAction(item.id, item.onClick)}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))}
+                    tabs={item.tabs.map(t => ({
+                        title: t.title,
+                        url: t.url,
+                        favIconUrl: t.favIconUrl
+                    }))}
                 />
             ))}
         </div>

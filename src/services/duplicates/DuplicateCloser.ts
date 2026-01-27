@@ -26,9 +26,7 @@ export class DuplicateCloser {
      * @returns The result of the close operation, including count and tab IDs removed.
      */
     static async closeDuplicates(windowId?: number): Promise<CloseResult> {
-        const queryOptions = windowId !== undefined
-            ? { windowId }
-            : { currentWindow: true };
+        const queryOptions = windowId !== undefined ? { windowId } : { currentWindow: true };
 
         const tabs = await chrome.tabs.query(queryOptions);
         const urlMap = findDuplicates(tabs);

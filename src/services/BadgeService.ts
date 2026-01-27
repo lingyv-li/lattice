@@ -10,8 +10,7 @@ export class BadgeService {
         const settings = await SettingsStorage.get();
 
         // Check if Tab Grouper is enabled but no AI provider configured
-        if (settings.features?.[FeatureId.TabGrouper]?.enabled &&
-            settings.aiProvider === AIProviderType.None) {
+        if (settings.features?.[FeatureId.TabGrouper]?.enabled && settings.aiProvider === AIProviderType.None) {
             // Show configuration needed badge on all windows
             const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'] });
             for (const window of allWindows) {

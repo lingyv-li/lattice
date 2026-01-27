@@ -17,7 +17,6 @@ export class LocalProvider extends BaseProvider {
         LocalProvider.cachedSystemPrompt = null;
     }
 
-
     public static async checkAvailability(): Promise<Availability> {
         if (typeof LanguageModel === 'undefined') {
             return 'unavailable';
@@ -26,7 +25,7 @@ export class LocalProvider extends BaseProvider {
             const status = await LanguageModel.availability();
             return status;
         } catch (e) {
-            console.error("Failed to check AI availability", e);
+            console.error('Failed to check AI availability', e);
             return 'unavailable';
         }
     }
@@ -56,10 +55,12 @@ export class LocalProvider extends BaseProvider {
             temperature: 0.2,
             topK: params.defaultTopK,
             expectedInputs: [{ type: 'text', languages: ['en'] }],
-            initialPrompts: [{
-                role: "system",
-                content: systemPrompt
-            }],
+            initialPrompts: [
+                {
+                    role: 'system',
+                    content: systemPrompt
+                }
+            ],
             signal
         });
         const sessionCreateDuration = Date.now() - sessionCreateStart;
@@ -72,13 +73,9 @@ export class LocalProvider extends BaseProvider {
         return session;
     }
 
-    protected async promptAI(
-        userPrompt: string,
-        systemPrompt: string,
-        signal: AbortSignal
-    ): Promise<string> {
-        if (await LocalProvider.checkAvailability() !== 'available') {
-            throw new AIProviderError("Local AI is not available.");
+    protected async promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal): Promise<string> {
+        if ((await LocalProvider.checkAvailability()) !== 'available') {
+            throw new AIProviderError('Local AI is not available.');
         }
 
         // Clone the session for this specific request
@@ -88,7 +85,6 @@ export class LocalProvider extends BaseProvider {
         const startTime = Date.now();
         console.log(`[LocalProvider] [${new Date().toISOString()}] Sending single-turn CoD prompt`);
         try {
-
             const response = await session.prompt(userPrompt, { signal });
 
             const totalDuration = Date.now() - startTime;

@@ -3,13 +3,18 @@ import { WindowSnapshot } from '../snapshots';
 
 // Mock chrome API
 const mockTabs = [
-    { id: 1, windowId: 1, url: 'https://example.com', title: 'Example', groupId: -1, status: 'complete' },
+    {
+        id: 1,
+        windowId: 1,
+        url: 'https://example.com',
+        title: 'Example',
+        groupId: -1,
+        status: 'complete'
+    },
     { id: 2, windowId: 1, url: 'https://other.com', title: 'Other', groupId: 1, status: 'complete' } // Grouped tab
 ];
 
-const mockGroups = [
-    { id: 1, windowId: 1, title: 'My Code', color: 'blue', collapsed: false }
-];
+const mockGroups = [{ id: 1, windowId: 1, title: 'My Code', color: 'blue', collapsed: false }];
 
 global.chrome = {
     tabs: {
@@ -42,13 +47,13 @@ describe('WindowSnapshot Integration', () => {
 
     describe('Deterministic Sampling', () => {
         it('should have a deterministic hash function', () => {
-            const input = "test-string";
+            const input = 'test-string';
             const hash1 = WindowSnapshot.deterministicHash(input);
             const hash2 = WindowSnapshot.deterministicHash(input);
             expect(hash1).toBe(hash2);
 
             // Ensure different inputs produce different hashes
-            const hash3 = WindowSnapshot.deterministicHash("other-string");
+            const hash3 = WindowSnapshot.deterministicHash('other-string');
             expect(hash1).not.toBe(hash3);
         });
 
@@ -82,13 +87,15 @@ describe('WindowSnapshot Integration', () => {
                 } as chrome.tabs.Tab);
             }
 
-            const groups = [{
-                id: 1,
-                collapsed: false,
-                color: 'blue' as const,
-                title: 'Test Group',
-                windowId: 1
-            } as chrome.tabGroups.TabGroup];
+            const groups = [
+                {
+                    id: 1,
+                    collapsed: false,
+                    color: 'blue' as const,
+                    title: 'Test Group',
+                    windowId: 1
+                } as chrome.tabGroups.TabGroup
+            ];
 
             const snapshot = new TestWindowSnapshot(groupTabs, groups);
 
@@ -104,7 +111,7 @@ describe('WindowSnapshot Integration', () => {
             expect(sampled1).toHaveLength(10);
             expect(sampled1).toEqual(sampled2);
 
-            // Basic check that it's sorted by hash (we can't easily predict the hash order without re-hashing, 
+            // Basic check that it's sorted by hash (we can't easily predict the hash order without re-hashing,
             // but we verified stability).
         });
 
@@ -128,13 +135,15 @@ describe('WindowSnapshot Integration', () => {
                 } as chrome.tabs.Tab);
             }
 
-            const groups = [{
-                id: 1,
-                collapsed: false,
-                color: 'blue' as const,
-                title: 'Test Group',
-                windowId: 1
-            } as chrome.tabGroups.TabGroup];
+            const groups = [
+                {
+                    id: 1,
+                    collapsed: false,
+                    color: 'blue' as const,
+                    title: 'Test Group',
+                    windowId: 1
+                } as chrome.tabGroups.TabGroup
+            ];
 
             const snapshot = new TestWindowSnapshot(groupTabs, groups);
             const result = snapshot.testGetPromptForBatch([], new Map());
