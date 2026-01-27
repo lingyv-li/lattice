@@ -73,7 +73,7 @@ export const useDuplicateCleaner = () => {
             const tabsToRemove = getTabsToRemove(singleMap);
             const duplicateTabs = group.slice(1);
 
-                if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
+            if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
                 await chrome.tabs.remove(tabsToRemove);
                 const windowId = duplicateTabs[0]?.windowId;
                 const urls = duplicateTabs.map(t => t.url).filter((u): u is string => !!u);
@@ -96,7 +96,10 @@ export const useDuplicateCleaner = () => {
         duplicateGroups.forEach((tabs, url) => {
             if (tabs.length > 1) {
                 const windowId = tabs[0]?.windowId;
-                const urls = tabs.slice(1).map(t => t.url).filter((u): u is string => !!u);
+                const urls = tabs
+                    .slice(1)
+                    .map(t => t.url)
+                    .filter((u): u is string => !!u);
                 if (windowId !== undefined && urls.length > 0) {
                     list.push({ type: 'deduplicate', windowId, url, urls });
                 }

@@ -59,9 +59,7 @@ describe('SuggestionList', () => {
         };
 
         vi.mocked(useTabGrouper).mockReturnValue({
-            suggestionActions: [
-                { type: 'group', windowId: 1, tabIds: [1, 2], groupName: 'Work', existingGroupId: null }
-            ],
+            suggestionActions: [{ type: 'group', windowId: 1, tabIds: [1, 2], groupName: 'Work', existingGroupId: null }],
             snapshot: mockSnapshot as any,
             applyGroup: mockApplyGroup,
             isBackgroundProcessing: false

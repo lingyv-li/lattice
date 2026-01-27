@@ -39,7 +39,10 @@ export class DuplicateCloser {
         for (const [url, group] of urlMap) {
             if (group.length > 1) {
                 const windowId = group[0]?.windowId;
-                const urls = group.slice(1).map(t => t.url).filter((u): u is string => !!u);
+                const urls = group
+                    .slice(1)
+                    .map(t => t.url)
+                    .filter((u): u is string => !!u);
                 if (windowId !== undefined && urls.length > 0) {
                     actions.push({ type: 'deduplicate', windowId, url, urls });
                 }

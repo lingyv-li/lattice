@@ -284,12 +284,7 @@ export class StateService {
     /**
      * Record a group action (manual or autopilot). Unified entry so both paths are undoable.
      */
-    static async pushGroupAction(params: {
-        windowId: number;
-        tabIds: number[];
-        groupName: string;
-        existingGroupId?: number | null;
-    }): Promise<void> {
+    static async pushGroupAction(params: { windowId: number; tabIds: number[]; groupName: string; existingGroupId?: number | null }): Promise<void> {
         await this.pushAction({
             type: 'group',
             windowId: params.windowId,
