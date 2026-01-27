@@ -3,6 +3,7 @@ import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
+import type { Action } from '../types/suggestions';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
@@ -236,6 +237,12 @@ export const useTabGrouper = () => {
 
                     if (validTabIds.length > 0) {
                         await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
+                        await StateService.pushAction({
+                            type: 'group',
+                            windowId: currentWindow.id!,
+                            tabIds: validTabIds,
+                            groupName: group.groupName
+                        });
                     }
                 }
             }
@@ -261,6 +268,12 @@ export const useTabGrouper = () => {
 
                 if (validTabIds.length > 0) {
                     await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
+                    await StateService.pushAction({
+                        type: 'group',
+                        windowId: currentWindow.id!,
+                        tabIds: validTabIds,
+                        groupName: group.groupName
+                    });
                 }
             }
             setInteractionStatus(OrganizerStatus.Success);
@@ -311,14 +324,30 @@ export const useTabGrouper = () => {
         }
     };
 
+    // Suggestions from background (cache) as Action[] for UI
+    const suggestionActions: Action[] = useMemo(() => {
+        if (!previewGroups || currentWindowId === undefined) return [];
+        return previewGroups.map(
+            (g): Action => ({
+                type: 'group',
+                windowId: currentWindowId,
+                tabIds: g.tabIds,
+                groupName: g.groupName,
+                existingGroupId: g.existingGroupId
+            })
+        );
+    }, [previewGroups, currentWindowId]);
+
     return {
         status: interactionStatus,
         error,
         previewGroups,
+        suggestionActions,
         setPreviewGroups,
         selectedPreviewIndices,
         snapshot,
         isBackgroundProcessing,
+        currentWindowId,
         applyGroups,
         applyGroup,
         toggleGroupSelection,

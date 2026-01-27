@@ -16,8 +16,8 @@ interface UnifiedSuggestion {
 }
 
 export const SuggestionList: React.FC = () => {
-    const { previewGroups, snapshot, applyGroup, isBackgroundProcessing } = useTabGrouper();
-    const { duplicateGroups, closeDuplicateGroup } = useDuplicateCleaner();
+    const { suggestionActions: groupActions, snapshot, applyGroup, isBackgroundProcessing } = useTabGrouper();
+    const { duplicateGroups, suggestionActions: dedupeActions, closeDuplicateGroup } = useDuplicateCleaner();
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
 
@@ -31,57 +31,45 @@ export const SuggestionList: React.FC = () => {
         }
     };
 
+    // Build suggestions from Action[] (group + deduplicate) from background/UI
     const suggestions = useMemo(() => {
         const list: UnifiedSuggestion[] = [];
 
-        // 1. Duplicate Suggestions
-        duplicateGroups.forEach((tabs, url) => {
-            if (tabs.length > 1) {
-                const countToRemove = tabs.length - 1;
-                // Use title of the first tab (original) for better context
-                const displayTitle = tabs[0].title || new URL(url).hostname;
-
-                const id = `dedup-${url}`;
-
-                // Show only the tabs that will be closed (duplicates), not the original
-                const duplicateTabs = tabs.slice(1);
-
-                list.push({
-                    id,
-                    type: SuggestionType.Deduplicate,
-                    title: `Clean "${displayTitle}"`,
-                    description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
-                    icon: Trash2,
-                    onClick: async () => closeDuplicateGroup(url),
-                    tabs: duplicateTabs
-                });
-            }
+        groupActions.forEach((action, index) => {
+            if (action.type !== 'group') return;
+            const tabCount = action.tabIds.length;
+            const groupTabs = action.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
+            list.push({
+                id: `group-${index}-${action.groupName}`,
+                type: SuggestionType.Group,
+                title: action.existingGroupId ? `Add to "${action.groupName}"` : `Group "${action.groupName}"`,
+                description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
+                icon: Group,
+                onClick: () => applyGroup(index),
+                tabs: groupTabs
+            });
         });
 
-        // 2. Grouping Suggestions
-        if (previewGroups) {
-            previewGroups.forEach((group, index) => {
-                const isExisting = !!group.existingGroupId;
-                const tabCount = group.tabIds.length;
-                const id = `group-${index}-${group.groupName}`;
-
-                // Resolve tab objects from snapshot
-                const groupTabs = group.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
-
-                list.push({
-                    id,
-                    type: SuggestionType.Group,
-                    title: isExisting ? `Add to "${group.groupName}"` : `Group "${group.groupName}"`,
-                    description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
-                    icon: Group,
-                    onClick: async () => applyGroup(index),
-                    tabs: groupTabs
-                });
+        dedupeActions.forEach(action => {
+            if (action.type !== 'deduplicate') return;
+            const tabs = duplicateGroups.get(action.url);
+            if (!tabs || tabs.length < 2) return;
+            const countToRemove = tabs.length - 1;
+            const duplicateTabs = tabs.slice(1);
+            const displayTitle = tabs[0].title || new URL(action.url).hostname;
+            list.push({
+                id: `dedup-${action.url}`,
+                type: SuggestionType.Deduplicate,
+                title: `Clean "${displayTitle}"`,
+                description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
+                icon: Trash2,
+                onClick: () => closeDuplicateGroup(action.url),
+                tabs: duplicateTabs
             });
-        }
+        });
 
         return list;
-    }, [previewGroups, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
+    }, [groupActions, dedupeActions, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
 
     const handleAcceptAll = async () => {
         setIsAcceptingAll(true);

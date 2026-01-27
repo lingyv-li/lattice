@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { StateService } from '../state';
 import { TabSuggestionCache } from '../../types/tabGrouper';
 import { WindowSnapshot } from '../../utils/snapshots';
+import type { Action } from '../../types/suggestions';
 
 // Mock chrome.storage.session
 const mockStorage: Record<string, unknown> = {};
@@ -54,11 +55,16 @@ const mockSession = {
     })
 };
 
-// Setup global chrome mock
+// Setup global chrome mock (tabs needed for undoLast tests)
 global.chrome = {
     storage: {
         session: mockSession,
         onChanged: mockOnChanged
+    },
+    tabs: {
+        query: vi.fn().mockResolvedValue([]),
+        ungroup: vi.fn().mockResolvedValue(undefined),
+        create: vi.fn().mockResolvedValue({})
     }
 } as unknown as typeof chrome;
 
@@ -97,7 +103,7 @@ describe('StateService', () => {
         const cache = await StateService.getSuggestionCache(WINDOW_ID);
         expect(cache.size).toBe(1);
         expect(cache.get(1)).toEqual(testData[0]);
-        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts']);
+        expect(mockSession.get).toHaveBeenCalledWith(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts', 'actionHistory']);
     });
 
     it('should update and persist suggestions', async () => {
@@ -267,5 +273,25 @@ describe('StateService', () => {
         expect(listener).toHaveBeenCalledWith(expect.any(Map), false, 3);
 
         unsubscribe();
+    });
+
+    it('undoLast clears history and does not restore from storage', async () => {
+        await StateService.clearCache();
+        const action: Action = {
+            type: 'group',
+            windowId: WINDOW_ID,
+            tabIds: [1, 2],
+            groupName: 'Test'
+        };
+        await StateService.pushAction(action);
+        expect((await StateService.getActionHistory(WINDOW_ID)).length).toBe(1);
+
+        // Simulate “old” value still in storage (would be used by preserve-when-empty)
+        mockStorage['actionHistory'] = [action];
+
+        await StateService.undoLast(WINDOW_ID);
+
+        expect(await StateService.getActionHistory(WINDOW_ID)).toEqual([]);
+        expect(mockStorage['actionHistory']).toEqual([]);
     });
 });
