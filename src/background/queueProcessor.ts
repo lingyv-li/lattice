@@ -249,6 +249,12 @@ export class QueueProcessor {
                         if (newGroupId) {
                             groupIdManager.updateWithRealId(suggestion.groupName, newGroupId);
                         }
+                        await StateService.pushGroupAction({
+                            windowId,
+                            tabIds: suggestion.tabIds,
+                            groupName: suggestion.groupName,
+                            existingGroupId: groupIdManager.toRealIdOrNull(groupId)
+                        });
                     } else {
                         // Cache suggestions for manual review
                         for (const tabId of suggestion.tabIds) {

@@ -237,11 +237,11 @@ export const useTabGrouper = () => {
 
                     if (validTabIds.length > 0) {
                         await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
-                        await StateService.pushAction({
-                            type: 'group',
+                        await StateService.pushGroupAction({
                             windowId: currentWindow.id!,
                             tabIds: validTabIds,
-                            groupName: group.groupName
+                            groupName: group.groupName,
+                            existingGroupId: group.existingGroupId
                         });
                     }
                 }
@@ -268,11 +268,11 @@ export const useTabGrouper = () => {
 
                 if (validTabIds.length > 0) {
                     await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
-                    await StateService.pushAction({
-                        type: 'group',
+                    await StateService.pushGroupAction({
                         windowId: currentWindow.id!,
                         tabIds: validTabIds,
-                        groupName: group.groupName
+                        groupName: group.groupName,
+                        existingGroupId: group.existingGroupId
                     });
                 }
             }

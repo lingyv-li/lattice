@@ -47,6 +47,9 @@ export const useDuplicateCleaner = () => {
         try {
             const result = await DuplicateCloser.closeDuplicates();
             if (result.closedCount > 0) {
+                for (const a of result.actions) {
+                    await StateService.pushDeduplicateAction(a);
+                }
                 setStatus(OrganizerStatus.Success);
             } else {
                 setStatus(OrganizerStatus.Idle);
@@ -70,12 +73,12 @@ export const useDuplicateCleaner = () => {
             const tabsToRemove = getTabsToRemove(singleMap);
             const duplicateTabs = group.slice(1);
 
-            if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
+                if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
                 await chrome.tabs.remove(tabsToRemove);
                 const windowId = duplicateTabs[0]?.windowId;
                 const urls = duplicateTabs.map(t => t.url).filter((u): u is string => !!u);
                 if (windowId !== undefined && urls.length > 0) {
-                    await StateService.pushAction({ type: 'deduplicate', windowId, url, urls });
+                    await StateService.pushDeduplicateAction({ windowId, url, urls });
                 }
                 setStatus(OrganizerStatus.Success);
             }

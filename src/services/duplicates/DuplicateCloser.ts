@@ -1,10 +1,13 @@
 import { findDuplicates, getTabsToRemove } from './utils';
 import { SettingsStorage } from '../../utils/storage';
 import { FeatureId } from '../../types/features';
+import type { DeduplicateAction } from '../../types/suggestions';
 
 export interface CloseResult {
     closedCount: number;
     tabsRemoved: number[];
+    /** Deduplicate actions for undo; one per URL group closed. Callers record via StateService.pushDeduplicateAction. */
+    actions: DeduplicateAction[];
 }
 
 /**
@@ -32,13 +35,25 @@ export class DuplicateCloser {
         const urlMap = findDuplicates(tabs);
         const tabsToRemove = getTabsToRemove(urlMap);
 
+        const actions: DeduplicateAction[] = [];
+        for (const [url, group] of urlMap) {
+            if (group.length > 1) {
+                const windowId = group[0]?.windowId;
+                const urls = group.slice(1).map(t => t.url).filter((u): u is string => !!u);
+                if (windowId !== undefined && urls.length > 0) {
+                    actions.push({ type: 'deduplicate', windowId, url, urls });
+                }
+            }
+        }
+
         if (tabsToRemove.length > 0) {
             await chrome.tabs.remove(tabsToRemove);
         }
 
         return {
             closedCount: tabsToRemove.length,
-            tabsRemoved: tabsToRemove
+            tabsRemoved: tabsToRemove,
+            actions
         };
     }
 

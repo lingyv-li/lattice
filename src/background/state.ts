@@ -282,6 +282,36 @@ export class StateService {
     }
 
     /**
+     * Record a group action (manual or autopilot). Unified entry so both paths are undoable.
+     */
+    static async pushGroupAction(params: {
+        windowId: number;
+        tabIds: number[];
+        groupName: string;
+        existingGroupId?: number | null;
+    }): Promise<void> {
+        await this.pushAction({
+            type: 'group',
+            windowId: params.windowId,
+            tabIds: params.tabIds,
+            groupName: params.groupName,
+            existingGroupId: params.existingGroupId
+        });
+    }
+
+    /**
+     * Record a deduplicate action (manual or autopilot). Unified entry so both paths are undoable.
+     */
+    static async pushDeduplicateAction(params: { windowId: number; url: string; urls: string[] }): Promise<void> {
+        await this.pushAction({
+            type: 'deduplicate',
+            windowId: params.windowId,
+            url: params.url,
+            urls: params.urls
+        });
+    }
+
+    /**
      * Get action history, optionally filtered by window.
      * Newest last (so pop for undo gives most recent).
      */

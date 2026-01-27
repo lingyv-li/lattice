@@ -110,6 +110,9 @@ export class TabManager {
                     if (tab.windowId) {
                         const result = await DuplicateCloser.closeDuplicatesInWindow(tab.windowId);
                         if (result.closedCount > 0) {
+                            for (const a of result.actions) {
+                                await StateService.pushDeduplicateAction(a);
+                            }
                             console.log(`[Autopilot] Closed ${result.closedCount} duplicate tabs.`);
                             // If we removed the current tab, stop processing
                             if (result.tabsRemoved.includes(tabId)) {

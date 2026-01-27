@@ -19,7 +19,7 @@ vi.mock('../../services/duplicates', () => ({
     countDuplicates: vi.fn().mockReturnValue(0),
     DuplicateCloser: {
         isAutopilotEnabled: vi.fn().mockResolvedValue(false),
-        closeDuplicatesInWindow: vi.fn().mockResolvedValue({ closedCount: 0, tabsRemoved: [] }),
+        closeDuplicatesInWindow: vi.fn().mockResolvedValue({ closedCount: 0, tabsRemoved: [], actions: [] }),
         closeDuplicates: vi.fn()
     }
 }));
