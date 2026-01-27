@@ -5,12 +5,17 @@ import { SuggestionType } from '../../../types/suggestions';
 import { Sparkles } from 'lucide-react';
 
 describe('SuggestionItem', () => {
+    const mockAction = vi.fn().mockResolvedValue(undefined);
+    const mockOnAction = vi.fn();
+
     const defaultProps = {
+        id: 'test-id',
         title: 'Test Suggestion',
         description: 'Test Description',
         icon: Sparkles,
         type: SuggestionType.Group,
-        onClick: vi.fn(),
+        action: mockAction,
+        onAction: mockOnAction,
         tabs: [
             { title: 'Tab 1', url: 'https://example.com/1', favIconUrl: 'https://example.com/icon1.png' },
             { title: 'Tab 2', url: 'https://example.com/2', favIconUrl: 'https://example.com/icon2.png' }
@@ -34,8 +39,12 @@ describe('SuggestionItem', () => {
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
-        expect(defaultProps.onClick).toHaveBeenCalled();
+        // Click the clickable container.
+        // Structure: div(clickable) > div(text container) > h3(title)
+        const title = screen.getByText('Test Suggestion');
+        const clickable = title.closest('div')!.parentElement!;
+        fireEvent.click(clickable);
+        expect(mockOnAction).toHaveBeenCalledWith('test-id', mockAction);
     });
 
     it('groups identical tabs visually', () => {
