@@ -98,7 +98,7 @@ export class TabManager {
     async handleTabUpdated(tabId: number, changeInfo: { url?: string; status?: string; groupId?: number }) {
         // Autopilot: close duplicates when a tab navigates or finishes loading
         if (changeInfo.url || changeInfo.status === 'complete') {
-            // Check global autopilot setting for Tab Grouper
+            // Check global autopilot setting for Duplicate Cleaner
             const autopilotEnabled = await DuplicateCloser.isAutopilotEnabled();
 
             if (autopilotEnabled) {
