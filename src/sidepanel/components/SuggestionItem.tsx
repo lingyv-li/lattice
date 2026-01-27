@@ -3,22 +3,26 @@ import { LucideIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface SuggestionItemProps {
+    id: string;
     title: string;
     description: string;
     icon: LucideIcon;
     type: SuggestionType;
-    onClick: () => void;
+    action: () => Promise<void>;
+    onAction: (id: string, action: () => Promise<void>) => void;
     isLoading?: boolean;
     disabled?: boolean;
     tabs?: SuggestionTab[];
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({
+export const SuggestionItem = React.memo<SuggestionItemProps>(({
+    id,
     title,
     description,
     icon: Icon,
     type,
-    onClick,
+    action,
+    onAction,
     isLoading,
     disabled,
     tabs
@@ -49,9 +53,9 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
             ${disabled ? 'opacity-50 pointer-events-none' : 'hover:border-action hover:bg-surface-highlight border-border-subtle'}
         `} >
             {/* Header / Action Area */}
-            < div
+            <div
                 className="flex items-center gap-2 p-2 cursor-pointer"
-                onClick={onClick}
+                onClick={() => onAction(id, action)}
             >
                 <div className={`
                     p-1.5 rounded-md shrink-0
@@ -75,7 +79,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                     </span>
                     {!isLoading && <ArrowRight className="w-3.5 h-3.5" />}
                 </div>
-            </div >
+            </div>
 
             {/* Tab List - Always Visible & Compact */}
             {
@@ -101,6 +105,6 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                     </div>
                 )
             }
-        </div >
+        </div>
     );
-};
+});
