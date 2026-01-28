@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
 import { SuggestionItem } from './SuggestionItem';
-import { SuggestionType } from '../../types/suggestions';
+import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface UnifiedSuggestion {
     id: string;
@@ -12,7 +12,7 @@ interface UnifiedSuggestion {
     description: string;
     icon: LucideIcon;
     onClick: () => Promise<void>;
-    tabs: chrome.tabs.Tab[];
+    tabs: SuggestionTab[];
 }
 
 export const SuggestionList: React.FC = () => {
@@ -21,7 +21,15 @@ export const SuggestionList: React.FC = () => {
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
 
-    const handleAction = async (id: string, action: () => Promise<void>) => {
+    // Stable ref for state access in callbacks
+    const stateRef = useRef({ processingId, isAcceptingAll });
+    useEffect(() => {
+        stateRef.current = { processingId, isAcceptingAll };
+    }, [processingId, isAcceptingAll]);
+
+    // Stable handler that doesn't change on every render
+    const handleAction = useCallback(async (id: string, action: () => Promise<void>) => {
+        const { processingId, isAcceptingAll } = stateRef.current;
         if (processingId || isAcceptingAll) return;
         setProcessingId(id);
         try {
@@ -29,7 +37,7 @@ export const SuggestionList: React.FC = () => {
         } finally {
             setProcessingId(null);
         }
-    };
+    }, []);
 
     // Build suggestions from Action[] (group + deduplicate) from background/UI
     const suggestions = useMemo(() => {
@@ -46,7 +54,7 @@ export const SuggestionList: React.FC = () => {
                 description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
                 icon: Group,
                 onClick: () => applyGroup(index),
-                tabs: groupTabs
+                tabs: groupTabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))
             });
         });
 
@@ -64,7 +72,7 @@ export const SuggestionList: React.FC = () => {
                 description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
                 icon: Trash2,
                 onClick: () => closeDuplicateGroup(action.url),
-                tabs: duplicateTabs
+                tabs: duplicateTabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))
             });
         });
 
@@ -133,18 +141,16 @@ export const SuggestionList: React.FC = () => {
             {suggestions.map(item => (
                 <SuggestionItem
                     key={item.id}
+                    id={item.id}
                     title={item.title}
                     description={item.description}
                     icon={item.icon}
                     type={item.type}
-                    onClick={() => handleAction(item.id, item.onClick)}
+                    onClick={item.onClick}
+                    onAction={handleAction}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({
-                        title: t.title,
-                        url: t.url,
-                        favIconUrl: t.favIconUrl
-                    }))}
+                    tabs={item.tabs}
                 />
             ))}
         </div>

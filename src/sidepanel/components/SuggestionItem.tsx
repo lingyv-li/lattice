@@ -11,9 +11,22 @@ interface SuggestionItemProps {
     isLoading?: boolean;
     disabled?: boolean;
     tabs?: SuggestionTab[];
+    id?: string;
+    onAction?: (id: string, action: () => void) => void;
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, description, icon: Icon, type, onClick, isLoading, disabled, tabs }) => {
+const SuggestionItemBase: React.FC<SuggestionItemProps> = ({
+    title,
+    description,
+    icon: Icon,
+    type,
+    onClick,
+    isLoading,
+    disabled,
+    tabs,
+    id,
+    onAction
+}) => {
     // Aggregate identical tabs
     const groupedTabs = React.useMemo(() => {
         if (!tabs) return [];
@@ -33,10 +46,20 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         return Array.from(groups.values());
     }, [tabs]);
 
+    const handleClick = () => {
+        if (!disabled && !isLoading) {
+            if (onAction && id) {
+                onAction(id, onClick);
+            } else {
+                onClick();
+            }
+        }
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            if (!disabled && !isLoading) onClick();
+            handleClick();
         }
     };
 
@@ -53,7 +76,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
                 role='button'
                 tabIndex={disabled || isLoading ? -1 : 0}
                 className='flex items-center gap-2 p-2 cursor-pointer'
-                onClick={onClick}
+                onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 aria-label={`${title}: ${description}. Apply suggestion.`}
             >
@@ -104,3 +127,5 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         </div>
     );
 };
+
+export const SuggestionItem = React.memo(SuggestionItemBase);
