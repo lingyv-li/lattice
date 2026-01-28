@@ -12,11 +12,11 @@ exports[`SuggestionList > renders duplicate suggestions 1`] = `
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
     >
-      <div
+      <button
+        aria-busy="false"
         aria-label="Clean "Original": Close 1 duplicate tab. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset"
+        type="button"
       >
         <div
           class="
@@ -101,7 +101,7 @@ exports[`SuggestionList > renders duplicate suggestions 1`] = `
             />
           </svg>
         </div>
-      </div>
+      </button>
       <div
         class="px-2 pb-2 pl-9 space-y-0.5"
       >
@@ -186,11 +186,11 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
     >
-      <div
+      <button
+        aria-busy="false"
         aria-label="Group "Work": Organize 2 tabs. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-action focus-visible:ring-inset"
+        type="button"
       >
         <div
           class="
@@ -286,7 +286,7 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
             />
           </svg>
         </div>
-      </div>
+      </button>
       <div
         class="px-2 pb-2 pl-9 space-y-0.5"
       >
