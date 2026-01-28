@@ -42,7 +42,7 @@ describe('SettingsStorage', () => {
 
     it('should return default rules when custom rules are explicitly empty string and resolveDefaults is true', async () => {
         mockSyncGet.mockImplementation((_keys, callback) => {
-            callback({ customGroupingRules: "" });
+            callback({ customGroupingRules: '' });
         });
 
         const settings = await SettingsStorage.get(true);
@@ -51,11 +51,11 @@ describe('SettingsStorage', () => {
 
     it('should return empty string when custom rules are empty and resolveDefaults is false', async () => {
         const settings = await SettingsStorage.get(false);
-        expect(settings.customGroupingRules).toBe("");
+        expect(settings.customGroupingRules).toBe('');
     });
 
     it('should return custom rules when they exist, regardless of resolveDefaults', async () => {
-        const customRules = "My Context Rule";
+        const customRules = 'My Context Rule';
         mockSyncGet.mockImplementation((_keys, callback) => {
             callback({ customGroupingRules: customRules });
         });
@@ -75,24 +75,12 @@ describe('SettingsStorage', () => {
         });
 
         // Verify sync received rules
-        expect(mockSyncSet).toHaveBeenCalledWith(
-            expect.objectContaining({ customGroupingRules: 'New Rule' }),
-            expect.any(Function)
-        );
-        expect(mockSyncSet).not.toHaveBeenCalledWith(
-            expect.objectContaining({ aiProvider: expect.anything() }),
-            expect.anything()
-        );
+        expect(mockSyncSet).toHaveBeenCalledWith(expect.objectContaining({ customGroupingRules: 'New Rule' }), expect.any(Function));
+        expect(mockSyncSet).not.toHaveBeenCalledWith(expect.objectContaining({ aiProvider: expect.anything() }), expect.anything());
 
         // Verify local received AI settings
-        expect(mockLocalSet).toHaveBeenCalledWith(
-            expect.objectContaining({ aiProvider: AIProviderType.Local, aiModel: 'nano' }),
-            expect.any(Function)
-        );
-        expect(mockLocalSet).not.toHaveBeenCalledWith(
-            expect.objectContaining({ customGroupingRules: expect.anything() }),
-            expect.anything()
-        );
+        expect(mockLocalSet).toHaveBeenCalledWith(expect.objectContaining({ aiProvider: AIProviderType.Local, aiModel: 'nano' }), expect.any(Function));
+        expect(mockLocalSet).not.toHaveBeenCalledWith(expect.objectContaining({ customGroupingRules: expect.anything() }), expect.anything());
     });
     it('should update specific feature using read-modify-write', async () => {
         // Setup initial state in sync storage

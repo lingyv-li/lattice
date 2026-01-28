@@ -16,7 +16,7 @@ describe('SuggestionList', () => {
         vi.clearAllMocks();
 
         vi.mocked(useTabGrouper).mockReturnValue({
-            previewGroups: [],
+            suggestionActions: [],
             snapshot: { getTabData: vi.fn() } as any,
             applyGroup: mockApplyGroup,
             isBackgroundProcessing: false
@@ -24,6 +24,7 @@ describe('SuggestionList', () => {
 
         vi.mocked(useDuplicateCleaner).mockReturnValue({
             duplicateGroups: new Map(),
+            suggestionActions: [],
             closeDuplicateGroup: mockCloseDuplicateGroup
         } as any);
     });
@@ -36,7 +37,7 @@ describe('SuggestionList', () => {
 
     it('renders loading state when processing in background', () => {
         vi.mocked(useTabGrouper).mockReturnValue({
-            previewGroups: [],
+            suggestionActions: [],
             snapshot: { getTabData: vi.fn() } as any,
             applyGroup: mockApplyGroup,
             isBackgroundProcessing: true
@@ -49,13 +50,16 @@ describe('SuggestionList', () => {
 
     it('renders grouping suggestions', () => {
         const mockSnapshot = {
-            getTabData: vi.fn((id) => ({ id, title: `Tab ${id}`, url: 'http://e.com', favIconUrl: '' }))
+            getTabData: vi.fn((id: number) => ({
+                id,
+                title: `Tab ${id}`,
+                url: 'http://e.com',
+                favIconUrl: ''
+            }))
         };
 
         vi.mocked(useTabGrouper).mockReturnValue({
-            previewGroups: [
-                { groupName: 'Work', tabIds: [1, 2], existingGroupId: null }
-            ],
+            suggestionActions: [{ type: 'group', windowId: 1, tabIds: [1, 2], groupName: 'Work', existingGroupId: null }],
             snapshot: mockSnapshot as any,
             applyGroup: mockApplyGroup,
             isBackgroundProcessing: false
@@ -75,6 +79,7 @@ describe('SuggestionList', () => {
 
         vi.mocked(useDuplicateCleaner).mockReturnValue({
             duplicateGroups: duplicates,
+            suggestionActions: [{ type: 'deduplicate', windowId: 1, url: 'http://dup.com', urls: ['http://dup.com'] }],
             closeDuplicateGroup: mockCloseDuplicateGroup
         } as any);
 

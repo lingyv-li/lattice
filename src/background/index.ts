@@ -6,10 +6,10 @@ import { TabGroupMessageType } from '../types/tabGrouper';
 import { SettingsStorage } from '../utils/storage';
 import { BadgeService } from '../services/BadgeService';
 
-console.log("[Background] Service Worker Initialized");
-StateService.clearProcessingStatus().catch(err => console.error("[Background] Failed to clear processing status", err));
+console.log('[Background] Service Worker Initialized');
+StateService.clearProcessingStatus().catch(err => console.error('[Background] Failed to clear processing status', err));
 
-chrome.runtime.onInstalled.addListener(async (details) => {
+chrome.runtime.onInstalled.addListener(async details => {
     if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
         const settings = await SettingsStorage.get();
         if (!settings.hasCompletedOnboarding) {
@@ -37,15 +37,15 @@ const tabManager = new TabManager(processingState, queueProcessor);
 // ===== LISTENERS =====
 
 // 5. Active Tab Change (Update badge for new active tab)
-chrome.tabs.onActivated.addListener(async (_activeInfo) => {
+chrome.tabs.onActivated.addListener(async _activeInfo => {
     await BadgeService.performBadgeUpdate(processingState);
 });
 
 // 6. Connection
-chrome.runtime.onConnect.addListener((port) => {
+chrome.runtime.onConnect.addListener(port => {
     if (port.name !== 'tab-grouper') return;
 
-    port.onMessage.addListener(async (msg) => {
+    port.onMessage.addListener(async msg => {
         if (msg.type === TabGroupMessageType.TriggerProcessing) {
             // Trigger proactive check for new tabs
             tabManager.triggerRecalculation('UI Connected');
@@ -62,14 +62,14 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // 7. Alarm for periodic checks
 const ALARM_NAME = 'periodic-grouping-check';
-chrome.alarms.get(ALARM_NAME, (alarm) => {
+chrome.alarms.get(ALARM_NAME, alarm => {
     if (!alarm) {
         chrome.alarms.create(ALARM_NAME, { periodInMinutes: 0.5 });
         console.log(`[Background] Created periodic alarm every 30s`);
     }
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(alarm => {
     if (alarm.name === ALARM_NAME) {
         tabManager.triggerRecalculation('Alarm');
     }

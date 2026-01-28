@@ -3,6 +3,7 @@ import { TabGroupSuggestion, TabSuggestionCache, TabGroupMessageType } from '../
 import { OrganizerStatus } from '../types/organizer';
 import { applyTabGroup } from '../utils/tabs';
 import { AIProviderType, SettingsStorage } from '../utils/storage';
+import type { Action } from '../types/suggestions';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
@@ -46,7 +47,7 @@ export const useTabGrouper = () => {
             setAiEnabled(s.aiProvider !== AIProviderType.None);
         });
 
-        const unsubscribe = SettingsStorage.subscribe((changes) => {
+        const unsubscribe = SettingsStorage.subscribe(changes => {
             if (changes.aiProvider) {
                 setAiEnabled(changes.aiProvider.newValue !== AIProviderType.None);
             }
@@ -63,9 +64,7 @@ export const useTabGrouper = () => {
             // Only include if tab still exists in our snapshot and has a group name
             if (!snap.hasTab(cached.tabId) || !cached.groupName) continue;
 
-            const key = cached.existingGroupId
-                ? `existing-${cached.existingGroupId}`
-                : `new-${cached.groupName}`;
+            const key = cached.existingGroupId ? `existing-${cached.existingGroupId}` : `new-${cached.groupName}`;
 
             if (!groupMap.has(key)) {
                 groupMap.set(key, {
@@ -106,24 +105,24 @@ export const useTabGrouper = () => {
                 isPortConnected = true;
 
                 port.onDisconnect.addListener(() => {
-                    console.log("[useTabGrouper] Port disconnected");
+                    console.log('[useTabGrouper] Port disconnected');
                     isPortConnected = false;
                     portRef.current = null;
                     // Attempt reconnect
                     reconnectTimeout = setTimeout(connectPort, 2000);
                 });
 
-
-
                 // Request current status and trigger sync
                 chrome.windows.getCurrent().then(win => {
                     if (win.id && portRef.current) {
-                        port.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: win.id });
+                        port.postMessage({
+                            type: TabGroupMessageType.TriggerProcessing,
+                            windowId: win.id
+                        });
                     }
                 });
-
             } catch (e) {
-                console.error("[useTabGrouper] Connection failed", e);
+                console.error('[useTabGrouper] Connection failed', e);
                 reconnectTimeout = setTimeout(connectPort, 5000);
             }
         };
@@ -237,12 +236,13 @@ export const useTabGrouper = () => {
                     const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
 
                     if (validTabIds.length > 0) {
-                        await applyTabGroup(
-                            validTabIds,
-                            group.groupName,
-                            group.existingGroupId,
-                            currentWindow.id!
-                        );
+                        await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
+                        await StateService.pushGroupAction({
+                            windowId: currentWindow.id!,
+                            tabIds: validTabIds,
+                            groupName: group.groupName,
+                            existingGroupId: group.existingGroupId
+                        });
                     }
                 }
             }
@@ -250,7 +250,7 @@ export const useTabGrouper = () => {
             setPreviewGroups(null);
             setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 3000);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err) || "Failed to apply groups.");
+            setError(err instanceof Error ? err.message : String(err) || 'Failed to apply groups.');
             setInteractionStatus(OrganizerStatus.Idle);
         }
     };
@@ -267,19 +267,20 @@ export const useTabGrouper = () => {
                 const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
 
                 if (validTabIds.length > 0) {
-                    await applyTabGroup(
-                        validTabIds,
-                        group.groupName,
-                        group.existingGroupId,
-                        currentWindow.id!
-                    );
+                    await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
+                    await StateService.pushGroupAction({
+                        windowId: currentWindow.id!,
+                        tabIds: validTabIds,
+                        groupName: group.groupName,
+                        existingGroupId: group.existingGroupId
+                    });
                 }
             }
             setInteractionStatus(OrganizerStatus.Success);
             // We rely on background update to refresh suggestions
             setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 1000);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err) || "Failed to apply group.");
+            setError(err instanceof Error ? err.message : String(err) || 'Failed to apply group.');
             setInteractionStatus(OrganizerStatus.Idle);
         }
     };
@@ -296,7 +297,10 @@ export const useTabGrouper = () => {
     const regenerateSuggestions = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
         setError(null);
-        portRef.current.postMessage({ type: TabGroupMessageType.RegenerateSuggestions, windowId: currentWindowId });
+        portRef.current.postMessage({
+            type: TabGroupMessageType.RegenerateSuggestions,
+            windowId: currentWindowId
+        });
         setPreviewGroups(null); // Clear optimistic
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
@@ -304,7 +308,10 @@ export const useTabGrouper = () => {
     const triggerProcessing = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
         setError(null);
-        portRef.current.postMessage({ type: TabGroupMessageType.TriggerProcessing, windowId: currentWindowId });
+        portRef.current.postMessage({
+            type: TabGroupMessageType.TriggerProcessing,
+            windowId: currentWindowId
+        });
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
@@ -317,14 +324,30 @@ export const useTabGrouper = () => {
         }
     };
 
+    // Suggestions from background (cache) as Action[] for UI
+    const suggestionActions: Action[] = useMemo(() => {
+        if (!previewGroups || currentWindowId === undefined) return [];
+        return previewGroups.map(
+            (g): Action => ({
+                type: 'group',
+                windowId: currentWindowId,
+                tabIds: g.tabIds,
+                groupName: g.groupName,
+                existingGroupId: g.existingGroupId
+            })
+        );
+    }, [previewGroups, currentWindowId]);
+
     return {
         status: interactionStatus,
         error,
         previewGroups,
+        suggestionActions,
         setPreviewGroups,
         selectedPreviewIndices,
         snapshot,
         isBackgroundProcessing,
+        currentWindowId,
         applyGroups,
         applyGroup,
         toggleGroupSelection,

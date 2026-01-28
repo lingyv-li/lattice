@@ -8,7 +8,7 @@ import { SettingsStorage, AIProviderType } from '../../../utils/storage';
 import { FeatureId } from '../../../types/features';
 
 // Mock modules at top level
-vi.mock('../../../utils/storage', async (importOriginal) => {
+vi.mock('../../../utils/storage', async importOriginal => {
     const actual = await importOriginal<typeof import('../../../utils/storage')>();
     return {
         ...actual,
@@ -64,7 +64,14 @@ export class FakeChrome {
     // --- Helpers to manipulate state ---
 
     createWindow(id: number, type: chrome.windows.WindowType = chrome.windows.WindowType.NORMAL): FakeWindow {
-        const win = { id, type, focused: true, alwaysOnTop: false, incognito: false, state: 'normal' } as FakeWindow;
+        const win = {
+            id,
+            type,
+            focused: true,
+            alwaysOnTop: false,
+            incognito: false,
+            state: 'normal'
+        } as FakeWindow;
         this.windows.push(win);
         return win;
     }
@@ -103,12 +110,12 @@ export class FakeChrome {
     private createListenerMock() {
         const listeners = new Set<(...args: unknown[]) => void>();
         return {
-            addListener: vi.fn((callback) => {
-                console.log("[FakeChrome] addListener called", callback.toString().slice(0, 50));
-                listeners.add(callback)
+            addListener: vi.fn(callback => {
+                console.log('[FakeChrome] addListener called', callback.toString().slice(0, 50));
+                listeners.add(callback);
             }),
-            removeListener: vi.fn((callback) => listeners.delete(callback)),
-            hasListener: vi.fn((callback) => listeners.has(callback)),
+            removeListener: vi.fn(callback => listeners.delete(callback)),
+            hasListener: vi.fn(callback => listeners.has(callback)),
             // Helper to trigger events
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             dispatch: async (...args: any[]) => {
@@ -146,7 +153,6 @@ export class FakeChrome {
             windowsOnRemoved
         };
 
-
         global.chrome = {
             tabs: {
                 query: vi.fn().mockImplementation(async (queryInfo: chrome.tabs.QueryInfo) => {
@@ -165,15 +171,14 @@ export class FakeChrome {
                 create: vi.fn().mockImplementation(async (props: chrome.tabs.CreateProperties) => {
                     return this.createTab(props.windowId || 1, props.url || 'about:blank');
                 }),
-                group: vi.fn().mockImplementation(async (options: { tabIds: number | number[], groupId?: number, createProperties?: { windowId?: number } }) => {
+                group: vi.fn().mockImplementation(async (options: { tabIds: number | number[]; groupId?: number; createProperties?: { windowId?: number } }) => {
                     const ids = Array.isArray(options.tabIds) ? options.tabIds : [options.tabIds];
                     let groupId = options.groupId;
 
                     if (groupId === undefined) {
                         // Create new group
                         groupId = this.nextGroupId++;
-                        const winId = options.createProperties?.windowId ||
-                            (ids.length > 0 ? this.tabs.find(t => t.id === ids[0])?.windowId : undefined) || 1;
+                        const winId = options.createProperties?.windowId || (ids.length > 0 ? this.tabs.find(t => t.id === ids[0])?.windowId : undefined) || 1;
                         this.groups.push({
                             id: groupId,
                             windowId: winId,
@@ -222,7 +227,13 @@ export class FakeChrome {
                     return w;
                 }),
                 onRemoved: windowsOnRemoved,
-                WindowType: { NORMAL: 'normal', POPUP: 'popup', PANEL: 'panel', APP: 'app', DEVTOOLS: 'devtools' }
+                WindowType: {
+                    NORMAL: 'normal',
+                    POPUP: 'popup',
+                    PANEL: 'panel',
+                    APP: 'app',
+                    DEVTOOLS: 'devtools'
+                }
             },
             tabGroups: {
                 query: vi.fn().mockImplementation(async (queryInfo: chrome.tabGroups.QueryInfo) => {
@@ -257,7 +268,10 @@ export class FakeChrome {
                     get: vi.fn().mockResolvedValue({}),
                     set: vi.fn().mockImplementation(async (items: any) => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (this as any)._localStorage = { ...((this as any)._localStorage || {}), ...items };
+                        (this as any)._localStorage = {
+                            ...((this as any)._localStorage || {}),
+                            ...items
+                        };
 
                         // Dispatch onChanged
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -265,7 +279,7 @@ export class FakeChrome {
                         for (const key of Object.keys(items)) {
                             changes[key] = { newValue: items[key] };
                         }
-                        const events = (global.chrome.storage.onChanged as any);
+                        const events = global.chrome.storage.onChanged as any;
                         if (events && events.dispatch) {
                             await events.dispatch(changes, 'local');
                         }
@@ -279,7 +293,10 @@ export class FakeChrome {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     set: vi.fn().mockImplementation(async (items: any) => {
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (this as any)._sessionStorage = { ...((this as any)._sessionStorage || {}), ...items };
+                        (this as any)._sessionStorage = {
+                            ...((this as any)._sessionStorage || {}),
+                            ...items
+                        };
 
                         // Dispatch onChanged
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -287,7 +304,7 @@ export class FakeChrome {
                         for (const key of Object.keys(items)) {
                             changes[key] = { newValue: items[key] };
                         }
-                        const events = (global.chrome.storage.onChanged as any);
+                        const events = global.chrome.storage.onChanged as any;
                         if (events && events.dispatch) {
                             await events.dispatch(changes, 'session');
                         }
@@ -317,8 +334,8 @@ export class FakeChrome {
 
         // Expose action mocks for testing
         (this as any).actionMocks = {
-            setBadgeText: (global.chrome.action.setBadgeText as any),
-            setBadgeBackgroundColor: (global.chrome.action.setBadgeBackgroundColor as any)
+            setBadgeText: global.chrome.action.setBadgeText as any,
+            setBadgeBackgroundColor: global.chrome.action.setBadgeBackgroundColor as any
         };
     }
 }
@@ -368,7 +385,7 @@ export class TestContext {
         vi.spyOn(AIService, 'getProvider').mockResolvedValue({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             generateSuggestions: async (request: any) => {
-                console.error("[MockAI] generateSuggestions called with", request.ungroupedTabs.length, "tabs");
+                console.error('[MockAI] generateSuggestions called with', request.ungroupedTabs.length, 'tabs');
                 // Determine groups based on URL keywords
                 const suggestions: any[] = [];
                 const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
@@ -376,7 +393,7 @@ export class TestContext {
                 const socialTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('social'));
 
                 if (workTabs.length > 0) {
-                    console.error("[MockAI] Found work tabs, suggesting group");
+                    console.error('[MockAI] Found work tabs, suggesting group');
                     suggestions.push({
                         groupName: 'Work',
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any

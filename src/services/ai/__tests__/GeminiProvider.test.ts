@@ -77,7 +77,7 @@ describe('GeminiProvider', () => {
 
         mockGenerateContent.mockResolvedValue({
             text: JSON.stringify({
-                "Shopping": [1, 2]
+                Shopping: [1, 2]
             })
         });
 
@@ -102,9 +102,7 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: JSON.stringify([
-                { tabId: 1, groupName: 'Work' }
-            ])
+            text: JSON.stringify([{ tabId: 1, groupName: 'Work' }])
         });
 
         const result = await provider.generateSuggestions(request);
@@ -121,7 +119,7 @@ describe('GeminiProvider', () => {
         };
 
         mockGenerateContent.mockResolvedValue({
-            text: "This is not JSON"
+            text: 'This is not JSON'
         });
 
         const promise = provider.generateSuggestions(request);
@@ -187,9 +185,7 @@ describe('GeminiProvider', () => {
     describe('Prompt Construction Context', () => {
         // Expose protected method for testing
         class TestGeminiProvider extends GeminiProvider {
-            public testConstructExistingGroupsPrompt(
-                groups: Map<string, GroupContext>
-            ): string {
+            public testConstructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
                 return this.constructExistingGroupsPrompt(groups);
             }
         }
@@ -197,14 +193,14 @@ describe('GeminiProvider', () => {
         it('should construct prompt with existing group tabs and sampled content', () => {
             const provider = new TestGeminiProvider('fake-key', 'gemini-pro');
             const groups = new Map<string, GroupContext>();
-            groups.set("Work", {
+            groups.set('Work', {
                 id: 1,
                 tabs: [
-                    { id: 101, title: "GitHub", url: "https://github.com" },
-                    { id: 102, title: "Jira", url: "https://jira.com" }
+                    { id: 101, title: 'GitHub', url: 'https://github.com' },
+                    { id: 102, title: 'Jira', url: 'https://jira.com' }
                 ]
             });
-            groups.set("Social", { id: 2, tabs: [] });
+            groups.set('Social', { id: 2, tabs: [] });
 
             const prompt = provider.testConstructExistingGroupsPrompt(groups);
 
@@ -219,7 +215,7 @@ describe('GeminiProvider', () => {
         it('should handle empty group tabs gracefully', () => {
             const provider = new TestGeminiProvider('fake-key', 'gemini-pro');
             const groups = new Map<string, GroupContext>();
-            groups.set("Work", { id: 1, tabs: [] });
+            groups.set('Work', { id: 1, tabs: [] });
 
             const prompt = provider.testConstructExistingGroupsPrompt(groups);
 
@@ -240,7 +236,7 @@ describe('GeminiProvider', () => {
         // Mock a long running request
         mockGenerateContent.mockImplementation(async () => {
             await new Promise(resolve => setTimeout(resolve, 1000));
-            return { text: "Should not be returned" };
+            return { text: 'Should not be returned' };
         });
 
         const promise = provider.generateSuggestions(request);

@@ -1,4 +1,3 @@
-
 export interface GlobalError {
     message: string;
     timestamp: number;
@@ -64,7 +63,7 @@ export const ErrorStorage = {
      * Subscribe to new errors.
      * Returns a function to unsubscribe.
      */
-    subscribe: (callback: (errors: GlobalError[]) => void): () => void => {
+    subscribe: (callback: (errors: GlobalError[]) => void): (() => void) => {
         const handleStorageChange = (changes: ErrorChanges, areaName: string) => {
             if (areaName === 'session' && changes[STORAGE_KEY]?.newValue) {
                 const errors = changes[STORAGE_KEY].newValue as GlobalError[];

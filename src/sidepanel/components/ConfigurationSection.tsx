@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Zap, Power } from 'lucide-react';
 import { useFeatureSettings } from '../hooks/useFeatureSettings';
@@ -38,37 +37,37 @@ export const ConfigurationSection: React.FC = () => {
         const isAutopilot = feature?.autopilot;
 
         return (
-            <div className="flex items-center justify-between p-2 rounded-lg hover:bg-surface-highlight transition-colors">
-                <span className="text-sm font-medium text-main">{label}</span>
-                <div className="flex items-center gap-2">
+            <div className='flex items-center justify-between p-2 rounded-lg hover:bg-surface-highlight transition-colors'>
+                <span className='text-sm font-medium text-main'>{label}</span>
+                <div className='flex items-center gap-2'>
                     {/* Enable Toggle */}
                     <button
+                        type='button'
                         onClick={() => toggleFeature(id, 'enabled')}
                         className={`
                             p-1.5 rounded-md transition-all
-                            ${isEnabled
-                                ? 'bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover'
-                                : 'bg-surface-dim text-muted hover:text-main'}
+                            ${isEnabled ? 'bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover' : 'bg-surface-dim text-muted hover:text-main'}
                         `}
-                        title={isEnabled ? "Disable Feature" : "Enable Feature"}
+                        title={isEnabled ? 'Disable Feature' : 'Enable Feature'}
+                        aria-label={isEnabled ? `Disable ${label}` : `Enable ${label}`}
                     >
-                        <Power className="w-3.5 h-3.5" />
+                        <Power className='w-3.5 h-3.5' />
                     </button>
 
                     {/* Autopilot Toggle */}
                     <button
+                        type='button'
                         onClick={() => toggleFeature(id, 'autopilot')}
                         disabled={!isEnabled}
                         className={`
                             p-1.5 rounded-md transition-all border
                             ${!isEnabled ? 'opacity-30 cursor-not-allowed border-transparent' : ''}
-                            ${isAutopilot && isEnabled
-                                ? 'bg-status-ai-bg text-status-ai-fg border-status-ai-fg/20'
-                                : 'bg-surface-dim text-muted hover:text-main border-transparent'}
+                            ${isAutopilot && isEnabled ? 'bg-status-ai-bg text-status-ai-fg border-status-ai-fg/20' : 'bg-surface-dim text-muted hover:text-main border-transparent'}
                         `}
-                        title={isAutopilot ? "Disable Autopilot" : "Enable Autopilot"}
+                        title={isAutopilot ? 'Disable Autopilot' : 'Enable Autopilot'}
+                        aria-label={isAutopilot ? `Disable Autopilot for ${label}` : `Enable Autopilot for ${label}`}
                     >
-                        <Zap className="w-3.5 h-3.5" />
+                        <Zap className='w-3.5 h-3.5' />
                     </button>
                 </div>
             </div>
@@ -77,18 +76,18 @@ export const ConfigurationSection: React.FC = () => {
 
     return (
         <>
-            <div className="grid grid-cols-2 gap-2">
-                {renderToggle(FeatureId.TabGrouper, "Auto Grouping")}
-                {renderToggle(FeatureId.DuplicateCleaner, "Deduplication")}
+            <div className='grid grid-cols-2 gap-2'>
+                {renderToggle(FeatureId.TabGrouper, 'Auto Grouping')}
+                {renderToggle(FeatureId.DuplicateCleaner, 'Deduplication')}
             </div>
 
             <ConfirmationModal
                 isOpen={!!confirmingAutopilotId}
                 onClose={() => setConfirmingAutopilotId(null)}
                 onConfirm={handleConfirmAutopilot}
-                title="Enable Autopilot"
-                description="This will automatically apply suggestions without your manual approval. Are you sure?"
-                confirmLabel="Confirm"
+                title='Enable Autopilot'
+                description='This will automatically apply suggestions without your manual approval. Are you sure?'
+                confirmLabel='Confirm'
             />
         </>
     );

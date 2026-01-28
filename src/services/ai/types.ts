@@ -34,9 +34,7 @@ export interface AIProvider {
      * Process a list of tabs and return group assignments.
      * Returns both suggestions and any errors that occurred during processing.
      */
-    generateSuggestions(
-        request: GroupingRequest
-    ): Promise<SuggestionResult>;
+    generateSuggestions(request: GroupingRequest): Promise<SuggestionResult>;
 }
 
 export type UpdateNextIdFn = (id: number) => void;

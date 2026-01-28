@@ -32,7 +32,7 @@ describe('LocalProvider', () => {
         vi.stubGlobal('LanguageModel', mockLanguageModel);
 
         mockCreate.mockResolvedValue({
-            // Base session needs simple prompt support if used? 
+            // Base session needs simple prompt support if used?
             // Actually getSession uses cachedSession.clone(), only clone needs promptStreaming.
             // But ensureBaseSession creates base session. Does it call prompt? No.
             destroy: mockDestroy,
@@ -64,7 +64,7 @@ describe('LocalProvider', () => {
         });
 
         it('should return "unavailable" if availability check throws', async () => {
-            mockAvailability.mockRejectedValue(new Error("Fail"));
+            mockAvailability.mockRejectedValue(new Error('Fail'));
             const result = await LocalProvider.checkAvailability();
             expect(result).toBe('unavailable');
         });
@@ -158,7 +158,7 @@ ${JSON.stringify([{ tabId: 1, groupName: 'G' }])}`;
 
         const responseText = `Reasoning about Tab 1 and Tab 2...
 ####
-${JSON.stringify({ "Group A": [1, 2] })}`;
+${JSON.stringify({ 'Group A': [1, 2] })}`;
 
         mockPromptResponse(responseText);
 
@@ -192,7 +192,7 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
     });
 
     it('should initialize download model with monitoring', async () => {
-        await LocalProvider.downloadModel(() => { });
+        await LocalProvider.downloadModel(() => {});
 
         expect(mockCreate).toHaveBeenCalledTimes(1);
         const createArgs = mockCreate.mock.calls[0][0];
@@ -203,9 +203,7 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
 
     describe('Prompt Context', () => {
         class TestLocalProvider extends LocalProvider {
-            public testConstructExistingGroupsPrompt(
-                groups: Map<string, GroupContext>
-            ): string {
+            public testConstructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
                 return this.constructExistingGroupsPrompt(groups);
             }
         }
@@ -213,9 +211,9 @@ ${JSON.stringify({ "Group A": [1, 2] })}`;
         it('should NOT include tab details in existing groups prompt (context optimization)', () => {
             const provider = new TestLocalProvider();
             const groups = new Map<string, GroupContext>();
-            groups.set("Work", {
+            groups.set('Work', {
                 id: 1,
-                tabs: [{ id: 101, title: "GitHub", url: "https://github.com" }]
+                tabs: [{ id: 101, title: 'GitHub', url: 'https://github.com' }]
             });
 
             const prompt = provider.testConstructExistingGroupsPrompt(groups);

@@ -69,34 +69,40 @@ export const InnerApp = () => {
 
     // Download Progress State
     const [isDownloading, setIsDownloading] = useState(false);
-    const [downloadProgress, setDownloadProgress] = useState<{ loaded: number, total: number } | null>(null);
+    const [downloadProgress, setDownloadProgress] = useState<{
+        loaded: number;
+        total: number;
+    } | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
 
-    const fetchModels = useCallback(async (key: string) => {
-        if (!key) return;
-        setLoadingModels(true);
-        try {
-            const models = await AIService.listGeminiModels(key);
-            const sortedModels = sortModels(models);
-            setAvailableModels(sortedModels);
+    const fetchModels = useCallback(
+        async (key: string) => {
+            if (!key) return;
+            setLoadingModels(true);
+            try {
+                const models = await AIService.listGeminiModels(key);
+                const sortedModels = sortModels(models);
+                setAvailableModels(sortedModels);
 
-            // Auto-select first model if none selected
-            setSettings(prev => {
-                if (!prev.aiModel && sortedModels.length > 0) {
-                    return { ...prev, aiModel: sortedModels[0].id };
-                }
-                return prev;
-            });
-        } catch (e) {
-            console.error("Failed to fetch models", e);
-            showToast("Failed to fetch Gemini models. Check your API Key.", 'error');
-        } finally {
-            setLoadingModels(false);
-        }
-    }, [showToast]);
+                // Auto-select first model if none selected
+                setSettings(prev => {
+                    if (!prev.aiModel && sortedModels.length > 0) {
+                        return { ...prev, aiModel: sortedModels[0].id };
+                    }
+                    return prev;
+                });
+            } catch (e) {
+                console.error('Failed to fetch models', e);
+                showToast('Failed to fetch Gemini models. Check your API Key.', 'error');
+            } finally {
+                setLoadingModels(false);
+            }
+        },
+        [showToast]
+    );
 
     useEffect(() => {
-        SettingsStorage.get(false).then((s) => {
+        SettingsStorage.get(false).then(s => {
             setSettings(s);
             setLoading(false);
             if (s.aiProvider === AIProviderType.Gemini && s.geminiApiKey) {
@@ -117,7 +123,7 @@ export const InnerApp = () => {
 
             switch (availability) {
                 case 'unavailable':
-                    showToast("Local AI is not supported in this browser.", 'error');
+                    showToast('Local AI is not supported in this browser.', 'error');
                     return;
                 case 'available':
                     setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
@@ -139,12 +145,12 @@ export const InnerApp = () => {
                     setDownloadProgress({ loaded: e.loaded, total: e.total });
                 });
                 setSettings(s => ({ ...s, aiProvider: AIProviderType.Local }));
-                showToast("Local model initialized successfully", 'success');
+                showToast('Local model initialized successfully', 'success');
             } catch (e: unknown) {
-                console.error("Failed to initialize local model", e);
+                console.error('Failed to initialize local model', e);
                 const msg = e instanceof Error ? e.message : String(e);
-                setDownloadError(msg || "Failed to load local AI model");
-                showToast("Failed to load local AI model", 'error');
+                setDownloadError(msg || 'Failed to load local AI model');
+                showToast('Failed to load local AI model', 'error');
                 // Don't switch provider if failed
             } finally {
                 setIsDownloading(false);
@@ -167,41 +173,38 @@ export const InnerApp = () => {
         }
     };
 
-    if (loading) return <div className="p-8 text-muted">Loading...</div>;
+    if (loading) return <div className='p-8 text-muted'>Loading...</div>;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-surface-dim p-4 font-sans">
-            <div className="w-full max-w-md bg-surface/70 backdrop-blur-xl border border-white/20 shadow-xl rounded-3xl p-8 transition-all hover:shadow-2xl hover:scale-[1.01]">
-
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="p-3 bg-teal-500/10 rounded-2xl">
-                        <Sparkles className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+        <div className='min-h-screen flex items-center justify-center bg-surface-dim p-4 font-sans'>
+            <div className='w-full max-w-md bg-surface/70 backdrop-blur-xl border border-white/20 shadow-xl rounded-3xl p-8 transition-all hover:shadow-2xl hover:scale-[1.01]'>
+                <div className='flex items-center gap-3 mb-8'>
+                    <div className='p-3 bg-teal-500/10 rounded-2xl'>
+                        <Sparkles className='w-6 h-6 text-teal-600 dark:text-teal-400' />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-main tracking-tight">Lattice</h1>
-                        <p className="text-sm text-muted font-medium">AI Tab Manager</p>
+                        <h1 className='text-2xl font-bold text-main tracking-tight'>Lattice</h1>
+                        <p className='text-sm text-muted font-medium'>AI Tab Manager</p>
                     </div>
                 </div>
 
                 {/* Callout when AI provider not configured */}
                 {settings.aiProvider === AIProviderType.None && (
-                    <div className="mb-6 p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl">
-                        <div className="flex items-start gap-3">
-                            <div className="w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <div className='mb-6 p-4 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-2xl'>
+                        <div className='flex items-start gap-3'>
+                            <div className='w-10 h-10 bg-amber-500/20 rounded-full flex items-center justify-center flex-shrink-0'>
+                                <Sparkles className='w-5 h-5 text-amber-600 dark:text-amber-400' />
                             </div>
-                            <div className="flex-1">
-                                <h3 className="font-bold text-amber-900 dark:text-amber-100 mb-1">🚀 Get Started with AI Tab Grouping</h3>
-                                <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-                                    Choose an AI provider below to enable automatic tab organization.
-                                </p>
-                                <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1.5 ml-4">
-                                    <li className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full"></span>
+                            <div className='flex-1'>
+                                <h3 className='font-bold text-amber-900 dark:text-amber-100 mb-1'>🚀 Get Started with AI Tab Grouping</h3>
+                                <p className='text-sm text-amber-800 dark:text-amber-200 mb-3'>Choose an AI provider below to enable automatic tab organization.</p>
+                                <ul className='text-xs text-amber-700 dark:text-amber-300 space-y-1.5 ml-4'>
+                                    <li className='flex items-center gap-2'>
+                                        <span className='w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full'></span>
                                         <strong>Local AI</strong> - Free, private, runs on your device (Chrome only)
                                     </li>
-                                    <li className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full"></span>
+                                    <li className='flex items-center gap-2'>
+                                        <span className='w-1.5 h-1.5 bg-amber-600 dark:bg-amber-400 rounded-full'></span>
                                         <strong>Gemini</strong> - Cloud-based, more powerful, requires API key
                                     </li>
                                 </ul>
@@ -210,20 +213,17 @@ export const InnerApp = () => {
                     </div>
                 )}
 
-                <div className="space-y-6">
+                <div className='space-y-6'>
+                    <div className='space-y-4'>
+                        <h2 className='text-xs font-bold uppercase tracking-wider text-muted pl-1'>AI Provider</h2>
 
-                    <div className="space-y-4">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">AI Provider</h2>
-
-                        <div className="grid grid-cols-3 gap-2 p-1 bg-surface-dim rounded-2xl border border-border-subtle">
+                        <div className='grid grid-cols-3 gap-2 p-1 bg-surface-dim rounded-2xl border border-border-subtle'>
                             <button
                                 onClick={() => handleProviderChange(AIProviderType.Local)}
                                 disabled={isDownloading}
                                 className={cn(
-                                    "py-2 rounded-xl text-sm font-medium transition-all",
-                                    settings.aiProvider === AIProviderType.Local
-                                        ? "bg-white shadow-sm text-black"
-                                        : "text-muted hover:text-main"
+                                    'py-2 rounded-xl text-sm font-medium transition-all',
+                                    settings.aiProvider === AIProviderType.Local ? 'bg-white shadow-sm text-black' : 'text-muted hover:text-main'
                                 )}
                             >
                                 Local (Chrome)
@@ -232,10 +232,8 @@ export const InnerApp = () => {
                                 onClick={() => handleProviderChange(AIProviderType.Gemini)}
                                 disabled={isDownloading}
                                 className={cn(
-                                    "py-2 rounded-xl text-sm font-medium transition-all",
-                                    settings.aiProvider === AIProviderType.Gemini
-                                        ? "bg-white shadow-sm text-black"
-                                        : "text-muted hover:text-main"
+                                    'py-2 rounded-xl text-sm font-medium transition-all',
+                                    settings.aiProvider === AIProviderType.Gemini ? 'bg-white shadow-sm text-black' : 'text-muted hover:text-main'
                                 )}
                             >
                                 Cloud (Gemini)
@@ -244,10 +242,8 @@ export const InnerApp = () => {
                                 onClick={() => handleProviderChange(AIProviderType.None)}
                                 disabled={isDownloading}
                                 className={cn(
-                                    "py-2 rounded-xl text-sm font-medium transition-all",
-                                    settings.aiProvider === AIProviderType.None
-                                        ? "bg-white shadow-sm text-black"
-                                        : "text-muted hover:text-main"
+                                    'py-2 rounded-xl text-sm font-medium transition-all',
+                                    settings.aiProvider === AIProviderType.None ? 'bg-white shadow-sm text-black' : 'text-muted hover:text-main'
                                 )}
                             >
                                 None
@@ -256,95 +252,96 @@ export const InnerApp = () => {
 
                         {/* Download Progress Modal/Overlay */}
                         {isDownloading && (
-                            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                                <div className="bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full">
-                                    <div className="flex flex-col items-center gap-4 text-center">
-                                        <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center">
-                                            <Sparkles className="w-6 h-6 text-blue-500 animate-pulse" />
+                            <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+                                <div className='bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full'>
+                                    <div className='flex flex-col items-center gap-4 text-center'>
+                                        <div className='w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center'>
+                                            <Sparkles className='w-6 h-6 text-blue-500 animate-pulse' />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-lg text-main">Downloading AI Model</h3>
-                                            <p className="text-sm text-muted mt-1">This happens only once. Please do not close this window.</p>
+                                            <h3 className='font-bold text-lg text-main'>Downloading AI Model</h3>
+                                            <p className='text-sm text-muted mt-1'>This happens only once. Please do not close this window.</p>
                                         </div>
 
                                         {downloadProgress && (
-                                            <div className="w-full space-y-2">
-                                                <div className="h-2 bg-surface-dim rounded-full overflow-hidden">
+                                            <div className='w-full space-y-2'>
+                                                <div className='h-2 bg-surface-dim rounded-full overflow-hidden'>
                                                     <div
-                                                        className="h-full bg-blue-500 transition-all duration-300"
-                                                        style={{ width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%` }}
+                                                        className='h-full bg-blue-500 transition-all duration-300'
+                                                        style={{
+                                                            width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%`
+                                                        }}
                                                     />
                                                 </div>
                                             </div>
                                         )}
 
-                                        {!downloadProgress && <Loader2 className="w-6 h-6 animate-spin text-muted" />}
+                                        {!downloadProgress && <Loader2 className='w-6 h-6 animate-spin text-muted' />}
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {downloadError && (
-                            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4" />
+                            <div className='p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center gap-2'>
+                                <AlertCircle className='w-4 h-4' />
                                 <span>{downloadError}</span>
                             </div>
                         )}
 
                         {settings.aiProvider === AIProviderType.Gemini && (
-                            <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300">
+                            <div className='space-y-3 animate-in fade-in slide-in-from-top-4 duration-300'>
                                 <div>
-                                    <div className="flex items-center justify-between mb-1 ml-1">
-                                        <label className="block text-xs font-medium text-muted">API Key</label>
+                                    <div className='flex items-center justify-between mb-1 ml-1'>
+                                        <label className='block text-xs font-medium text-muted'>API Key</label>
                                         <a
-                                            href="https://aistudio.google.com/app/apikey"
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="text-[10px] text-teal-600 hover:text-teal-500 hover:underline flex items-center gap-1"
+                                            href='https://aistudio.google.com/app/apikey'
+                                            target='_blank'
+                                            rel='noreferrer'
+                                            className='text-[10px] text-teal-600 hover:text-teal-500 hover:underline flex items-center gap-1'
                                         >
                                             Get API Key
                                         </a>
                                     </div>
-                                    <div className="relative">
+                                    <div className='relative'>
                                         <input
-                                            type={showApiKey ? "text" : "password"}
+                                            type={showApiKey ? 'text' : 'password'}
                                             value={settings.geminiApiKey}
-                                            onChange={(e) => {
+                                            onChange={e => {
                                                 const val = e.target.value;
                                                 setSettings(s => ({ ...s, geminiApiKey: val }));
                                             }}
                                             onBlur={() => fetchModels(settings.geminiApiKey)}
-                                            placeholder="Enter Gemini API Key"
-                                            className="w-full bg-surface-dim border border-border-subtle rounded-xl py-2 pl-3 pr-10 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all"
+                                            placeholder='Enter Gemini API Key'
+                                            className='w-full bg-surface-dim border border-border-subtle rounded-xl py-2 pl-3 pr-10 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all'
                                         />
-                                        <button
-                                            onClick={() => setShowApiKey(!showApiKey)}
-                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main"
-                                        >
-                                            {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                        <button onClick={() => setShowApiKey(!showApiKey)} className='absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-main'>
+                                            {showApiKey ? <EyeOff className='w-4 h-4' /> : <Eye className='w-4 h-4' />}
                                         </button>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <div className="flex items-center justify-between mb-1 ml-1">
-                                        <label className="text-xs font-medium text-muted">Model</label>
+                                    <div className='flex items-center justify-between mb-1 ml-1'>
+                                        <label className='text-xs font-medium text-muted'>Model</label>
                                         <button
                                             onClick={() => fetchModels(settings.geminiApiKey)}
                                             disabled={loadingModels || !settings.geminiApiKey}
-                                            className="text-[10px] flex items-center gap-1 text-teal-600 hover:text-teal-500 disabled:opacity-50"
+                                            className='text-[10px] flex items-center gap-1 text-teal-600 hover:text-teal-500 disabled:opacity-50'
                                         >
-                                            <RefreshCw className={cn("w-3 h-3", loadingModels && "animate-spin")} /> Refresh
+                                            <RefreshCw className={cn('w-3 h-3', loadingModels && 'animate-spin')} /> Refresh
                                         </button>
                                     </div>
                                     <select
                                         value={settings.aiModel}
-                                        onChange={(e) => setSettings(s => ({ ...s, aiModel: e.target.value }))}
-                                        className="w-full bg-surface-dim border border-border-subtle rounded-xl py-2 px-3 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all appearance-none"
+                                        onChange={e => setSettings(s => ({ ...s, aiModel: e.target.value }))}
+                                        className='w-full bg-surface-dim border border-border-subtle rounded-xl py-2 px-3 text-sm text-main focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all appearance-none'
                                     >
-                                        {availableModels.length === 0 && <option value={settings.aiModel}>{settings.aiModel || "Enter Key to fetch models"}</option>}
+                                        {availableModels.length === 0 && <option value={settings.aiModel}>{settings.aiModel || 'Enter Key to fetch models'}</option>}
                                         {availableModels.map(m => (
-                                            <option key={m.id} value={m.id}>{m.displayName}</option>
+                                            <option key={m.id} value={m.id}>
+                                                {m.displayName}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
@@ -352,17 +349,22 @@ export const InnerApp = () => {
                         )}
                     </div>
 
-                    <div className="space-y-4">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-muted pl-1">Grouping Rules</h2>
+                    <div className='space-y-4'>
+                        <h2 className='text-xs font-bold uppercase tracking-wider text-muted pl-1'>Grouping Rules</h2>
 
-                        <div className="p-4 bg-surface-dim rounded-2xl border border-border-subtle group hover:border-teal-500/30 transition-colors focus-within:border-teal-500/50">
-                            <label className="block font-medium text-main mb-2">Custom AI Instructions</label>
-                            <p className="text-sm text-muted mb-3">Add specific rules for the AI to follow when grouping tabs (e.g., "Group all Jira tickets together").</p>
+                        <div className='p-4 bg-surface-dim rounded-2xl border border-border-subtle group hover:border-teal-500/30 transition-colors focus-within:border-teal-500/50'>
+                            <label className='block font-medium text-main mb-2'>Custom AI Instructions</label>
+                            <p className='text-sm text-muted mb-3'>Add specific rules for the AI to follow when grouping tabs (e.g., "Group all Jira tickets together").</p>
                             <textarea
                                 value={settings.customGroupingRules}
-                                onChange={(e) => setSettings({ ...settings, customGroupingRules: e.target.value })}
+                                onChange={e =>
+                                    setSettings({
+                                        ...settings,
+                                        customGroupingRules: e.target.value
+                                    })
+                                }
                                 placeholder={DEFAULT_GROUPING_RULES}
-                                className="w-full h-32 bg-surface/50 rounded-xl border border-border-subtle p-3 text-sm text-main placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none"
+                                className='w-full h-32 bg-surface/50 rounded-xl border border-border-subtle p-3 text-sm text-main placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none'
                             />
                         </div>
                     </div>
@@ -370,17 +372,17 @@ export const InnerApp = () => {
                     <button
                         onClick={handleSave}
                         className={cn(
-                            "w-full py-4 rounded-2xl font-bold text-white transition-all flex items-center justify-center gap-2",
-                            saved ? "bg-green-500 hover:bg-green-600" : "bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover"
+                            'w-full py-4 rounded-2xl font-bold text-white transition-all flex items-center justify-center gap-2',
+                            saved ? 'bg-green-500 hover:bg-green-600' : 'bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover'
                         )}
                     >
                         {saved ? (
                             <>
-                                <Settings className="w-5 h-5" /> Saved
+                                <Settings className='w-5 h-5' /> Saved
                             </>
                         ) : (
                             <>
-                                <Save className="w-5 h-5" /> Save Preference
+                                <Save className='w-5 h-5' /> Save Preference
                             </>
                         )}
                     </button>

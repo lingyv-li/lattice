@@ -1,22 +1,21 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { applyTabGroup } from '../tabs';
 
 // Mock chrome API
 const mockTabs = {
-    group: vi.fn(),
+    group: vi.fn()
 };
 const mockTabGroups = {
-    update: vi.fn(),
+    update: vi.fn()
 };
 const mockWindows = {
-    get: vi.fn(),
+    get: vi.fn()
 };
 
 global.chrome = {
     tabs: mockTabs,
     tabGroups: mockTabGroups,
-    windows: mockWindows,
+    windows: mockWindows
 } as unknown as typeof chrome;
 
 describe('applyTabGroup', () => {
@@ -26,10 +25,7 @@ describe('applyTabGroup', () => {
         mockWindows.get.mockResolvedValue({
             id: 1,
             type: 'normal',
-            tabs: [
-                { id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 },
-                { id: 6 }, { id: 7 }, { id: 8 }, { id: 9 }, { id: 10 }
-            ]
+            tabs: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 6 }, { id: 7 }, { id: 8 }, { id: 9 }, { id: 10 }]
         });
     });
 
@@ -65,7 +61,7 @@ describe('applyTabGroup', () => {
 
     it('should fallback to creating new group if adding to existing group fails with "No group with id"', async () => {
         // First call fails
-        mockTabs.group.mockRejectedValueOnce(new Error("No group with id: 999"));
+        mockTabs.group.mockRejectedValueOnce(new Error('No group with id: 999'));
         // Second call (fallback) succeeds
         mockTabs.group.mockResolvedValue(789);
 
@@ -83,9 +79,9 @@ describe('applyTabGroup', () => {
     });
 
     it('should throw error if adding to existing group fails with other error', async () => {
-        mockTabs.group.mockRejectedValue(new Error("Random error"));
+        mockTabs.group.mockRejectedValue(new Error('Random error'));
 
-        await expect(applyTabGroup([5], 'Error Group', 888, 1)).rejects.toThrow("Random error");
+        await expect(applyTabGroup([5], 'Error Group', 888, 1)).rejects.toThrow('Random error');
 
         expect(mockTabs.group).toHaveBeenCalledTimes(1);
         expect(mockTabs.group).toHaveBeenCalledWith({ tabIds: [5], groupId: 888 });

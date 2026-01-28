@@ -8,7 +8,7 @@ export class WindowState {
     constructor(
         public readonly id: number,
         public inputSnapshot: WindowSnapshot
-    ) { }
+    ) {}
 
     /**
      * Updates the snapshot from pre-fetched data (from fetchWindowSnapshotData).
@@ -49,7 +49,7 @@ export class ProcessingState {
         // This ensures the UI spinner stays active for windows currently being processed
         const allIds = new Set([...this.activeWindows, ...this.windowQueue]);
         StateService.setProcessingWindows(Array.from(allIds)).catch(err => {
-            console.error("[ProcessingState] Failed to sync status to storage", err);
+            console.error('[ProcessingState] Failed to sync status to storage', err);
         });
     }
 
@@ -105,7 +105,7 @@ export class ProcessingState {
     /**
      * Enqueue a window for processing using a provided snapshot.
      * If it already exists, move it to the front (Priority).
-     * 
+     *
      * IMPROVEMENT: Does NOT persist to storage immediately.
      * Checks in-memory queue to prevent duplicate work for the same fingerprint.
      */

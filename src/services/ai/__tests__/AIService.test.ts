@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi } from 'vitest';
 import { AIService } from '../AIService';
 import { GeminiProvider } from '../GeminiProvider';
@@ -50,17 +49,33 @@ describe('AIService', () => {
 
         it('should list and filter models correctly', async () => {
             mockList.mockResolvedValue([
-                { name: 'models/gemini-pro', displayName: 'Gemini Pro', supportedActions: ['generateContent'] },
-                { name: 'models/gemini-ultra-preview', displayName: 'Gemini Ultra Preview', supportedActions: ['generateContent'] },
-                { name: 'models/embedding-001', displayName: 'Embedding', supportedActions: ['embedContent'] }, // Wrong action
-                { name: 'models/gemini-vision', displayName: 'Gemini Vision', supportedActions: ['generateContent'] }, // Specialized (image)
+                {
+                    name: 'models/gemini-pro',
+                    displayName: 'Gemini Pro',
+                    supportedActions: ['generateContent']
+                },
+                {
+                    name: 'models/gemini-ultra-preview',
+                    displayName: 'Gemini Ultra Preview',
+                    supportedActions: ['generateContent']
+                },
+                {
+                    name: 'models/embedding-001',
+                    displayName: 'Embedding',
+                    supportedActions: ['embedContent']
+                }, // Wrong action
+                {
+                    name: 'models/gemini-vision',
+                    displayName: 'Gemini Vision',
+                    supportedActions: ['generateContent']
+                } // Specialized (image)
             ]);
 
             await AIService.listGeminiModels('key');
 
             // Expected: Gemin Pro (latest/stable implicitly? No, logic filters for "latest" OR "preview" in ID)
             // Wait, logic says: id.includes('latest') || id.includes('preview')
-            // 'gemini-pro' does NOT include latest or preview. 
+            // 'gemini-pro' does NOT include latest or preview.
             // 'gemini-1.5-flash-latest' does.
             // Let's adjust mock to match real world or logic expectation.
 
@@ -72,9 +87,21 @@ describe('AIService', () => {
             // Let's assume standard models have version numbers usually.
 
             mockList.mockResolvedValue([
-                { name: 'models/gemini-1.5-pro-latest', displayName: 'Gemini 1.5 Pro', supportedActions: ['generateContent'] },
-                { name: 'models/gemini-1.0-pro', displayName: 'Gemini 1.0 Pro', supportedActions: ['generateContent'] }, // Skipped
-                { name: 'models/text-embedding-004', displayName: 'Embedding', supportedActions: ['embedContent'] },
+                {
+                    name: 'models/gemini-1.5-pro-latest',
+                    displayName: 'Gemini 1.5 Pro',
+                    supportedActions: ['generateContent']
+                },
+                {
+                    name: 'models/gemini-1.0-pro',
+                    displayName: 'Gemini 1.0 Pro',
+                    supportedActions: ['generateContent']
+                }, // Skipped
+                {
+                    name: 'models/text-embedding-004',
+                    displayName: 'Embedding',
+                    supportedActions: ['embedContent']
+                }
             ]);
 
             const result = await AIService.listGeminiModels('key');
@@ -83,8 +110,8 @@ describe('AIService', () => {
         });
 
         it('should propagate API errors', async () => {
-            mockList.mockRejectedValue(new Error("API Error"));
-            await expect(AIService.listGeminiModels('key')).rejects.toThrow("API Error");
+            mockList.mockRejectedValue(new Error('API Error'));
+            await expect(AIService.listGeminiModels('key')).rejects.toThrow('API Error');
         });
     });
 });

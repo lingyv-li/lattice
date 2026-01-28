@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
@@ -17,8 +16,8 @@ interface UnifiedSuggestion {
 }
 
 export const SuggestionList: React.FC = () => {
-    const { previewGroups, snapshot, applyGroup, isBackgroundProcessing } = useTabGrouper();
-    const { duplicateGroups, closeDuplicateGroup } = useDuplicateCleaner();
+    const { suggestionActions: groupActions, snapshot, applyGroup, isBackgroundProcessing } = useTabGrouper();
+    const { duplicateGroups, suggestionActions: dedupeActions, closeDuplicateGroup } = useDuplicateCleaner();
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
 
@@ -32,59 +31,45 @@ export const SuggestionList: React.FC = () => {
         }
     };
 
+    // Build suggestions from Action[] (group + deduplicate) from background/UI
     const suggestions = useMemo(() => {
         const list: UnifiedSuggestion[] = [];
 
-        // 1. Duplicate Suggestions
-        duplicateGroups.forEach((tabs, url) => {
-            if (tabs.length > 1) {
-                const countToRemove = tabs.length - 1;
-                // Use title of the first tab (original) for better context
-                const displayTitle = tabs[0].title || new URL(url).hostname;
-
-                const id = `dedup-${url}`;
-
-                // Show only the tabs that will be closed (duplicates), not the original
-                const duplicateTabs = tabs.slice(1);
-
-                list.push({
-                    id,
-                    type: SuggestionType.Deduplicate,
-                    title: `Clean "${displayTitle}"`,
-                    description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
-                    icon: Trash2,
-                    onClick: async () => closeDuplicateGroup(url),
-                    tabs: duplicateTabs
-                });
-            }
+        groupActions.forEach((action, index) => {
+            if (action.type !== 'group') return;
+            const tabCount = action.tabIds.length;
+            const groupTabs = action.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
+            list.push({
+                id: `group-${index}-${action.groupName}`,
+                type: SuggestionType.Group,
+                title: action.existingGroupId ? `Add to "${action.groupName}"` : `Group "${action.groupName}"`,
+                description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
+                icon: Group,
+                onClick: () => applyGroup(index),
+                tabs: groupTabs
+            });
         });
 
-        // 2. Grouping Suggestions
-        if (previewGroups) {
-            previewGroups.forEach((group, index) => {
-                const isExisting = !!group.existingGroupId;
-                const tabCount = group.tabIds.length;
-                const id = `group-${index}-${group.groupName}`;
-
-                // Resolve tab objects from snapshot
-                const groupTabs = group.tabIds
-                    .map(tid => snapshot?.getTabData(tid))
-                    .filter((t): t is chrome.tabs.Tab => !!t);
-
-                list.push({
-                    id,
-                    type: SuggestionType.Group,
-                    title: isExisting ? `Add to "${group.groupName}"` : `Group "${group.groupName}"`,
-                    description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
-                    icon: Group,
-                    onClick: async () => applyGroup(index),
-                    tabs: groupTabs
-                });
+        dedupeActions.forEach(action => {
+            if (action.type !== 'deduplicate') return;
+            const tabs = duplicateGroups.get(action.url);
+            if (!tabs || tabs.length < 2) return;
+            const countToRemove = tabs.length - 1;
+            const duplicateTabs = tabs.slice(1);
+            const displayTitle = tabs[0].title || new URL(action.url).hostname;
+            list.push({
+                id: `dedup-${action.url}`,
+                type: SuggestionType.Deduplicate,
+                title: `Clean "${displayTitle}"`,
+                description: `Close ${countToRemove} duplicate tab${countToRemove > 1 ? 's' : ''}`,
+                icon: Trash2,
+                onClick: () => closeDuplicateGroup(action.url),
+                tabs: duplicateTabs
             });
-        }
+        });
 
         return list;
-    }, [previewGroups, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
+    }, [groupActions, dedupeActions, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
 
     const handleAcceptAll = async () => {
         setIsAcceptingAll(true);
@@ -97,7 +82,7 @@ export const SuggestionList: React.FC = () => {
                     // Small delay to allow state updates/animations
                     await new Promise(r => setTimeout(r, 200));
                 } catch (e) {
-                    console.error("Failed to apply suggestion", item.title, e);
+                    console.error('Failed to apply suggestion', item.title, e);
                 }
             }
         } finally {
@@ -110,37 +95,37 @@ export const SuggestionList: React.FC = () => {
     if (suggestions.length === 0) {
         if (isBackgroundProcessing) {
             return (
-                <div className="flex flex-col items-center justify-center p-8 text-center h-full animate-pulse">
-                    <div className="w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4">
-                        <Loader2 className="w-6 h-6 text-action animate-spin" />
+                <div className='flex flex-col items-center justify-center p-8 text-center h-full animate-pulse'>
+                    <div className='w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4'>
+                        <Loader2 className='w-6 h-6 text-action animate-spin' />
                     </div>
-                    <h3 className="text-main font-medium mb-1">Scanning Tabs...</h3>
-                    <p className="text-muted text-sm">Looking for ways to organize your workspace.</p>
+                    <h3 className='text-main font-medium mb-1'>Scanning Tabs...</h3>
+                    <p className='text-muted text-sm'>Looking for ways to organize your workspace.</p>
                 </div>
             );
         }
 
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-center h-full">
-                <div className="w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4">
-                    <Sparkles className="w-6 h-6 text-muted" />
+            <div className='flex flex-col items-center justify-center p-8 text-center h-full'>
+                <div className='w-12 h-12 bg-surface-highlight rounded-full flex items-center justify-center mb-4'>
+                    <Sparkles className='w-6 h-6 text-muted' />
                 </div>
-                <h3 className="text-main font-medium mb-1">All Caught Up</h3>
-                <p className="text-muted text-sm">No organization suggestions at the moment.</p>
+                <h3 className='text-main font-medium mb-1'>All Caught Up</h3>
+                <p className='text-muted text-sm'>No organization suggestions at the moment.</p>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-2 p-3">
+        <div className='flex flex-col gap-2 p-3'>
             {/* Accept All Button */}
             {suggestions.length > 1 && (
                 <button
                     onClick={handleAcceptAll}
                     disabled={isAcceptingAll || processingId !== null}
-                    className="w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2"
+                    className='w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2'
                 >
-                    {isAcceptingAll ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    {isAcceptingAll ? <Loader2 className='w-4 h-4 animate-spin' /> : <Sparkles className='w-4 h-4' />}
                     <span>Accept All ({suggestions.length})</span>
                 </button>
             )}
@@ -155,7 +140,11 @@ export const SuggestionList: React.FC = () => {
                     onClick={() => handleAction(item.id, item.onClick)}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))}
+                    tabs={item.tabs.map(t => ({
+                        title: t.title,
+                        url: t.url,
+                        favIconUrl: t.favIconUrl
+                    }))}
                 />
             ))}
         </div>

@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ProcessingState } from '../processing';
 import { WindowSnapshot } from '../../utils/snapshots';
@@ -14,7 +13,7 @@ vi.mock('../state', () => ({
         clearWindowSnapshot: vi.fn(),
         clearProcessingStatus: vi.fn(),
         hydrate: vi.fn(),
-        persist: vi.fn(),
+        persist: vi.fn()
     }
 }));
 
@@ -33,7 +32,6 @@ describe('ProcessingState', () => {
         expect(state.isProcessing).toBe(false);
         expect(state.size).toBe(0);
     });
-
 
     it('should update status and sync to storage when adding items', async () => {
         const state = new ProcessingState();
@@ -149,16 +147,27 @@ describe('ProcessingState', () => {
         expect(state.has(10)).toBe(false);
     });
 
-
     describe('Snapshotting', () => {
         // Fix: Add necessary properties for isGroupableTab (groupId: -1, status: 'complete')
         const tabs: chrome.tabs.Tab[] = [
-            { id: 101, url: 'https://a.com', title: 'A', groupId: -1, status: 'complete', windowId: 10 } as unknown as chrome.tabs.Tab,
-            { id: 102, url: 'https://b.com', title: 'B', groupId: -1, status: 'complete', windowId: 10 } as unknown as chrome.tabs.Tab
+            {
+                id: 101,
+                url: 'https://a.com',
+                title: 'A',
+                groupId: -1,
+                status: 'complete',
+                windowId: 10
+            } as unknown as chrome.tabs.Tab,
+            {
+                id: 102,
+                url: 'https://b.com',
+                title: 'B',
+                groupId: -1,
+                status: 'complete',
+                windowId: 10
+            } as unknown as chrome.tabs.Tab
         ];
-        const groups: chrome.tabGroups.TabGroup[] = [
-            { id: 1, title: 'Group 1', windowId: 10 } as unknown as chrome.tabGroups.TabGroup
-        ];
+        const groups: chrome.tabGroups.TabGroup[] = [{ id: 1, title: 'Group 1', windowId: 10 } as unknown as chrome.tabGroups.TabGroup];
 
         it('should verify matching snapshot', async () => {
             const snapshot = new MockWindowSnapshot(tabs, groups) as unknown as WindowSnapshot;
@@ -188,7 +197,18 @@ describe('ProcessingState', () => {
         it('should fail verification if tabs are different', async () => {
             const snapshot = new MockWindowSnapshot(tabs, groups) as unknown as WindowSnapshot;
 
-            const differentTabs = [tabs[0], { ...tabs[1], id: 103, url: 'https://c.com', title: 'C', groupId: -1, status: 'complete', windowId: 10 } as unknown as chrome.tabs.Tab];
+            const differentTabs = [
+                tabs[0],
+                {
+                    ...tabs[1],
+                    id: 103,
+                    url: 'https://c.com',
+                    title: 'C',
+                    groupId: -1,
+                    status: 'complete',
+                    windowId: 10
+                } as unknown as chrome.tabs.Tab
+            ];
             // Call for verifySnapshot() - different snapshot
             // Ensure verifySnapshot gets a different snapshot instance that produces different fingerprint
             const newSnapshot = new MockWindowSnapshot(differentTabs, groups) as unknown as WindowSnapshot;
@@ -213,7 +233,16 @@ describe('ProcessingState', () => {
         it('should isolate snapshots by window', async () => {
             const snapshot10 = new MockWindowSnapshot(tabs, groups) as unknown as WindowSnapshot;
             const snapshot20 = new MockWindowSnapshot(
-                [{ id: 99, url: 'https://z.com', title: 'Z', groupId: -1, status: 'complete', windowId: 20 } as unknown as chrome.tabs.Tab],
+                [
+                    {
+                        id: 99,
+                        url: 'https://z.com',
+                        title: 'Z',
+                        groupId: -1,
+                        status: 'complete',
+                        windowId: 20
+                    } as unknown as chrome.tabs.Tab
+                ],
                 []
             ) as unknown as WindowSnapshot;
 

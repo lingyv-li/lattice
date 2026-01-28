@@ -1,8 +1,8 @@
 # Product Requirements Document: Lattice Tabs
 
-**Version**: 0.5.0
+**Version**: 0.6.1
 **Status**: Live / Maintenance
-**Date**: 2026-01-04
+**Date**: 2026-01-27
 
 ## 1. Executive Summary
 Lattice Tabs is a privacy-first, local-AI driven browser extension designed to mitigate "tab fatigue" and cognitive load for power users. Unlike competitors that rely on cloud-based LLMs (imposing latency and privacy risks), Lattice exploits the emerging edge-AI capabilities of Chrome (Gemini Nano) to organize, group, and manage tabs entirely on-device.

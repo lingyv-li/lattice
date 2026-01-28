@@ -37,10 +37,31 @@ describe('WindowSnapshot Staleness Logic', () => {
 
         const tabs = [
             // Group 1 tabs: one recent, one old
-            { id: 1, groupId: group1Id, lastAccessed: hourAgo, title: 'G1 Tab 1', url: 'http://a.com', windowId: 1 },
-            { id: 2, groupId: group1Id, lastAccessed: now, title: 'G1 Tab 2', url: 'http://b.com', windowId: 1 },
+            {
+                id: 1,
+                groupId: group1Id,
+                lastAccessed: hourAgo,
+                title: 'G1 Tab 1',
+                url: 'http://a.com',
+                windowId: 1
+            },
+            {
+                id: 2,
+                groupId: group1Id,
+                lastAccessed: now,
+                title: 'G1 Tab 2',
+                url: 'http://b.com',
+                windowId: 1
+            },
             // Group 2 tabs: all old
-            { id: 3, groupId: group2Id, lastAccessed: dayAgo, title: 'G2 Tab 1', url: 'http://c.com', windowId: 1 },
+            {
+                id: 3,
+                groupId: group2Id,
+                lastAccessed: dayAgo,
+                title: 'G2 Tab 1',
+                url: 'http://c.com',
+                windowId: 1
+            }
         ] as chrome.tabs.Tab[];
 
         const groups = [

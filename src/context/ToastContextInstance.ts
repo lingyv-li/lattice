@@ -1,4 +1,3 @@
-
 import { createContext } from 'react';
 import { ToastType } from '../types/toast';
 

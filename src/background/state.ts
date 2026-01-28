@@ -1,5 +1,5 @@
-
 import { TabSuggestionCache } from '../types/tabGrouper';
+import { Action, ACTION_HISTORY_MAX } from '../types/suggestions';
 import { WindowSnapshot } from '../utils/snapshots';
 
 interface StorageSchema {
@@ -7,7 +7,10 @@ interface StorageSchema {
     windowSnapshots: Record<number, string>;
     processingWindowIds: number[];
     duplicateCounts: Record<number, number>;
+    actionHistory: Action[];
 }
+
+type ActionHistoryListener = (history: Action[]) => void;
 
 type StateChanges = {
     [K in keyof StorageSchema]?: chrome.storage.StorageChange;
@@ -22,7 +25,14 @@ export class StateService {
     private static snapshots: Map<number, string> = new Map();
     private static processingWindows: Set<number> = new Set();
     private static duplicateCounts: Map<number, number> = new Map();
+    private static actionHistory: Action[] = [];
+    private static actionHistoryListeners: Set<ActionHistoryListener> = new Set();
     private static isHydrated = false;
+
+    private static notifyActionHistoryListeners(): void {
+        const h = this.actionHistory;
+        this.actionHistoryListeners.forEach(cb => cb(h));
+    }
 
     /**
      * Hydrate state from session storage
@@ -31,7 +41,7 @@ export class StateService {
         if (this.isHydrated) return;
 
         try {
-            const data = await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts']) as Partial<StorageSchema>;
+            const data = (await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts', 'actionHistory'])) as Partial<StorageSchema>;
             this.cache = new Map();
 
             if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
@@ -61,9 +71,11 @@ export class StateService {
                 this.duplicateCounts = new Map();
             }
 
+            this.actionHistory = Array.isArray(data.actionHistory) ? data.actionHistory : [];
+
             this.isHydrated = true;
         } catch (e) {
-            console.error("[StateService] Failed to hydrate:", e);
+            console.error('[StateService] Failed to hydrate:', e);
             this.cache = new Map();
         }
     }
@@ -259,6 +271,119 @@ export class StateService {
     }
 
     /**
+     * Push an action onto history (keeps last N). Used after user accepts a suggestion.
+     * Notifies subscribers immediately so the UI updates without waiting for storage events.
+     */
+    static async pushAction(action: Action): Promise<void> {
+        await this.hydrate();
+        this.actionHistory = [...this.actionHistory, action].slice(-ACTION_HISTORY_MAX);
+        this.notifyActionHistoryListeners();
+        await this.persist();
+    }
+
+    /**
+     * Record a group action (manual or autopilot). Unified entry so both paths are undoable.
+     */
+    static async pushGroupAction(params: { windowId: number; tabIds: number[]; groupName: string; existingGroupId?: number | null }): Promise<void> {
+        await this.pushAction({
+            type: 'group',
+            windowId: params.windowId,
+            tabIds: params.tabIds,
+            groupName: params.groupName,
+            existingGroupId: params.existingGroupId
+        });
+    }
+
+    /**
+     * Record a deduplicate action (manual or autopilot). Unified entry so both paths are undoable.
+     */
+    static async pushDeduplicateAction(params: { windowId: number; url: string; urls: string[] }): Promise<void> {
+        await this.pushAction({
+            type: 'deduplicate',
+            windowId: params.windowId,
+            url: params.url,
+            urls: params.urls
+        });
+    }
+
+    /**
+     * Get action history, optionally filtered by window.
+     * Newest last (so pop for undo gives most recent).
+     */
+    static async getActionHistory(windowId?: number): Promise<Action[]> {
+        await this.hydrate();
+        const list = this.actionHistory;
+        if (windowId === undefined) return [...list];
+        return list.filter((a: Action) => a.windowId === windowId);
+    }
+
+    /**
+     * Undo the most recent action for the given window.
+     * Returns the action that was undone, or null if none.
+     * When clearing history, persists with skipActionHistoryPreserve so the cleared state is not overwritten.
+     */
+    static async undoLast(windowId: number): Promise<Action | null> {
+        await this.hydrate();
+        let idx = -1;
+        for (let i = this.actionHistory.length - 1; i >= 0; i--) {
+            if (this.actionHistory[i]!.windowId === windowId) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0) return null;
+
+        const action = this.actionHistory[idx]!;
+        this.actionHistory = this.actionHistory.filter((_, i) => i !== idx);
+        this.notifyActionHistoryListeners();
+        await this.persist({ skipActionHistoryPreserve: true });
+
+        try {
+            if (action.type === 'group') {
+                const stillInWindow = await chrome.tabs.query({ windowId });
+                const validIds = action.tabIds.filter(id => stillInWindow.some(t => t.id === id));
+                if (validIds.length > 0) {
+                    const tabIds = validIds as [number, ...number[]];
+                    await chrome.tabs.ungroup(tabIds);
+                }
+            } else {
+                for (const url of action.urls) {
+                    await chrome.tabs.create({ url, windowId });
+                }
+            }
+        } catch (e) {
+            console.error('[StateService] Undo failed:', e);
+            this.actionHistory = [...this.actionHistory, action].slice(-ACTION_HISTORY_MAX);
+            this.notifyActionHistoryListeners();
+            await this.persist();
+            throw e;
+        }
+        return action;
+    }
+
+    /**
+     * Subscribe to action-history changes (e.g. for Undo UI).
+     * Callback receives the full history; filter by windowId in the consumer if needed.
+     * Callbacks are notified immediately on push/undo so the UI updates without waiting for storage.
+     */
+    static subscribeActionHistory(callback: ActionHistoryListener): () => void {
+        this.actionHistoryListeners.add(callback);
+        const handler = (changes: StateChanges, areaName: string) => {
+            if (areaName !== 'session' || !changes.actionHistory?.newValue) return;
+            const raw = changes.actionHistory.newValue as Action[];
+            if (Array.isArray(raw) && raw.length === 0 && this.actionHistory.length > 0) return;
+            this.actionHistory = Array.isArray(raw) ? raw : [];
+            callback(this.actionHistory);
+        };
+        chrome.storage.onChanged.addListener(handler);
+        this.getActionHistory().then(callback);
+        return () => {
+            this.actionHistoryListeners.delete(callback);
+            chrome.storage.onChanged.removeListener(handler);
+        };
+    }
+
+    /**
      * Subscribe to changes for a specific window.
      * Returns a function to unsubscribe.
      * Callback receives:
@@ -292,7 +417,7 @@ export class StateService {
 
             if (changes.processingWindowIds?.newValue) {
                 const rawData = changes.processingWindowIds.newValue as number[];
-                const oldRawData = changes.processingWindowIds.oldValue as number[] || [];
+                const oldRawData = (changes.processingWindowIds.oldValue as number[]) || [];
 
                 this.processingWindows = new Set(rawData);
                 this.isHydrated = true;
@@ -308,7 +433,7 @@ export class StateService {
 
             if (changes.duplicateCounts?.newValue) {
                 const rawData = changes.duplicateCounts.newValue as Record<number, number>;
-                const oldRawData = changes.duplicateCounts.oldValue as Record<number, number> || {};
+                const oldRawData = (changes.duplicateCounts.oldValue as Record<number, number>) || {};
 
                 this.duplicateCounts = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
                 this.isHydrated = true;
@@ -345,13 +470,16 @@ export class StateService {
     }
 
     /**
-     * Persist current in-memory cache to session storage
+     * Persist current in-memory cache to session storage.
+     * When actionHistory is empty and skipActionHistoryPreserve is false, we preserve
+     * whatever is in storage so the background never overwrites sidepanel history.
+     * When skipActionHistoryPreserve is true (e.g. from undoLast after clearing), we
+     * write empty and do not restore from storage.
      */
-    private static async persist(): Promise<void> {
+    private static async persist(opts?: { skipActionHistoryPreserve?: boolean }): Promise<void> {
         try {
             const update: Partial<StorageSchema> = {};
             if (this.cache) {
-                // Flatten to array for storage
                 const flat: TabSuggestionCache[] = [];
                 for (const windowMap of this.cache.values()) {
                     for (const s of windowMap.values()) {
@@ -363,9 +491,20 @@ export class StateService {
             update.windowSnapshots = Object.fromEntries(this.snapshots.entries());
             update.processingWindowIds = Array.from(this.processingWindows);
             update.duplicateCounts = Object.fromEntries(this.duplicateCounts.entries());
+
+            let actionHistoryToWrite = this.actionHistory ?? [];
+            if (actionHistoryToWrite.length === 0 && !opts?.skipActionHistoryPreserve) {
+                const existing = (await chrome.storage.session.get('actionHistory')) as { actionHistory?: Action[] };
+                if (Array.isArray(existing?.actionHistory) && existing.actionHistory.length > 0) {
+                    actionHistoryToWrite = existing.actionHistory;
+                    this.actionHistory = existing.actionHistory;
+                }
+            }
+            update.actionHistory = actionHistoryToWrite;
+
             await chrome.storage.session.set(update);
         } catch (e) {
-            console.error("[StateService] Failed to persist:", e);
+            console.error('[StateService] Failed to persist:', e);
         }
     }
 }

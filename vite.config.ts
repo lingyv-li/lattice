@@ -2,10 +2,13 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 import sharp from 'sharp';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Custom plugin to copy manifest and process icons
 const copyManifest = () => {
@@ -39,7 +42,7 @@ export default defineConfig({
                 chunkFileNames: 'assets/[name]-[hash].js',
                 assetFileNames: 'assets/[name]-[hash].[ext]',
             }
-        }, // Added missing closing brace for rollupOptions
+        },
         outDir: 'dist',
         emptyOutDir: true
     },

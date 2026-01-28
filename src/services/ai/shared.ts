@@ -1,18 +1,12 @@
 import { TabGroupSuggestion } from '../../types/tabGrouper';
 import JSON5 from 'json5';
 
-export const handleAssignment = (
-    groupName: string,
-    tabId: number,
-    groupMap: Map<string, number>,
-    suggestions: Map<string, TabGroupSuggestion>,
-    currentNextId: number
-): number => {
+export const handleAssignment = (groupName: string, tabId: number, groupMap: Map<string, number>, suggestions: Map<string, TabGroupSuggestion>, currentNextId: number): number => {
     let targetGroupId: number;
     let updatedNextId = currentNextId;
 
     // 1. Normalize the group name (basic trim only)
-    const normalizedName = groupName ? groupName.trim() : "";
+    const normalizedName = groupName ? groupName.trim() : '';
 
     // 2. Validate
     if (normalizedName.length === 0) {
@@ -33,7 +27,7 @@ export const handleAssignment = (
     const key = `group-id-${targetGroupId}`;
     if (!suggestions.has(key)) {
         suggestions.set(key, {
-            groupName: normalizedName || "Ungrouped",
+            groupName: normalizedName || 'Ungrouped',
             tabIds: [],
             existingGroupId: targetGroupId >= 0 ? targetGroupId : null
         });
@@ -147,21 +141,13 @@ const CONSTRAINTS = `## Constraints
 // PROMPT CONSTRUCTION
 // =============================================================================
 
-export const constructSystemPrompt = (customRules: string = "", useReasoning: boolean = false): string => {
-    const parts = [
-        ROLE,
-        TASK,
-        RULES + (customRules.trim().length > 0 ? '\n' + customRules : ""),
-        useReasoning ? COD_OUTPUT_FORMAT : OUTPUT_FORMAT,
-        CONSTRAINTS
-    ];
+export const constructSystemPrompt = (customRules: string = '', useReasoning: boolean = false): string => {
+    const parts = [ROLE, TASK, RULES + (customRules.trim().length > 0 ? '\n' + customRules : ''), useReasoning ? COD_OUTPUT_FORMAT : OUTPUT_FORMAT, CONSTRAINTS];
 
     return parts.join('\n\n');
 };
 
-
-
-export const mapExistingGroups = (groups: { id: number, title?: string }[]): Map<string, number> => {
+export const mapExistingGroups = (groups: { id: number; title?: string }[]): Map<string, number> => {
     const map = new Map<string, number>();
     for (const group of groups) {
         if (group.title && group.title.trim().length > 0) {

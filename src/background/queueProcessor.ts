@@ -14,17 +14,20 @@ export class QueueProcessor {
     private windowAbortControllers = new Map<number, AbortController>();
 
     // Track context of currently processing windows for smart abort checks
-    private processingContext = new Map<number, {
-        batchTabIds: number[],
-        snapshot: WindowSnapshot,
-        controller: AbortController
-    }>();
+    private processingContext = new Map<
+        number,
+        {
+            batchTabIds: number[];
+            snapshot: WindowSnapshot;
+            controller: AbortController;
+        }
+    >();
 
     constructor(private state: ProcessingState) {
         // Subscribe to re-queue events to check for fatal changes
-        this.state.onWindowRequeued = (windowId) => this.checkFatalChange(windowId);
+        this.state.onWindowRequeued = windowId => this.checkFatalChange(windowId);
         // Subscribe to removal events to abort processing
-        this.state.onWindowRemoved = (windowId) => this.handleWindowRemoved(windowId);
+        this.state.onWindowRemoved = windowId => this.handleWindowRemoved(windowId);
     }
 
     private handleWindowRemoved(windowId: number) {
@@ -92,7 +95,6 @@ export class QueueProcessor {
 
             try {
                 for (const windowId of windowIds) {
-
                     // The snapshot was already captured at enqueue time in TabManager
                     const windowState = this.state.getWindowState(windowId);
                     if (!windowState) {
@@ -123,12 +125,7 @@ export class QueueProcessor {
 
                     const groupIdManager = new GroupIdManager();
                     for (const batchTabs of batches) {
-                        const result = await this.processWindowBatch(
-                            windowId,
-                            batchTabs,
-                            groupIdManager,
-                            settings
-                        );
+                        const result = await this.processWindowBatch(windowId, batchTabs, groupIdManager, settings);
 
                         if (batches.length > 1) {
                             console.log(`[QueueProcessor] Processed batch ${batches.indexOf(batchTabs) + 1}/${batches.length} for window ${windowId}`);
@@ -148,17 +145,12 @@ export class QueueProcessor {
                     this.windowAbortControllers.delete(windowId);
                 }
             } catch (err: unknown) {
-                console.error("[QueueProcessor] Global processing error", err);
+                console.error('[QueueProcessor] Global processing error', err);
             }
         }
     }
 
-    private async processWindowBatch(
-        windowId: number,
-        batchTabs: chrome.tabs.Tab[],
-        groupIdManager: GroupIdManager,
-        settings: AppSettings
-    ): Promise<{ aborted: boolean }> {
+    private async processWindowBatch(windowId: number, batchTabs: chrome.tabs.Tab[], groupIdManager: GroupIdManager, settings: AppSettings): Promise<{ aborted: boolean }> {
         // Check snapshot before each batch (uses centralized function)
         const windowState = this.state.getWindowState(windowId);
 
@@ -189,11 +181,7 @@ export class QueueProcessor {
                 controller
             });
 
-            const promptInput = windowState.inputSnapshot.getPromptForBatch(
-                batchTabs,
-                groupIdManager.getGroupMap(),
-                settings.customGroupingRules
-            );
+            const promptInput = windowState.inputSnapshot.getPromptForBatch(batchTabs, groupIdManager.getGroupMap(), settings.customGroupingRules);
 
             const results = await provider.generateSuggestions({
                 ...promptInput,
@@ -204,14 +192,25 @@ export class QueueProcessor {
             this.processingContext.delete(windowId);
 
             const batchDuration = Date.now() - batchStartTime;
-            console.log(`[QueueProcessor] [${new Date().toISOString()}] AI results for window ${windowId}:`, results.suggestions.map(s => s.groupName), `(took ${batchDuration}ms)`);
+            console.log(
+                `[QueueProcessor] [${new Date().toISOString()}] AI results for window ${windowId}:`,
+                results.suggestions.map(s => s.groupName),
+                `(took ${batchDuration}ms)`
+            );
+
+            // Clear stored errors when we got a clean result (no new errors reported).
+            if (!results.errors || results.errors.length === 0) {
+                await ErrorStorage.clearErrors();
+            }
 
             if (results.errors && results.errors.length > 0) {
-                console.error(`[QueueProcessor] [${new Date().toISOString()}] AI reported errors:`, results.errors);
-                // Log the first unique error to storage for the user
-                const uniqueErrors = new Set(results.errors.map(e => getUserFriendlyError(e)));
-                for (const msg of uniqueErrors) {
-                    await ErrorStorage.addError(msg);
+                const realErrors = results.errors.filter(e => !(e instanceof AbortError));
+                if (realErrors.length > 0) {
+                    console.error(`[QueueProcessor] [${new Date().toISOString()}] AI reported errors:`, realErrors);
+                    const uniqueErrors = new Set(realErrors.map(e => getUserFriendlyError(e)));
+                    for (const msg of uniqueErrors) {
+                        await ErrorStorage.addError(msg);
+                    }
                 }
             }
 
@@ -223,7 +222,12 @@ export class QueueProcessor {
             // Final safety check: Check for fatal changes one last time before applying
             // This covers the gap between the last re-queue check and now.
             const finalSnapshot = await WindowSnapshot.fetch(windowId);
-            if (windowState.inputSnapshot.isFatalChange(finalSnapshot, batchTabs.map(t => t.id!).filter(id => id !== undefined))) {
+            if (
+                windowState.inputSnapshot.isFatalChange(
+                    finalSnapshot,
+                    batchTabs.map(t => t.id!).filter(id => id !== undefined)
+                )
+            ) {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected immediately before applying. Skipping batch.`);
                 return { aborted: false }; // Not strictly aborted, just skipped this batch. Window loop continues? Or should we return aborted?
                 // If we return aborted=false, the loop continues to final cleanup. But state changed.
@@ -237,22 +241,20 @@ export class QueueProcessor {
             for (const suggestion of results.suggestions) {
                 try {
                     // Resolve group ID (virtual or real)
-                    const groupId = groupIdManager.resolveGroupId(
-                        suggestion.groupName,
-                        suggestion.existingGroupId
-                    );
+                    const groupId = groupIdManager.resolveGroupId(suggestion.groupName, suggestion.existingGroupId);
 
                     if (autopilotEnabled) {
-                        const newGroupId = await applyTabGroup(
-                            suggestion.tabIds,
-                            suggestion.groupName,
-                            groupIdManager.toRealIdOrNull(groupId),
-                            windowId
-                        );
+                        const newGroupId = await applyTabGroup(suggestion.tabIds, suggestion.groupName, groupIdManager.toRealIdOrNull(groupId), windowId);
 
                         if (newGroupId) {
                             groupIdManager.updateWithRealId(suggestion.groupName, newGroupId);
                         }
+                        await StateService.pushGroupAction({
+                            windowId,
+                            tabIds: suggestion.tabIds,
+                            groupName: suggestion.groupName,
+                            existingGroupId: groupIdManager.toRealIdOrNull(groupId)
+                        });
                     } else {
                         // Cache suggestions for manual review
                         for (const tabId of suggestion.tabIds) {
@@ -276,7 +278,6 @@ export class QueueProcessor {
             if (suggestionsToCache.length > 0) {
                 await StateService.updateSuggestions(suggestionsToCache);
             }
-
         } catch (e: unknown) {
             // Handle AbortError specifically
             if (e instanceof AbortError) {

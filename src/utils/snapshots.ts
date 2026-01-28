@@ -24,10 +24,7 @@ export class WindowSnapshot {
      * Queries for ALL tabs to support smart staleness checks.
      */
     public static async fetch(windowId: number): Promise<WindowSnapshot> {
-        const [tabs, groups] = await Promise.all([
-            chrome.tabs.query({ windowId }),
-            chrome.tabGroups.query({ windowId })
-        ]);
+        const [tabs, groups] = await Promise.all([chrome.tabs.query({ windowId }), chrome.tabGroups.query({ windowId })]);
 
         return new WindowSnapshot(tabs, groups);
     }
@@ -46,10 +43,7 @@ export class WindowSnapshot {
         }
 
         // 2. Get all tabs and groups (O(1) IPC call)
-        const [allTabs, allGroups] = await Promise.all([
-            chrome.tabs.query({}),
-            chrome.tabGroups.query({})
-        ]);
+        const [allTabs, allGroups] = await Promise.all([chrome.tabs.query({}), chrome.tabGroups.query({})]);
 
         // 3. Partition data by windowId (only for valid windows)
         const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
@@ -71,10 +65,7 @@ export class WindowSnapshot {
 
         const snapshots = new Map<number, WindowSnapshot>();
         for (const windowId of validWindowIds) {
-            snapshots.set(windowId, new WindowSnapshot(
-                tabsByWindow.get(windowId) || [],
-                groupsByWindow.get(windowId) || []
-            ));
+            snapshots.set(windowId, new WindowSnapshot(tabsByWindow.get(windowId) || [], groupsByWindow.get(windowId) || []));
         }
 
         return snapshots;
@@ -97,8 +88,14 @@ export class WindowSnapshot {
     isFatalChange(newSnapshot: WindowSnapshot, relevantTabIds: number[]): boolean {
         // 1. Group Structure Change (Strict equality)
         // If groups were renamed, removed, or added -> Fatal (Context changed)
-        const currentGroupFingerprint = this.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
-        const newGroupFingerprint = newSnapshot.groups.map(g => `${g.id}:${g.title}`).sort().join('|');
+        const currentGroupFingerprint = this.groups
+            .map(g => `${g.id}:${g.title}`)
+            .sort()
+            .join('|');
+        const newGroupFingerprint = newSnapshot.groups
+            .map(g => `${g.id}:${g.title}`)
+            .sort()
+            .join('|');
 
         if (currentGroupFingerprint !== newGroupFingerprint) {
             console.log(`[WindowSnapshot] Fatal: Group structure changed.`);
@@ -196,11 +193,7 @@ export class WindowSnapshot {
     /**
      * Prepares the input object required by the AI service for generating suggestions.
      */
-    getPromptForBatch(
-        batchTabs: chrome.tabs.Tab[],
-        virtualGroups: Map<string, number>,
-        customRules?: string
-    ): Omit<GroupingRequest, 'signal'> {
+    getPromptForBatch(batchTabs: chrome.tabs.Tab[], virtualGroups: Map<string, number>, customRules?: string): Omit<GroupingRequest, 'signal'> {
         const existingGroupsContext = new Map<string, GroupContext>();
         const groupIdToName = new Map<number, string>();
 
@@ -294,7 +287,7 @@ export class WindowSnapshot {
     public static deterministicHash(str: string): number {
         let hash = 5381;
         for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) + hash) + str.charCodeAt(i); /* hash * 33 + c */
+            hash = (hash << 5) + hash + str.charCodeAt(i); /* hash * 33 + c */
         }
         return hash >>> 0;
     }

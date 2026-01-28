@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DuplicateCloser } from '../services/duplicates';
 import { findDuplicates, getTabsToRemove } from '../services/duplicates/utils';
 import { OrganizerStatus } from '../types/organizer';
-// We still use StateService for initial signal if needed, but local calculation is better for UI details
+import type { Action } from '../types/suggestions';
+import { StateService } from '../background/state';
 
 export const useDuplicateCleaner = () => {
     const [status, setStatus] = useState<OrganizerStatus>(OrganizerStatus.Idle);
@@ -46,6 +47,9 @@ export const useDuplicateCleaner = () => {
         try {
             const result = await DuplicateCloser.closeDuplicates();
             if (result.closedCount > 0) {
+                for (const a of result.actions) {
+                    await StateService.pushDeduplicateAction(a);
+                }
                 setStatus(OrganizerStatus.Success);
             } else {
                 setStatus(OrganizerStatus.Idle);
@@ -65,12 +69,17 @@ export const useDuplicateCleaner = () => {
 
         setStatus(OrganizerStatus.Applying);
         try {
-            // Create a map with just this group to use the util
             const singleMap = new Map([[url, group]]);
             const tabsToRemove = getTabsToRemove(singleMap);
+            const duplicateTabs = group.slice(1);
 
-            if (tabsToRemove.length > 0) {
+            if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
                 await chrome.tabs.remove(tabsToRemove);
+                const windowId = duplicateTabs[0]?.windowId;
+                const urls = duplicateTabs.map(t => t.url).filter((u): u is string => !!u);
+                if (windowId !== undefined && urls.length > 0) {
+                    await StateService.pushDeduplicateAction({ windowId, url, urls });
+                }
                 setStatus(OrganizerStatus.Success);
             }
             setTimeout(() => setStatus(OrganizerStatus.Idle), 1000);
@@ -81,9 +90,28 @@ export const useDuplicateCleaner = () => {
         }
     };
 
+    // Suggestions as Action[] for UI (deduplicate type)
+    const suggestionActions: Action[] = useMemo(() => {
+        const list: Action[] = [];
+        duplicateGroups.forEach((tabs, url) => {
+            if (tabs.length > 1) {
+                const windowId = tabs[0]?.windowId;
+                const urls = tabs
+                    .slice(1)
+                    .map(t => t.url)
+                    .filter((u): u is string => !!u);
+                if (windowId !== undefined && urls.length > 0) {
+                    list.push({ type: 'deduplicate', windowId, url, urls });
+                }
+            }
+        });
+        return list;
+    }, [duplicateGroups]);
+
     return {
         status,
         duplicateGroups,
+        suggestionActions,
         totalDuplicateCount: Array.from(duplicateGroups.values()).reduce((acc, g) => acc + (g.length - 1), 0),
         closeDuplicates,
         closeDuplicateGroup

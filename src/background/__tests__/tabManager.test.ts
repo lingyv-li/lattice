@@ -19,12 +19,10 @@ vi.mock('../../services/duplicates', () => ({
     countDuplicates: vi.fn().mockReturnValue(0),
     DuplicateCloser: {
         isAutopilotEnabled: vi.fn().mockResolvedValue(false),
-        closeDuplicatesInWindow: vi.fn().mockResolvedValue({ closedCount: 0, tabsRemoved: [] }),
+        closeDuplicatesInWindow: vi.fn().mockResolvedValue({ closedCount: 0, tabsRemoved: [], actions: [] }),
         closeDuplicates: vi.fn()
     }
 }));
-
-
 
 describe('TabManager', () => {
     let tabManager: TabManager;
@@ -60,7 +58,7 @@ describe('TabManager', () => {
         };
         mockAlarms = {
             create: vi.fn(),
-            get: vi.fn(),
+            get: vi.fn()
         };
         mockWindows = {
             get: vi.fn(),
@@ -72,7 +70,7 @@ describe('TabManager', () => {
             query: vi.fn(),
             onCreated: { addListener: vi.fn(), removeListener: vi.fn() },
             onUpdated: { addListener: vi.fn(), removeListener: vi.fn() },
-            onRemoved: { addListener: vi.fn(), removeListener: vi.fn() },
+            onRemoved: { addListener: vi.fn(), removeListener: vi.fn() }
         };
 
         // Use direct assignment instead of stubGlobal to ensure visibility
@@ -81,7 +79,7 @@ describe('TabManager', () => {
                 tabs: mockTabs,
                 alarms: mockAlarms,
                 windows: mockWindows,
-                tabGroups: mockTabGroups,
+                tabGroups: mockTabGroups
             }
         });
 
@@ -101,7 +99,6 @@ describe('TabManager', () => {
 
         // Default mocks
         // Capture referenced mocks for tests to use
-
 
         vi.mocked(mockTabs.query).mockResolvedValue([]);
         vi.mocked(StateService.getSuggestionCache).mockResolvedValue(new Map());
@@ -190,7 +187,10 @@ describe('TabManager', () => {
 
                 const updatedTabId = 101;
                 const duplicateTabId = 102;
-                vi.mocked(mockTabs.get).mockResolvedValue({ id: updatedTabId, windowId: 1 } as chrome.tabs.Tab);
+                vi.mocked(mockTabs.get).mockResolvedValue({
+                    id: updatedTabId,
+                    windowId: 1
+                } as chrome.tabs.Tab);
 
                 const tabs = [
                     { id: updatedTabId, url: 'http://a.com', windowId: 1, active: true },
@@ -213,11 +213,12 @@ describe('TabManager', () => {
                     }
                 } as AppSettings);
                 const updatedTabId = 101;
-                vi.mocked(mockTabs.get).mockResolvedValue({ id: updatedTabId, windowId: 1 } as chrome.tabs.Tab);
+                vi.mocked(mockTabs.get).mockResolvedValue({
+                    id: updatedTabId,
+                    windowId: 1
+                } as chrome.tabs.Tab);
 
-                const tabs = [
-                    { id: updatedTabId, url: 'http://a.com', windowId: 1, active: true }
-                ] as chrome.tabs.Tab[];
+                const tabs = [{ id: updatedTabId, url: 'http://a.com', windowId: 1, active: true }] as chrome.tabs.Tab[];
                 vi.mocked(mockTabs.query).mockResolvedValue(tabs);
 
                 await tabManager.handleTabUpdated(updatedTabId, { status: 'complete' });
@@ -249,7 +250,14 @@ describe('TabManager', () => {
 
         it('should add windowId to processing state after debounce IF tab count > 0', async () => {
             // Mock non-empty snapshot
-            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const validTab = {
+                id: 1,
+                url: 'http://a.com',
+                title: 'A',
+                status: 'complete',
+                groupId: -1,
+                windowId: 1
+            } as chrome.tabs.Tab;
             const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
             Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
 
@@ -278,7 +286,14 @@ describe('TabManager', () => {
         });
 
         it('should process window if mismatch and tab count > 0', async () => {
-            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const validTab = {
+                id: 1,
+                url: 'http://a.com',
+                title: 'A',
+                status: 'complete',
+                groupId: -1,
+                windowId: 1
+            } as chrome.tabs.Tab;
             const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
             Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
 
@@ -292,7 +307,14 @@ describe('TabManager', () => {
         });
 
         it('should NOT process window if state matches (no change)', async () => {
-            const validTab = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
+            const validTab = {
+                id: 1,
+                url: 'http://a.com',
+                title: 'A',
+                status: 'complete',
+                groupId: -1,
+                windowId: 1
+            } as chrome.tabs.Tab;
             const snapshot = new MockWindowSnapshot([validTab], []) as unknown as WindowSnapshot;
             Object.defineProperty(snapshot, 'tabCount', { get: () => 1 });
             // Mock equals to return TRUE
@@ -309,17 +331,33 @@ describe('TabManager', () => {
         });
 
         it('should process multiple windows', async () => {
-            const validTab1 = { id: 1, url: 'http://a.com', title: 'A', status: 'complete', groupId: -1, windowId: 1 } as chrome.tabs.Tab;
-            const validTab2 = { id: 2, url: 'http://b.com', title: 'B', status: 'complete', groupId: -1, windowId: 2 } as chrome.tabs.Tab;
+            const validTab1 = {
+                id: 1,
+                url: 'http://a.com',
+                title: 'A',
+                status: 'complete',
+                groupId: -1,
+                windowId: 1
+            } as chrome.tabs.Tab;
+            const validTab2 = {
+                id: 2,
+                url: 'http://b.com',
+                title: 'B',
+                status: 'complete',
+                groupId: -1,
+                windowId: 2
+            } as chrome.tabs.Tab;
             const snapshot1 = new MockWindowSnapshot([validTab1], []) as unknown as WindowSnapshot;
             const snapshot2 = new MockWindowSnapshot([validTab2], []) as unknown as WindowSnapshot;
             Object.defineProperty(snapshot1, 'tabCount', { get: () => 1 });
             Object.defineProperty(snapshot2, 'tabCount', { get: () => 1 });
 
-            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(new Map([
-                [1, snapshot1],
-                [2, snapshot2]
-            ]));
+            vi.mocked(WindowSnapshot.fetchAll).mockResolvedValue(
+                new Map([
+                    [1, snapshot1],
+                    [2, snapshot2]
+                ])
+            );
             vi.mocked(StateService.getWindowSnapshot).mockResolvedValue(undefined);
 
             tabManager.triggerRecalculation('Test Multiple Windows');

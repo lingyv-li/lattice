@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useFeatureSettings } from '../useFeatureSettings';
@@ -25,7 +24,7 @@ describe('useFeatureSettings', () => {
         // Default get
         vi.mocked(SettingsStorage.get).mockResolvedValue(DEFAULT_SETTINGS);
         // Default subscribe
-        vi.mocked(SettingsStorage.subscribe).mockReturnValue(() => { });
+        vi.mocked(SettingsStorage.subscribe).mockReturnValue(() => {});
         // Default updateFeature
         vi.mocked(SettingsStorage.updateFeature).mockResolvedValue(undefined);
     });
@@ -56,10 +55,9 @@ describe('useFeatureSettings', () => {
         });
 
         // Verify it called the correct storage method
-        expect(SettingsStorage.updateFeature).toHaveBeenCalledWith(
-            FeatureId.TabGrouper,
-            { enabled: true }
-        );
+        expect(SettingsStorage.updateFeature).toHaveBeenCalledWith(FeatureId.TabGrouper, {
+            enabled: true
+        });
     });
 
     it('should optimistically update local state', async () => {
@@ -95,7 +93,9 @@ describe('useFeatureSettings', () => {
     it('should enforce autopilot logic in local optimistic state', async () => {
         const { result } = renderHook(() => useFeatureSettings());
 
-        await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+        await act(async () => {
+            await new Promise(r => setTimeout(r, 0));
+        });
 
         // Turn on autopilot (which should force enabled=true)
         await act(async () => {

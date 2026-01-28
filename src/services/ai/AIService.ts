@@ -13,9 +13,9 @@ export class AIService {
             case AIProviderType.Local:
                 return new LocalProvider();
             case AIProviderType.None:
-                throw new ConfigurationError("AI Provider is disabled.");
+                throw new ConfigurationError('AI Provider is disabled.');
             default:
-                throw new ConfigurationError("Invalid AI Provider.");
+                throw new ConfigurationError('Invalid AI Provider.');
         }
     }
 
@@ -53,7 +53,7 @@ export class AIService {
                 }
             }
         }
-        console.log("Found models", models);
+        console.log('Found models', models);
         return models;
     }
 }
