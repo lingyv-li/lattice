@@ -3,10 +3,15 @@
  * the function until after `wait` milliseconds have elapsed since
  * the last time the debounced function was invoked.
  */
-export function debounce<A extends unknown[], R>(func: (...args: A) => R, wait: number): (...args: A) => void {
+export interface DebouncedFunction<A extends unknown[]> {
+    (...args: A): void;
+    cancel: () => void;
+}
+
+export function debounce<A extends unknown[], R>(func: (...args: A) => R, wait: number): DebouncedFunction<A> {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    return (...args: A) => {
+    const debounced = ((...args: A) => {
         if (timeoutId !== null) {
             clearTimeout(timeoutId);
         }
@@ -14,5 +19,14 @@ export function debounce<A extends unknown[], R>(func: (...args: A) => R, wait: 
             timeoutId = null;
             func(...args);
         }, wait);
+    }) as DebouncedFunction<A>;
+
+    debounced.cancel = () => {
+        if (timeoutId !== null) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
     };
+
+    return debounced;
 }
