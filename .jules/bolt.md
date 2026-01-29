@@ -1,0 +1,3 @@
+## 2026-01-29 - Debouncing Event Listeners in React Hooks
+**Learning:** When using debounced functions as event listeners in `useEffect` (specifically for Chrome APIs), simply wrapping the function is insufficient if the cleanup logic isn't handled. The debounced function continues to hold a reference and might fire after component unmount.
+**Action:** Always use a debounce utility that exposes a `.cancel()` method, and explicitly call it in the `useEffect` cleanup function. Additionally, ensure the debounced function's type signature explicitly matches the event listener's expected signature (e.g., `(...args: unknown[]) => void`) to avoid TypeScript errors.
