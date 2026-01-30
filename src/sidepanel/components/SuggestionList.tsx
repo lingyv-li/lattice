@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect, useCallback } from 'react';
 import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
 import { SuggestionItem } from './SuggestionItem';
-import { SuggestionType } from '../../types/suggestions';
+import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface UnifiedSuggestion {
     id: string;
@@ -12,7 +12,7 @@ interface UnifiedSuggestion {
     description: string;
     icon: LucideIcon;
     onClick: () => Promise<void>;
-    tabs: chrome.tabs.Tab[];
+    tabs: SuggestionTab[];
 }
 
 export const SuggestionList: React.FC = () => {
@@ -21,15 +21,13 @@ export const SuggestionList: React.FC = () => {
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
 
-    const handleAction = async (id: string, action: () => Promise<void>) => {
-        if (processingId || isAcceptingAll) return;
-        setProcessingId(id);
-        try {
-            await action();
-        } finally {
-            setProcessingId(null);
-        }
-    };
+    // Refs for stable callbacks
+    const suggestionsRef = useRef<UnifiedSuggestion[]>([]);
+    const processingRef = useRef({ processingId, isAcceptingAll });
+
+    useEffect(() => {
+        processingRef.current = { processingId, isAcceptingAll };
+    }, [processingId, isAcceptingAll]);
 
     // Build suggestions from Action[] (group + deduplicate) from background/UI
     const suggestions = useMemo(() => {
@@ -38,7 +36,15 @@ export const SuggestionList: React.FC = () => {
         groupActions.forEach((action, index) => {
             if (action.type !== 'group') return;
             const tabCount = action.tabIds.length;
-            const groupTabs = action.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
+            const groupTabs = action.tabIds
+                .map(tid => snapshot?.getTabData(tid))
+                .filter((t): t is chrome.tabs.Tab => !!t)
+                .map(t => ({
+                    title: t.title,
+                    url: t.url,
+                    favIconUrl: t.favIconUrl
+                }));
+
             list.push({
                 id: `group-${index}-${action.groupName}`,
                 type: SuggestionType.Group,
@@ -55,7 +61,11 @@ export const SuggestionList: React.FC = () => {
             const tabs = duplicateGroups.get(action.url);
             if (!tabs || tabs.length < 2) return;
             const countToRemove = tabs.length - 1;
-            const duplicateTabs = tabs.slice(1);
+            const duplicateTabs = tabs.slice(1).map(t => ({
+                title: t.title,
+                url: t.url,
+                favIconUrl: t.favIconUrl
+            }));
             const displayTitle = tabs[0].title || new URL(action.url).hostname;
             list.push({
                 id: `dedup-${action.url}`,
@@ -70,6 +80,26 @@ export const SuggestionList: React.FC = () => {
 
         return list;
     }, [groupActions, dedupeActions, duplicateGroups, snapshot, applyGroup, closeDuplicateGroup]);
+
+    // Update ref when suggestions change
+    useEffect(() => {
+        suggestionsRef.current = suggestions;
+    }, [suggestions]);
+
+    // Stable handler for item actions
+    const handleItemAction = useCallback(async (id: string) => {
+        if (processingRef.current.processingId || processingRef.current.isAcceptingAll) return;
+
+        const item = suggestionsRef.current.find(s => s.id === id);
+        if (!item) return;
+
+        setProcessingId(id);
+        try {
+            await item.onClick();
+        } finally {
+            setProcessingId(null);
+        }
+    }, []);
 
     const handleAcceptAll = async () => {
         setIsAcceptingAll(true);
@@ -133,18 +163,15 @@ export const SuggestionList: React.FC = () => {
             {suggestions.map(item => (
                 <SuggestionItem
                     key={item.id}
+                    id={item.id}
                     title={item.title}
                     description={item.description}
                     icon={item.icon}
                     type={item.type}
-                    onClick={() => handleAction(item.id, item.onClick)}
+                    onAction={handleItemAction}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({
-                        title: t.title,
-                        url: t.url,
-                        favIconUrl: t.favIconUrl
-                    }))}
+                    tabs={item.tabs}
                 />
             ))}
         </div>

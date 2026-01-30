@@ -6,11 +6,12 @@ import { Sparkles } from 'lucide-react';
 
 describe('SuggestionItem', () => {
     const defaultProps = {
+        id: 'test-id',
         title: 'Test Suggestion',
         description: 'Test Description',
         icon: Sparkles,
         type: SuggestionType.Group,
-        onClick: vi.fn(),
+        onAction: vi.fn(),
         tabs: [
             {
                 title: 'Tab 1',
@@ -43,7 +44,7 @@ describe('SuggestionItem', () => {
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
         fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
-        expect(defaultProps.onClick).toHaveBeenCalled();
+        expect(defaultProps.onAction).toHaveBeenCalledWith('test-id');
     });
 
     it('groups identical tabs visually', () => {
