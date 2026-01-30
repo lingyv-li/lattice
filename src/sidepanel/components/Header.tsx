@@ -27,7 +27,7 @@ export const Header = ({ isLoading }: HeaderProps) => {
                         type='button'
                         onClick={undoLast}
                         disabled={isUndoing}
-                        className='flex items-center justify-center p-2 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all border border-border-subtle'
+                        className='flex items-center justify-center p-2 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all border border-border-subtle focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none'
                         title='Undo last action'
                         aria-label='Undo last action'
                     >
@@ -36,8 +36,9 @@ export const Header = ({ isLoading }: HeaderProps) => {
                 )}
                 <button
                     onClick={() => chrome.runtime.openOptionsPage()}
-                    className='flex items-center gap-2 p-2 px-3 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer'
+                    className='flex items-center gap-2 p-2 px-3 rounded-lg text-muted hover:text-main hover:bg-surface-highlight transition-all duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none'
                     title='Options'
+                    aria-label='Options'
                 >
                     <Settings className='w-4 h-4' />
                 </button>

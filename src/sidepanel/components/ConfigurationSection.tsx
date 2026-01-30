@@ -45,7 +45,7 @@ export const ConfigurationSection: React.FC = () => {
                         type='button'
                         onClick={() => toggleFeature(id, 'enabled')}
                         className={`
-                            p-1.5 rounded-md transition-all
+                            p-1.5 rounded-md transition-all focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-1
                             ${isEnabled ? 'bg-btn-primary-bg text-btn-primary-fg hover:bg-btn-primary-hover' : 'bg-surface-dim text-muted hover:text-main'}
                         `}
                         title={isEnabled ? 'Disable Feature' : 'Enable Feature'}
@@ -60,7 +60,7 @@ export const ConfigurationSection: React.FC = () => {
                         onClick={() => toggleFeature(id, 'autopilot')}
                         disabled={!isEnabled}
                         className={`
-                            p-1.5 rounded-md transition-all border
+                            p-1.5 rounded-md transition-all border focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-1
                             ${!isEnabled ? 'opacity-30 cursor-not-allowed border-transparent' : ''}
                             ${isAutopilot && isEnabled ? 'bg-status-ai-bg text-status-ai-fg border-status-ai-fg/20' : 'bg-surface-dim text-muted hover:text-main border-transparent'}
                         `}

@@ -56,7 +56,7 @@ export const Dashboard = () => {
                 <p className='text-muted mb-8 max-w-[280px]'>To get started, we need to set up your AI preferences.</p>
                 <button
                     onClick={() => chrome.tabs.create({ url: chrome.runtime.getURL('src/welcome/index.html') })}
-                    className='w-full max-w-[280px] py-3 bg-gradient-brand text-inverted font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all'
+                    className='w-full max-w-[280px] py-3 bg-gradient-brand text-inverted font-bold rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-2'
                 >
                     Start Setup
                 </button>
