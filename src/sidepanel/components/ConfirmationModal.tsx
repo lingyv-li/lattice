@@ -35,11 +35,14 @@ export const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, descripti
                                 onConfirm();
                                 onClose();
                             }}
-                            className='w-full py-2.5 px-4 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-[0.98] rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2'
+                            className='w-full py-2.5 px-4 text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-110 active:scale-[0.98] rounded-xl shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-2'
                         >
                             <span>{confirmLabel}</span>
                         </button>
-                        <button onClick={onClose} className='w-full py-2.5 px-4 text-xs font-medium text-muted hover:text-main hover:bg-surface-highlight rounded-xl transition-colors'>
+                        <button
+                            onClick={onClose}
+                            className='w-full py-2.5 px-4 text-xs font-medium text-muted hover:text-main hover:bg-surface-highlight rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-2'
+                        >
                             Cancel
                         </button>
                     </div>

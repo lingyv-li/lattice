@@ -52,7 +52,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
             <div
                 role='button'
                 tabIndex={disabled || isLoading ? -1 : 0}
-                className='flex items-center gap-2 p-2 cursor-pointer'
+                className='flex items-center gap-2 p-2 cursor-pointer rounded-md focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none'
                 onClick={onClick}
                 onKeyDown={handleKeyDown}
                 aria-label={`${title}: ${description}. Apply suggestion.`}

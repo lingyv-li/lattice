@@ -123,7 +123,7 @@ export const SuggestionList: React.FC = () => {
                 <button
                     onClick={handleAcceptAll}
                     disabled={isAcceptingAll || processingId !== null}
-                    className='w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2'
+                    className='w-full py-2 px-4 bg-btn-primary-bg text-btn-primary-fg font-medium rounded-lg hover:bg-btn-primary-hover active:scale-95 transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-2 focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none focus-visible:ring-offset-2'
                 >
                     {isAcceptingAll ? <Loader2 className='w-4 h-4 animate-spin' /> : <Sparkles className='w-4 h-4' />}
                     <span>Accept All ({suggestions.length})</span>
