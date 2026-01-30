@@ -1,0 +1,3 @@
+## 2024-05-23 - SuggestionList Optimization
+**Learning:** React components (like `SuggestionItem`) that receive derived props (e.g. mapped arrays) from parent `useMemo` hooks will re-render even if the parent data is logically unchanged, because the derived objects are new references. This is common when the derivation logic depends on unstable context or frequently updating state (like `snapshot` updates from background events).
+**Action:** Use `React.memo` with a custom comparison function that performs deep/value equality checks on the derived props (e.g. comparing tab URLs/titles instead of array references) to strictly prevent re-renders when data content hasn't changed.
