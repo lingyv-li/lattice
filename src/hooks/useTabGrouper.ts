@@ -220,7 +220,7 @@ export const useTabGrouper = () => {
         };
     }, [currentWindowId, processSuggestionsRef]); // processSuggestions NOT a dependency - accessed via ref
 
-    const applyGroups = async () => {
+    const applyGroups = useCallback(async () => {
         if (!previewGroups) return;
         setInteractionStatus(OrganizerStatus.Applying);
         setError(null);
@@ -253,46 +253,53 @@ export const useTabGrouper = () => {
             setError(err instanceof Error ? err.message : String(err) || 'Failed to apply groups.');
             setInteractionStatus(OrganizerStatus.Idle);
         }
-    };
-    const applyGroup = async (index: number) => {
-        if (!previewGroups || !previewGroups[index]) return;
-        setInteractionStatus(OrganizerStatus.Applying);
-        setError(null);
+    }, [previewGroups, selectedPreviewIndices, snapshot]);
 
-        try {
-            const currentWindow = await chrome.windows.getCurrent();
-            const group = previewGroups[index];
+    const applyGroup = useCallback(
+        async (index: number) => {
+            if (!previewGroups || !previewGroups[index]) return;
+            setInteractionStatus(OrganizerStatus.Applying);
+            setError(null);
 
-            if (group.tabIds.length > 0) {
-                const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
+            try {
+                const currentWindow = await chrome.windows.getCurrent();
+                const group = previewGroups[index];
 
-                if (validTabIds.length > 0) {
-                    await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
-                    await StateService.pushGroupAction({
-                        windowId: currentWindow.id!,
-                        tabIds: validTabIds,
-                        groupName: group.groupName,
-                        existingGroupId: group.existingGroupId
-                    });
+                if (group.tabIds.length > 0) {
+                    const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
+
+                    if (validTabIds.length > 0) {
+                        await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
+                        await StateService.pushGroupAction({
+                            windowId: currentWindow.id!,
+                            tabIds: validTabIds,
+                            groupName: group.groupName,
+                            existingGroupId: group.existingGroupId
+                        });
+                    }
                 }
+                setInteractionStatus(OrganizerStatus.Success);
+                // We rely on background update to refresh suggestions
+                setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 1000);
+            } catch (err: unknown) {
+                setError(err instanceof Error ? err.message : String(err) || 'Failed to apply group.');
+                setInteractionStatus(OrganizerStatus.Idle);
             }
-            setInteractionStatus(OrganizerStatus.Success);
-            // We rely on background update to refresh suggestions
-            setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 1000);
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err) || 'Failed to apply group.');
-            setInteractionStatus(OrganizerStatus.Idle);
-        }
-    };
-    const toggleGroupSelection = (idx: number) => {
-        const newSet = new Set(selectedPreviewIndices);
-        if (newSet.has(idx)) {
-            newSet.delete(idx);
-        } else {
-            newSet.add(idx);
-        }
-        setSelectedPreviewIndices(newSet);
-    };
+        },
+        [previewGroups, snapshot]
+    );
+
+    const toggleGroupSelection = useCallback((idx: number) => {
+        setSelectedPreviewIndices(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(idx)) {
+                newSet.delete(idx);
+            } else {
+                newSet.add(idx);
+            }
+            return newSet;
+        });
+    }, []);
 
     const regenerateSuggestions = useCallback(() => {
         if (!portRef.current || !currentWindowId) return;
@@ -315,14 +322,17 @@ export const useTabGrouper = () => {
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
-    const setAllGroupsSelected = (selected: boolean) => {
-        if (!previewGroups) return;
-        if (selected) {
-            setSelectedPreviewIndices(new Set(previewGroups.map((_, i) => i)));
-        } else {
-            setSelectedPreviewIndices(new Set());
-        }
-    };
+    const setAllGroupsSelected = useCallback(
+        (selected: boolean) => {
+            if (!previewGroups) return;
+            if (selected) {
+                setSelectedPreviewIndices(new Set(previewGroups.map((_, i) => i)));
+            } else {
+                setSelectedPreviewIndices(new Set());
+            }
+        },
+        [previewGroups]
+    );
 
     // Suggestions from background (cache) as Action[] for UI
     const suggestionActions: Action[] = useMemo(() => {

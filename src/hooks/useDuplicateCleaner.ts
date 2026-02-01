@@ -42,7 +42,7 @@ export const useDuplicateCleaner = () => {
         };
     }, [scanDuplicates]);
 
-    const closeDuplicates = async () => {
+    const closeDuplicates = useCallback(async () => {
         setStatus(OrganizerStatus.Applying);
         try {
             const result = await DuplicateCloser.closeDuplicates();
@@ -61,34 +61,37 @@ export const useDuplicateCleaner = () => {
             setStatus(OrganizerStatus.Error);
             setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
         }
-    };
+    }, []);
 
-    const closeDuplicateGroup = async (url: string) => {
-        const group = duplicateGroups.get(url);
-        if (!group) return;
+    const closeDuplicateGroup = useCallback(
+        async (url: string) => {
+            const group = duplicateGroups.get(url);
+            if (!group) return;
 
-        setStatus(OrganizerStatus.Applying);
-        try {
-            const singleMap = new Map([[url, group]]);
-            const tabsToRemove = getTabsToRemove(singleMap);
-            const duplicateTabs = group.slice(1);
+            setStatus(OrganizerStatus.Applying);
+            try {
+                const singleMap = new Map([[url, group]]);
+                const tabsToRemove = getTabsToRemove(singleMap);
+                const duplicateTabs = group.slice(1);
 
-            if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
-                await chrome.tabs.remove(tabsToRemove);
-                const windowId = duplicateTabs[0]?.windowId;
-                const urls = duplicateTabs.map(t => t.url).filter((u): u is string => !!u);
-                if (windowId !== undefined && urls.length > 0) {
-                    await StateService.pushDeduplicateAction({ windowId, url, urls });
+                if (tabsToRemove.length > 0 && duplicateTabs.length > 0) {
+                    await chrome.tabs.remove(tabsToRemove);
+                    const windowId = duplicateTabs[0]?.windowId;
+                    const urls = duplicateTabs.map(t => t.url).filter((u): u is string => !!u);
+                    if (windowId !== undefined && urls.length > 0) {
+                        await StateService.pushDeduplicateAction({ windowId, url, urls });
+                    }
+                    setStatus(OrganizerStatus.Success);
                 }
-                setStatus(OrganizerStatus.Success);
+                setTimeout(() => setStatus(OrganizerStatus.Idle), 1000);
+            } catch (err) {
+                console.error('Failed to clean duplicate group:', err);
+                setStatus(OrganizerStatus.Error);
+                setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
             }
-            setTimeout(() => setStatus(OrganizerStatus.Idle), 1000);
-        } catch (err) {
-            console.error('Failed to clean duplicate group:', err);
-            setStatus(OrganizerStatus.Error);
-            setTimeout(() => setStatus(OrganizerStatus.Idle), 3000);
-        }
-    };
+        },
+        [duplicateGroups]
+    );
 
     // Suggestions as Action[] for UI (deduplicate type)
     const suggestionActions: Action[] = useMemo(() => {
