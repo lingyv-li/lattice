@@ -83,4 +83,15 @@ describe('debounce', () => {
         await vi.advanceTimersByTimeAsync(100);
         expect(fn).toHaveBeenCalledTimes(2);
     });
+
+    it('should cancel the pending execution', async () => {
+        const fn = vi.fn();
+        const debounced = debounce(fn, 100);
+
+        debounced();
+        debounced.cancel();
+
+        await vi.advanceTimersByTimeAsync(100);
+        expect(fn).not.toHaveBeenCalled();
+    });
 });
