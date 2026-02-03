@@ -3,17 +3,18 @@ import { LucideIcon, ArrowRight, Loader2 } from 'lucide-react';
 import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface SuggestionItemProps {
+    id: string;
     title: string;
     description: string;
     icon: LucideIcon;
     type: SuggestionType;
-    onClick: () => void;
+    onAction: (id: string) => void;
     isLoading?: boolean;
     disabled?: boolean;
     tabs?: SuggestionTab[];
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, description, icon: Icon, type, onClick, isLoading, disabled, tabs }) => {
+const SuggestionItemComponent: React.FC<SuggestionItemProps> = ({ id, title, description, icon: Icon, type, onAction, isLoading, disabled, tabs }) => {
     // Aggregate identical tabs
     const groupedTabs = React.useMemo(() => {
         if (!tabs) return [];
@@ -36,7 +37,13 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            if (!disabled && !isLoading) onClick();
+            if (!disabled && !isLoading) onAction(id);
+        }
+    };
+
+    const handleClick = () => {
+        if (!disabled && !isLoading) {
+            onAction(id);
         }
     };
 
@@ -53,7 +60,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
                 role='button'
                 tabIndex={disabled || isLoading ? -1 : 0}
                 className='flex items-center gap-2 p-2 cursor-pointer'
-                onClick={onClick}
+                onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 aria-label={`${title}: ${description}. Apply suggestion.`}
             >
@@ -104,3 +111,5 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         </div>
     );
 };
+
+export const SuggestionItem = React.memo(SuggestionItemComponent);
