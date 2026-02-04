@@ -3,7 +3,7 @@ import { Group, Trash2, Sparkles, Loader2, LucideIcon } from 'lucide-react';
 import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
 import { SuggestionItem } from './SuggestionItem';
-import { SuggestionType } from '../../types/suggestions';
+import { SuggestionType, SuggestionTab } from '../../types/suggestions';
 
 interface UnifiedSuggestion {
     id: string;
@@ -12,7 +12,7 @@ interface UnifiedSuggestion {
     description: string;
     icon: LucideIcon;
     onClick: () => Promise<void>;
-    tabs: chrome.tabs.Tab[];
+    tabs: SuggestionTab[];
 }
 
 export const SuggestionList: React.FC = () => {
@@ -38,7 +38,18 @@ export const SuggestionList: React.FC = () => {
         groupActions.forEach((action, index) => {
             if (action.type !== 'group') return;
             const tabCount = action.tabIds.length;
-            const groupTabs = action.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
+            const groupTabs = action.tabIds.reduce<SuggestionTab[]>((acc, tid) => {
+                const tab = snapshot?.getTabData(tid);
+                if (tab) {
+                    acc.push({
+                        title: tab.title,
+                        url: tab.url,
+                        favIconUrl: tab.favIconUrl
+                    });
+                }
+                return acc;
+            }, []);
+
             list.push({
                 id: `group-${index}-${action.groupName}`,
                 type: SuggestionType.Group,
@@ -55,7 +66,11 @@ export const SuggestionList: React.FC = () => {
             const tabs = duplicateGroups.get(action.url);
             if (!tabs || tabs.length < 2) return;
             const countToRemove = tabs.length - 1;
-            const duplicateTabs = tabs.slice(1);
+            const duplicateTabs = tabs.slice(1).map(t => ({
+                title: t.title,
+                url: t.url,
+                favIconUrl: t.favIconUrl
+            }));
             const displayTitle = tabs[0].title || new URL(action.url).hostname;
             list.push({
                 id: `dedup-${action.url}`,
@@ -140,11 +155,7 @@ export const SuggestionList: React.FC = () => {
                     onClick={() => handleAction(item.id, item.onClick)}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({
-                        title: t.title,
-                        url: t.url,
-                        favIconUrl: t.favIconUrl
-                    }))}
+                    tabs={item.tabs}
                 />
             ))}
         </div>
