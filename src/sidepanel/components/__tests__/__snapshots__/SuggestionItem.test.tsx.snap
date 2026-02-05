@@ -2,18 +2,18 @@
 
 exports[`SuggestionItem > renders correctly 1`] = `
 <DocumentFragment>
-  <div
+  <button
+    aria-label="Test Suggestion: Test Description. Apply suggestion."
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+    type="button"
   >
     <div
-      aria-label="Test Suggestion: Test Description. Apply suggestion."
-      class="flex items-center gap-2 p-2 cursor-pointer"
-      role="button"
-      tabindex="0"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -130,24 +130,25 @@ exports[`SuggestionItem > renders correctly 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;
 
 exports[`SuggestionItem > renders disabled state 1`] = `
 <DocumentFragment>
-  <div
+  <button
+    aria-label="Test Suggestion: Test Description. Apply suggestion."
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
-            opacity-50 pointer-events-none
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
+            opacity-50 cursor-not-allowed
         "
+    disabled=""
+    type="button"
   >
     <div
-      aria-label="Test Suggestion: Test Description. Apply suggestion."
-      class="flex items-center gap-2 p-2 cursor-pointer"
-      role="button"
-      tabindex="-1"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -264,24 +265,25 @@ exports[`SuggestionItem > renders disabled state 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;
 
 exports[`SuggestionItem > renders loading state 1`] = `
 <DocumentFragment>
-  <div
+  <button
+    aria-label="Test Suggestion: Test Description. Apply suggestion."
     class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+    disabled=""
+    type="button"
   >
     <div
-      aria-label="Test Suggestion: Test Description. Apply suggestion."
-      class="flex items-center gap-2 p-2 cursor-pointer"
-      role="button"
-      tabindex="-1"
+      class="flex items-center gap-2 p-2"
     >
       <div
         class="
@@ -367,6 +369,6 @@ exports[`SuggestionItem > renders loading state 1`] = `
         </span>
       </div>
     </div>
-  </div>
+  </button>
 </DocumentFragment>
 `;

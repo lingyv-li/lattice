@@ -33,30 +33,21 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         return Array.from(groups.values());
     }, [tabs]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (!disabled && !isLoading) onClick();
-        }
-    };
-
     return (
-        <div
+        <button
+            type='button'
+            disabled={disabled || isLoading}
+            onClick={onClick}
+            aria-label={`${title}: ${description}. Apply suggestion.`}
             className={`
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
-            ${disabled ? 'opacity-50 pointer-events-none' : 'hover:border-action hover:bg-surface-highlight border-border-subtle'}
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
+            ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-action hover:bg-surface-highlight border-border-subtle'}
         `}
         >
             {/* Header / Action Area */}
-            <div
-                role='button'
-                tabIndex={disabled || isLoading ? -1 : 0}
-                className='flex items-center gap-2 p-2 cursor-pointer'
-                onClick={onClick}
-                onKeyDown={handleKeyDown}
-                aria-label={`${title}: ${description}. Apply suggestion.`}
-            >
+            <div className='flex items-center gap-2 p-2'>
                 <div
                     className={`
                     p-1.5 rounded-md shrink-0
@@ -101,6 +92,6 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
                     ))}
                 </div>
             )}
-        </div>
+        </button>
     );
 };

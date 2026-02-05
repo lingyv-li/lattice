@@ -5,18 +5,18 @@ exports[`SuggestionList > renders duplicate suggestions 1`] = `
   <div
     class="flex flex-col gap-2 p-3"
   >
-    <div
+    <button
+      aria-label="Clean "Original": Close 1 duplicate tab. Apply suggestion."
       class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+      type="button"
     >
       <div
-        aria-label="Clean "Original": Close 1 duplicate tab. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="flex items-center gap-2 p-2"
       >
         <div
           class="
@@ -118,7 +118,7 @@ exports[`SuggestionList > renders duplicate suggestions 1`] = `
           </span>
         </div>
       </div>
-    </div>
+    </button>
   </div>
 </DocumentFragment>
 `;
@@ -179,18 +179,18 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
   <div
     class="flex flex-col gap-2 p-3"
   >
-    <div
+    <button
+      aria-label="Group "Work": Organize 2 tabs. Apply suggestion."
       class="
-            w-full group relative overflow-hidden
+            w-full text-left cursor-pointer group relative overflow-hidden
             bg-surface border rounded-lg transition-all duration-200
+            focus-visible:ring-2 focus-visible:ring-brand-local focus-visible:outline-none
             hover:border-action hover:bg-surface-highlight border-border-subtle
         "
+      type="button"
     >
       <div
-        aria-label="Group "Work": Organize 2 tabs. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="flex items-center gap-2 p-2"
       >
         <div
           class="
@@ -315,7 +315,7 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
           </span>
         </div>
       </div>
-    </div>
+    </button>
   </div>
 </DocumentFragment>
 `;
