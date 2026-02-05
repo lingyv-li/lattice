@@ -42,8 +42,13 @@ describe('SuggestionItem', () => {
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
+        fireEvent.click(screen.getByRole('button', { name: /Test Suggestion/i }));
         expect(defaultProps.onClick).toHaveBeenCalled();
+    });
+
+    it('is disabled when disabled prop is true', () => {
+        render(<SuggestionItem {...defaultProps} disabled={true} />);
+        expect(screen.getByRole('button', { name: /Test Suggestion/i })).toBeDisabled();
     });
 
     it('groups identical tabs visually', () => {
