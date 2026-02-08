@@ -33,13 +33,6 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         return Array.from(groups.values());
     }, [tabs]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            if (!disabled && !isLoading) onClick();
-        }
-    };
-
     return (
         <div
             className={`
@@ -49,12 +42,11 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
         `}
         >
             {/* Header / Action Area */}
-            <div
-                role='button'
-                tabIndex={disabled || isLoading ? -1 : 0}
-                className='flex items-center gap-2 p-2 cursor-pointer'
+            <button
+                type='button'
+                disabled={disabled || isLoading}
+                className='w-full text-left flex items-center gap-2 p-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none'
                 onClick={onClick}
-                onKeyDown={handleKeyDown}
                 aria-label={`${title}: ${description}. Apply suggestion.`}
             >
                 <div
@@ -83,7 +75,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, descripti
                     </span>
                     {!isLoading && <ArrowRight className='w-3.5 h-3.5' />}
                 </div>
-            </div>
+            </button>
 
             {/* Tab List - Always Visible & Compact */}
             {groupedTabs.length > 0 && (
