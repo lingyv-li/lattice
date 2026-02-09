@@ -33,16 +33,18 @@ describe('SuggestionItem', () => {
     it('renders loading state', () => {
         const { asFragment } = render(<SuggestionItem {...defaultProps} isLoading={true} />);
         expect(asFragment()).toMatchSnapshot();
+        expect(screen.getByRole('button')).toBeDisabled();
     });
 
     it('renders disabled state', () => {
         const { asFragment } = render(<SuggestionItem {...defaultProps} disabled={true} />);
         expect(asFragment()).toMatchSnapshot();
+        expect(screen.getByRole('button')).toBeDisabled();
     });
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
+        fireEvent.click(screen.getByRole('button', { name: /Test Suggestion/i }));
         expect(defaultProps.onClick).toHaveBeenCalled();
     });
 
