@@ -42,8 +42,14 @@ describe('SuggestionItem', () => {
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
+        fireEvent.click(screen.getByRole('button', { name: /Test Suggestion/i }));
         expect(defaultProps.onClick).toHaveBeenCalled();
+    });
+
+    it('has accessible name', () => {
+        render(<SuggestionItem {...defaultProps} />);
+        const button = screen.getByRole('button', { name: 'Test Suggestion: Test Description. Apply suggestion.' });
+        expect(button).toBeInTheDocument();
     });
 
     it('groups identical tabs visually', () => {
