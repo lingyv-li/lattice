@@ -42,7 +42,7 @@ describe('SuggestionItem', () => {
 
     it('handles clicks', () => {
         render(<SuggestionItem {...defaultProps} />);
-        fireEvent.click(screen.getByText('Test Suggestion').closest('div')!.parentElement!);
+        fireEvent.click(screen.getByRole('button', { name: /Test Suggestion: Test Description/i }));
         expect(defaultProps.onClick).toHaveBeenCalled();
     });
 
