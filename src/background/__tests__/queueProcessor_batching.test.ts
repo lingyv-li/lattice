@@ -6,7 +6,7 @@ import { AIService } from '../../services/ai/AIService';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
-vi.mock('../../utils/storage', async (importOriginal) => {
+vi.mock('../../utils/storage', async importOriginal => {
     const actual = await importOriginal<typeof import('../../utils/storage')>();
     return { ...actual, SettingsStorage: { ...actual.SettingsStorage, get: vi.fn(), set: vi.fn(), updateFeature: vi.fn(), subscribe: vi.fn() } };
 });

@@ -12,7 +12,7 @@ import { DuplicateCloser } from '../../services/duplicates';
 // Mock dependencies
 vi.mock('../state');
 vi.mock('../processing');
-vi.mock('../../utils/storage', async (importOriginal) => {
+vi.mock('../../utils/storage', async importOriginal => {
     const actual = await importOriginal<typeof import('../../utils/storage')>();
     return {
         ...actual,

@@ -55,8 +55,7 @@ export class StateService {
 
         try {
             const data = (await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts', 'actionHistory'])) as Partial<StorageSchema>;
-            this.cache =
-                data.suggestionCache && Array.isArray(data.suggestionCache) ? buildWindowCache(data.suggestionCache) : new Map();
+            this.cache = data.suggestionCache && Array.isArray(data.suggestionCache) ? buildWindowCache(data.suggestionCache) : new Map();
 
             this.snapshots = toNumberKeyedMap(data.windowSnapshots);
 
