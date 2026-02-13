@@ -2,6 +2,10 @@ import { TabSuggestionCache } from '../types/tabGrouper';
 import { Action, ACTION_HISTORY_MAX } from '../types/suggestions';
 import { WindowSnapshot } from '../utils/snapshots';
 
+/** Converts a string-keyed record to a number-keyed Map. Handles undefined/null. */
+const toNumberKeyedMap = <V>(record: Record<string, V> | undefined | null): Map<number, V> =>
+    record ? new Map(Object.entries(record).map(([k, v]) => [Number(k), v])) : new Map();
+
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
     windowSnapshots: Record<number, string>;
@@ -53,11 +57,7 @@ export class StateService {
                 }
             }
 
-            if (data.windowSnapshots) {
-                this.snapshots = new Map(Object.entries(data.windowSnapshots).map(([k, v]) => [Number(k), v]));
-            } else {
-                this.snapshots = new Map();
-            }
+            this.snapshots = toNumberKeyedMap(data.windowSnapshots);
 
             if (data.processingWindowIds && Array.isArray(data.processingWindowIds)) {
                 this.processingWindows = new Set(data.processingWindowIds);
@@ -65,11 +65,7 @@ export class StateService {
                 this.processingWindows = new Set();
             }
 
-            if (data.duplicateCounts) {
-                this.duplicateCounts = new Map(Object.entries(data.duplicateCounts).map(([k, v]) => [Number(k), v]));
-            } else {
-                this.duplicateCounts = new Map();
-            }
+            this.duplicateCounts = toNumberKeyedMap(data.duplicateCounts);
 
             this.actionHistory = Array.isArray(data.actionHistory) ? data.actionHistory : [];
 
@@ -410,8 +406,7 @@ export class StateService {
             }
 
             if (changes.windowSnapshots?.newValue) {
-                const rawData = changes.windowSnapshots.newValue as Record<number, string>;
-                this.snapshots = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
+                this.snapshots = toNumberKeyedMap(changes.windowSnapshots.newValue as Record<string, string>);
                 this.isHydrated = true;
             }
 
@@ -432,10 +427,10 @@ export class StateService {
             }
 
             if (changes.duplicateCounts?.newValue) {
-                const rawData = changes.duplicateCounts.newValue as Record<number, number>;
-                const oldRawData = (changes.duplicateCounts.oldValue as Record<number, number>) || {};
+                const rawData = changes.duplicateCounts.newValue as Record<string, number>;
+                const oldRawData = (changes.duplicateCounts.oldValue as Record<string, number>) || {};
 
-                this.duplicateCounts = new Map(Object.entries(rawData).map(([k, v]) => [Number(k), v]));
+                this.duplicateCounts = toNumberKeyedMap(rawData);
                 this.isHydrated = true;
 
                 if (rawData[windowId] !== oldRawData[windowId]) {

@@ -1,6 +1,6 @@
 import { AIProvider, GroupingRequest, SuggestionResult, GroupContext } from './types';
 import { TabGroupSuggestion } from '../../types/tabGrouper';
-import { handleAssignment, cleanAndParseJson, constructSystemPrompt } from './shared';
+import { handleAssignment, cleanAndParseJson, constructSystemPrompt, formatGroupActivityLabel } from './shared';
 import { sanitizeUrl } from './sanitization';
 import { AbortError } from '../../utils/AppError';
 
@@ -26,29 +26,11 @@ export abstract class BaseProvider implements AIProvider {
     protected constructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
         const sortedGroups = Array.from(groups.entries())
             .filter(([name]) => name.trim().length > 0)
-            // Sort by recency (newest first)
             .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
 
         if (sortedGroups.length === 0) return '';
 
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-        const now = Date.now();
-
-        const groupLines = sortedGroups.map(([name, context]) => {
-            let label = '';
-            if (context.lastActive) {
-                const diff = now - context.lastActive;
-                if (diff > 7 * ONE_DAY_MS) {
-                    label = ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
-                } else if (diff > ONE_DAY_MS) {
-                    label = ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
-                } else {
-                    label = ` (Active today)`;
-                }
-            }
-            return `- "${name}"${label}`;
-        });
-
+        const groupLines = sortedGroups.map(([name, context]) => `- "${name}"${formatGroupActivityLabel(context.lastActive)}`);
         return '<existing_groups>\n' + groupLines.join('\n') + '\n</existing_groups>';
     }
 
@@ -81,24 +63,21 @@ export abstract class BaseProvider implements AIProvider {
                 const responseText = await this.promptAI(userPrompt, systemPrompt, signal);
                 console.log(`[${this.id}] [${new Date().toISOString()}] Parsing AI response (Attempt ${attempt}/${MAX_RETRIES})`);
                 const parsed = cleanAndParseJson(responseText);
+                const validTabIds = new Set(ungroupedTabs.map(t => t.id).filter((id): id is number => id !== undefined));
+
+                const isValidTab = (id: unknown) => validTabIds.has(Number(id));
 
                 if (Array.isArray(parsed)) {
                     for (const assignment of parsed) {
                         const { tabId, groupName } = assignment;
-                        // Verify tabId exists in the requested tabs
-                        if (!ungroupedTabs.find(t => t.id === tabId)) continue;
-
-                        nextNewGroupId = handleAssignment(groupName, tabId, groupNameMap, suggestions, nextNewGroupId);
+                        if (!isValidTab(tabId)) continue;
+                        nextNewGroupId = handleAssignment(groupName, Number(tabId), groupNameMap, suggestions, nextNewGroupId);
                     }
                 } else if (typeof parsed === 'object' && parsed !== null) {
-                    // Dictionary format: { "Group Name": [1, 2, 3] }
                     for (const [groupName, tabIds] of Object.entries(parsed)) {
                         if (Array.isArray(tabIds)) {
                             for (const tabId of tabIds) {
-                                // Verify tabId exists in the requested tabs
-                                // weak comparison for safety (json might map numbers as strings sometimes? unlikely but safe)
-                                if (!ungroupedTabs.find(t => t.id == tabId)) continue;
-
+                                if (!isValidTab(tabId)) continue;
                                 nextNewGroupId = handleAssignment(groupName, Number(tabId), groupNameMap, suggestions, nextNewGroupId);
                             }
                         }

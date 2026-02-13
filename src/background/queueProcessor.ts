@@ -3,7 +3,7 @@ import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
 import { SettingsStorage, AppSettings, AIProviderType } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
-import { applyTabGroup } from '../utils/tabs';
+import { applyTabGroup, getTabIds } from '../utils/tabs';
 import { AbortError } from '../utils/AppError';
 import { getUserFriendlyError } from '../utils/errors';
 import { FeatureId } from '../types/features';
@@ -176,7 +176,7 @@ export class QueueProcessor {
 
             // Register processing context for smart aborts
             this.processingContext.set(windowId, {
-                batchTabIds: batchTabs.map(t => t.id!).filter(id => id !== undefined),
+                batchTabIds: getTabIds(batchTabs),
                 snapshot: windowState.inputSnapshot,
                 controller
             });
@@ -222,18 +222,8 @@ export class QueueProcessor {
             // Final safety check: Check for fatal changes one last time before applying
             // This covers the gap between the last re-queue check and now.
             const finalSnapshot = await WindowSnapshot.fetch(windowId);
-            if (
-                windowState.inputSnapshot.isFatalChange(
-                    finalSnapshot,
-                    batchTabs.map(t => t.id!).filter(id => id !== undefined)
-                )
-            ) {
-                console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected immediately before applying. Skipping batch.`);
-                return { aborted: false }; // Not strictly aborted, just skipped this batch. Window loop continues? Or should we return aborted?
-                // If we return aborted=false, the loop continues to final cleanup. But state changed.
-                // Probably safer to return aborted=true to force re-evaluation of the whole window.
-
-                // Re-fetch fresh snapshot (finalSnapshot already fetched above, use it)
+            if (windowState.inputSnapshot.isFatalChange(finalSnapshot, getTabIds(batchTabs))) {
+                console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected immediately before applying. Re-queuing.`);
                 await this.state.enqueue(windowId, finalSnapshot, true);
                 return { aborted: true };
             }

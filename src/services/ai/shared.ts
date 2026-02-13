@@ -147,6 +147,16 @@ export const constructSystemPrompt = (customRules: string = '', useReasoning: bo
     return parts.join('\n\n');
 };
 
+/** Formats recency label for a group based on lastActive timestamp. */
+export const formatGroupActivityLabel = (lastActive?: number): string => {
+    if (!lastActive) return '';
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const diff = Date.now() - lastActive;
+    if (diff > 7 * ONE_DAY_MS) return ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
+    if (diff > ONE_DAY_MS) return ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
+    return ' (Active today)';
+};
+
 export const mapExistingGroups = (groups: { id: number; title?: string }[]): Map<string, number> => {
     const map = new Map<string, number>();
     for (const group of groups) {
