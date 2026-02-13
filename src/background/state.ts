@@ -3,8 +3,7 @@ import { Action, ACTION_HISTORY_MAX } from '../types/suggestions';
 import { WindowSnapshot } from '../utils/snapshots';
 
 /** Converts a string-keyed record to a number-keyed Map. Handles undefined/null. */
-const toNumberKeyedMap = <V>(record: Record<string, V> | undefined | null): Map<number, V> =>
-    record ? new Map(Object.entries(record).map(([k, v]) => [Number(k), v])) : new Map();
+const toNumberKeyedMap = <V>(record: Record<string, V> | undefined | null): Map<number, V> => (record ? new Map(Object.entries(record).map(([k, v]) => [Number(k), v])) : new Map());
 
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];

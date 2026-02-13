@@ -1,6 +1,5 @@
 /** Extracts defined tab IDs from an array of tabs. */
-export const getTabIds = (tabs: chrome.tabs.Tab[]): number[] =>
-    tabs.map(t => t.id).filter((id): id is number => id !== undefined);
+export const getTabIds = (tabs: chrome.tabs.Tab[]): number[] => tabs.map(t => t.id).filter((id): id is number => id !== undefined);
 
 /**
  * Applies a tab group suggestion to a set of tabs.
@@ -32,6 +31,15 @@ export const applyTabGroup = async (tabIds: number[], groupName: string, existin
     // After the length check, we know validTabIds is non-empty
     const tabIdsToGroup = validTabIds as [number, ...number[]];
 
+    const createNewGroup = async (): Promise<number> => {
+        const groupId = await chrome.tabs.group({
+            tabIds: tabIdsToGroup,
+            createProperties: { windowId }
+        });
+        await chrome.tabGroups.update(groupId, { title: groupName });
+        return groupId;
+    };
+
     if (existingGroupId && existingGroupId > 0) {
         try {
             // Try to add to existing group
@@ -44,24 +52,12 @@ export const applyTabGroup = async (tabIds: number[], groupName: string, existin
             // Check for specific error message regarding missing group
             const message = e instanceof Error ? e.message : String(e);
             if (message.includes('No group with id')) {
-                // Fallback: Create a new group in the specified window
-                const groupId = await chrome.tabs.group({
-                    tabIds: tabIdsToGroup,
-                    createProperties: { windowId }
-                });
-                await chrome.tabGroups.update(groupId, { title: groupName });
-                return groupId;
+                return createNewGroup();
             } else {
                 throw e; // Rethrow other errors
             }
         }
     } else {
-        // Create new group in the specified window
-        const groupId = await chrome.tabs.group({
-            tabIds: tabIdsToGroup,
-            createProperties: { windowId }
-        });
-        await chrome.tabGroups.update(groupId, { title: groupName });
-        return groupId;
+        return createNewGroup();
     }
 };

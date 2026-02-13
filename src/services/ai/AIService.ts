@@ -27,24 +27,14 @@ export class AIService {
 
         const models: ModelInfo[] = [];
         const modelRegex = /^(models\/)?(gemini|gemma)/;
+        const SPECIALIZED_KEYWORDS = ['image', 'audio', 'speech', 'tts', 'robotics', 'computer'];
 
         for await (const model of modelList) {
             if (model.name && modelRegex.test(model.name) && model.supportedActions?.includes('generateContent')) {
                 const id = model.name.replace('models/', '');
                 const displayName = model.displayName || id;
-
-                const isSpecialized =
-                    id.includes('image') ||
-                    id.includes('audio') ||
-                    id.includes('speech') ||
-                    id.includes('tts') ||
-                    id.includes('robotics') ||
-                    id.includes('computer') ||
-                    displayName.toLowerCase().includes('image') ||
-                    displayName.toLowerCase().includes('audio') ||
-                    displayName.toLowerCase().includes('tts') ||
-                    displayName.toLowerCase().includes('robotics') ||
-                    displayName.toLowerCase().includes('computer');
+                const displayNameLower = displayName.toLowerCase();
+                const isSpecialized = SPECIALIZED_KEYWORDS.some(kw => id.includes(kw) || displayNameLower.includes(kw));
 
                 const isLatestOrPreview = id.includes('latest') || id.includes('preview') || id.includes('it');
 

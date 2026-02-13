@@ -1,37 +1,19 @@
 import { BaseProvider } from './BaseProvider';
-import { GroupContext } from './types';
 import { GoogleGenAI } from '@google/genai';
 import { AIProviderError, ConfigurationError, AbortError } from '../../utils/AppError';
-import { sanitizeUrl } from './sanitization';
-import { formatGroupActivityLabel } from './shared';
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
+
+    protected override get includesGroupTabs(): boolean {
+        return true;
+    }
 
     constructor(
         private apiKey: string,
         private model: string
     ) {
         super();
-    }
-
-    protected constructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
-        const sortedGroups = Array.from(groups.entries())
-            .filter(([name]) => name.trim().length > 0)
-            .sort(([, a], [, b]) => (b.lastActive || 0) - (a.lastActive || 0));
-
-        if (sortedGroups.length === 0) return '';
-
-        let prompt = '<existing_groups>\n';
-        for (const [name, context] of sortedGroups) {
-            prompt += `- "${name}"${formatGroupActivityLabel(context.lastActive)}`;
-            if (context?.tabs?.length) {
-                prompt += '\n' + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
-            }
-            prompt += '\n';
-        }
-        prompt += '</existing_groups>';
-        return prompt;
     }
 
     protected async promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal): Promise<string> {
@@ -54,6 +36,9 @@ export class GeminiProvider extends BaseProvider {
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Sending request to ${this.model}${isGemma ? ' (Gemma mode)' : ''}`);
 
+        // Fail fast if already aborted before issuing the network request
+        if (signal.aborted) throw new AbortError('Request aborted');
+
         // Handle abort signal manually since Google GenAI SDK doesn't directly support it
         const requestPromise = client.models.generateContent({
             model: this.model,
@@ -66,20 +51,15 @@ export class GeminiProvider extends BaseProvider {
             ]
         });
 
-        // Race the request against the abort signal
-        const response = signal
-            ? await Promise.race([
-                  requestPromise,
-                  new Promise<never>((_, reject) => {
-                      if (signal.aborted) {
-                          reject(new AbortError('Request aborted'));
-                      }
-                      signal.addEventListener('abort', () => {
-                          reject(new AbortError('Request aborted'));
-                      });
-                  })
-              ])
-            : await requestPromise;
+        // Race the request against the abort signal.
+        // { once: true } ensures the listener is auto-removed after it fires,
+        // preventing a memory leak when the request completes before abort.
+        const response = await Promise.race([
+            requestPromise,
+            new Promise<never>((_, reject) => {
+                signal.addEventListener('abort', () => reject(new AbortError('Request aborted')), { once: true });
+            })
+        ]);
 
         if (response.text) {
             console.log(`[GeminiProvider] [${new Date().toISOString()}] Response received successfully`);

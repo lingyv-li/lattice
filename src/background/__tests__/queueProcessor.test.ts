@@ -27,7 +27,7 @@ vi.mock('../../utils/errorStorage', () => ({
     }
 }));
 vi.mock('../../utils/storage');
-vi.mock('../../utils/tabs', async (importOriginal) => {
+vi.mock('../../utils/tabs', async importOriginal => {
     const actual = await importOriginal<typeof import('../../utils/tabs')>();
     return { ...actual, applyTabGroup: vi.fn() };
 });
