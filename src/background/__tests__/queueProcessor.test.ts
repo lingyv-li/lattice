@@ -27,7 +27,10 @@ vi.mock('../../utils/errorStorage', () => ({
     }
 }));
 vi.mock('../../utils/storage');
-vi.mock('../../utils/tabs');
+vi.mock('../../utils/tabs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../utils/tabs')>();
+    return { ...actual, applyTabGroup: vi.fn() };
+});
 // Mock tabFilter to avoid filtering out test tabs
 vi.mock('../../utils/tabFilter', () => ({
     isGroupableTab: vi.fn().mockReturnValue(true)

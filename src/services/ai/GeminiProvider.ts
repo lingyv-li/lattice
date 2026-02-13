@@ -3,6 +3,7 @@ import { GroupContext } from './types';
 import { GoogleGenAI } from '@google/genai';
 import { AIProviderError, ConfigurationError, AbortError } from '../../utils/AppError';
 import { sanitizeUrl } from './sanitization';
+import { formatGroupActivityLabel } from './shared';
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
@@ -21,26 +22,10 @@ export class GeminiProvider extends BaseProvider {
 
         if (sortedGroups.length === 0) return '';
 
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-        const now = Date.now();
-
         let prompt = '<existing_groups>\n';
         for (const [name, context] of sortedGroups) {
-            let label = '';
-            if (context.lastActive) {
-                const diff = now - context.lastActive;
-                if (diff > 7 * ONE_DAY_MS) {
-                    label = ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
-                } else if (diff > ONE_DAY_MS) {
-                    label = ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
-                } else {
-                    label = ` (Active today)`;
-                }
-            }
-
-            prompt += `- "${name}"${label}`;
-            if (context && context.tabs.length > 0) {
-                // Use nested list for clearer structure
+            prompt += `- "${name}"${formatGroupActivityLabel(context.lastActive)}`;
+            if (context?.tabs?.length) {
                 prompt += '\n' + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
             }
             prompt += '\n';

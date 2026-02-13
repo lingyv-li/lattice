@@ -1,3 +1,7 @@
+/** Extracts defined tab IDs from an array of tabs. */
+export const getTabIds = (tabs: chrome.tabs.Tab[]): number[] =>
+    tabs.map(t => t.id).filter((id): id is number => id !== undefined);
+
 /**
  * Applies a tab group suggestion to a set of tabs.
  * If an existingGroupId is provided, tries to add tabs to that group.
@@ -16,7 +20,7 @@ export const applyTabGroup = async (tabIds: number[], groupName: string, existin
         if (window.type !== 'normal') {
             return undefined; // Can't group tabs in non-normal windows
         }
-        windowTabIds = new Set(window.tabs?.map(t => t.id).filter((id): id is number => id !== undefined) ?? []);
+        windowTabIds = new Set(getTabIds(window.tabs ?? []));
     } catch {
         return undefined; // Window doesn't exist
     }

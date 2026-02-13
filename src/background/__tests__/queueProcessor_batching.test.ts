@@ -9,9 +9,10 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 vi.mock('../../utils/storage');
 vi.mock('../../utils/snapshots');
 vi.mock('../../services/ai/AIService');
-vi.mock('../../utils/tabs', () => ({
-    applyTabGroup: vi.fn()
-}));
+vi.mock('../../utils/tabs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../utils/tabs')>();
+    return { ...actual, applyTabGroup: vi.fn() };
+});
 vi.mock('../GroupIdManager');
 
 describe('QueueProcessor Batch Sizing', () => {
