@@ -50,19 +50,11 @@ export const cleanAndParseJson = (responseText: string): unknown => {
     } else {
         // No markdown block? Try to find the JSON structure directly
         // We favor Objects '{}' now, but keep Array '[]' support just in case
-        const firstBracket = cleanResponse.indexOf('[');
-        const firstBrace = cleanResponse.indexOf('{');
-        let start = -1;
-        if (firstBracket !== -1 && firstBrace !== -1) start = Math.min(firstBracket, firstBrace);
-        else if (firstBracket !== -1) start = firstBracket;
-        else if (firstBrace !== -1) start = firstBrace;
+        const openings = [cleanResponse.indexOf('['), cleanResponse.indexOf('{')].filter(i => i !== -1);
+        const start = openings.length > 0 ? Math.min(...openings) : -1;
+        const end = Math.max(cleanResponse.lastIndexOf(']'), cleanResponse.lastIndexOf('}'));
 
-        const lastBracket = cleanResponse.lastIndexOf(']');
-        const lastBrace = cleanResponse.lastIndexOf('}');
-        let end = -1;
-        end = Math.max(lastBracket, lastBrace);
-
-        if (start !== -1 && end !== -1 && end > start) {
+        if (start !== -1 && end > start) {
             cleanResponse = cleanResponse.substring(start, end + 1).trim();
         }
     }
@@ -151,8 +143,9 @@ export const constructSystemPrompt = (customRules: string = '', useReasoning: bo
 export const formatGroupActivityLabel = (lastActive?: number): string => {
     if (!lastActive) return '';
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+    const INACTIVE_THRESHOLD_DAYS = 7;
     const diff = Date.now() - lastActive;
-    if (diff > 7 * ONE_DAY_MS) return ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
+    if (diff > INACTIVE_THRESHOLD_DAYS * ONE_DAY_MS) return ` (Inactive ${Math.floor(diff / ONE_DAY_MS)}d)`;
     if (diff > ONE_DAY_MS) return ` (Active ${Math.floor(diff / ONE_DAY_MS)}d ago)`;
     return ' (Active today)';
 };

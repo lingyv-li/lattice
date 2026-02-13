@@ -23,6 +23,11 @@ export abstract class BaseProvider implements AIProvider {
         return constructSystemPrompt(customRules);
     }
 
+    /** Override in subclasses to include per-group tab samples in the prompt. */
+    protected get includesGroupTabs(): boolean {
+        return false;
+    }
+
     protected constructExistingGroupsPrompt(groups: Map<string, GroupContext>): string {
         const sortedGroups = Array.from(groups.entries())
             .filter(([name]) => name.trim().length > 0)
@@ -30,8 +35,16 @@ export abstract class BaseProvider implements AIProvider {
 
         if (sortedGroups.length === 0) return '';
 
-        const groupLines = sortedGroups.map(([name, context]) => `- "${name}"${formatGroupActivityLabel(context.lastActive)}`);
-        return '<existing_groups>\n' + groupLines.join('\n') + '\n</existing_groups>';
+        let prompt = '<existing_groups>\n';
+        for (const [name, context] of sortedGroups) {
+            prompt += `- "${name}"${formatGroupActivityLabel(context.lastActive)}`;
+            if (this.includesGroupTabs && context.tabs?.length) {
+                prompt += '\n' + context.tabs.map(t => `  - [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
+            }
+            prompt += '\n';
+        }
+        prompt += '</existing_groups>';
+        return prompt;
     }
 
     async generateSuggestions(request: GroupingRequest): Promise<SuggestionResult> {

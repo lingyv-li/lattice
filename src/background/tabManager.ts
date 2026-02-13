@@ -29,10 +29,18 @@ export class TabManager {
             }
         });
         chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-            await this.handleTabUpdated(tabId, changeInfo);
+            try {
+                await this.handleTabUpdated(tabId, changeInfo);
+            } catch (err) {
+                console.error(`[TabManager] Error handling tab update for tab ${tabId}:`, err);
+            }
         });
         chrome.tabs.onRemoved.addListener(async tabId => {
-            await StateService.removeSuggestion(tabId);
+            try {
+                await StateService.removeSuggestion(tabId);
+            } catch (err) {
+                console.error(`[TabManager] Error removing suggestion for tab ${tabId}:`, err);
+            }
             this.triggerRecalculation('Tab Removed');
         });
 

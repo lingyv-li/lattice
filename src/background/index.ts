@@ -26,7 +26,11 @@ const processingState = new ProcessingState();
 // ===== BROADCASTS =====
 // Update badge on data change
 StateService.subscribeGlobal(async () => {
-    await BadgeService.performBadgeUpdate(processingState);
+    try {
+        await BadgeService.performBadgeUpdate(processingState);
+    } catch (err) {
+        console.error('[Background] Failed to update badge', err);
+    }
 });
 
 // ===== LOGIC =====
@@ -38,7 +42,11 @@ const tabManager = new TabManager(processingState, queueProcessor);
 
 // 5. Active Tab Change (Update badge for new active tab)
 chrome.tabs.onActivated.addListener(async _activeInfo => {
-    await BadgeService.performBadgeUpdate(processingState);
+    try {
+        await BadgeService.performBadgeUpdate(processingState);
+    } catch (err) {
+        console.error('[Background] Failed to update badge on tab activate', err);
+    }
 });
 
 // 6. Connection

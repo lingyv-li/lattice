@@ -46,22 +46,8 @@ export class WindowSnapshot {
         const [allTabs, allGroups] = await Promise.all([chrome.tabs.query({}), chrome.tabGroups.query({})]);
 
         // 3. Partition data by windowId (only for valid windows)
-        const tabsByWindow = new Map<number, chrome.tabs.Tab[]>();
-        const groupsByWindow = new Map<number, chrome.tabGroups.TabGroup[]>();
-
-        for (const tab of allTabs) {
-            if (tab.windowId !== undefined && validWindowIds.has(tab.windowId)) {
-                if (!tabsByWindow.has(tab.windowId)) tabsByWindow.set(tab.windowId, []);
-                tabsByWindow.get(tab.windowId)!.push(tab);
-            }
-        }
-
-        for (const group of allGroups) {
-            if (group.windowId !== undefined && validWindowIds.has(group.windowId)) {
-                if (!groupsByWindow.has(group.windowId)) groupsByWindow.set(group.windowId, []);
-                groupsByWindow.get(group.windowId)!.push(group);
-            }
-        }
+        const tabsByWindow = WindowSnapshot.partitionByWindowId(allTabs, validWindowIds);
+        const groupsByWindow = WindowSnapshot.partitionByWindowId(allGroups, validWindowIds);
 
         const snapshots = new Map<number, WindowSnapshot>();
         for (const windowId of validWindowIds) {
@@ -278,6 +264,20 @@ export class WindowSnapshot {
             existingGroups: existingGroupsContext,
             customRules: customRules
         };
+    }
+
+    /**
+     * Partitions an array of items by windowId, including only those in validWindowIds.
+     */
+    private static partitionByWindowId<T extends { windowId?: number }>(items: T[], validWindowIds: Set<number>): Map<number, T[]> {
+        const result = new Map<number, T[]>();
+        for (const item of items) {
+            if (item.windowId !== undefined && validWindowIds.has(item.windowId)) {
+                if (!result.has(item.windowId)) result.set(item.windowId, []);
+                result.get(item.windowId)!.push(item);
+            }
+        }
+        return result;
     }
 
     /**
