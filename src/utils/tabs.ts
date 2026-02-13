@@ -1,6 +1,5 @@
 /** Extracts defined tab IDs from an array of tabs. */
-export const getTabIds = (tabs: chrome.tabs.Tab[]): number[] =>
-    tabs.map(t => t.id).filter((id): id is number => id !== undefined);
+export const getTabIds = (tabs: chrome.tabs.Tab[]): number[] => tabs.map(t => t.id).filter((id): id is number => id !== undefined);
 
 /**
  * Applies a tab group suggestion to a set of tabs.

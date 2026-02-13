@@ -9,7 +9,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 vi.mock('../../utils/storage');
 vi.mock('../../utils/snapshots');
 vi.mock('../../services/ai/AIService');
-vi.mock('../../utils/tabs', async (importOriginal) => {
+vi.mock('../../utils/tabs', async importOriginal => {
     const actual = await importOriginal<typeof import('../../utils/tabs')>();
     return { ...actual, applyTabGroup: vi.fn() };
 });
