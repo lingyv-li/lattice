@@ -1,12 +1,12 @@
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
-import { SettingsStorage, AppSettings, AIProviderType } from '../utils/storage';
+import { SettingsStorage, AppSettings, AIProviderType, isTabGrouperEnabled } from '../utils/storage';
+import { FeatureId } from '../types/features';
 import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup, getTabIds } from '../utils/tabs';
 import { AbortError } from '../utils/AppError';
 import { getUserFriendlyError } from '../utils/errors';
-import { FeatureId } from '../types/features';
 import { GroupIdManager } from './GroupIdManager';
 import { WindowSnapshot } from '../utils/snapshots';
 
@@ -30,13 +30,16 @@ export class QueueProcessor {
         this.state.onWindowRemoved = windowId => this.handleWindowRemoved(windowId);
     }
 
+    private cleanupWindow(windowId: number, abortController?: AbortController) {
+        if (abortController) abortController.abort();
+        this.processingContext.delete(windowId);
+        this.windowAbortControllers.delete(windowId);
+    }
+
     private handleWindowRemoved(windowId: number) {
         const context = this.processingContext.get(windowId);
         if (context) {
-            // console.log(`[QueueProcessor] Window ${windowId} removed from state (Closed?). Aborting AI request.`);
-            context.controller.abort();
-            this.processingContext.delete(windowId);
-            this.windowAbortControllers.delete(windowId);
+            this.cleanupWindow(windowId, context.controller);
         }
     }
 
@@ -55,8 +58,7 @@ export class QueueProcessor {
         // Check if the change is fatal for the CURRENT batch
         if (context.snapshot.isFatalChange(newSnapshot, context.batchTabIds)) {
             console.log(`[QueueProcessor] [${new Date().toISOString()}] Fatal change detected for window ${windowId}. Aborting AI request.`);
-            context.controller.abort();
-            this.processingContext.delete(windowId);
+            this.cleanupWindow(windowId, context.controller);
         } else {
             console.log(`[QueueProcessor] Change in window ${windowId} is benign (non-fatal). Continuing AI request.`);
         }
@@ -77,7 +79,7 @@ export class QueueProcessor {
 
         while (this.state.hasItems) {
             const settings = await SettingsStorage.get();
-            if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
+            if (!isTabGrouperEnabled(settings)) {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Tab Grouper feature is disabled, stopping.`);
                 return;
             }
@@ -140,9 +142,6 @@ export class QueueProcessor {
                     // Even if aborted, we must release the 'active' lock on this window.
                     // If it was re-queued, completeWindow handles keeping the state.
                     await this.state.completeWindow(windowId);
-
-                    // Clean up abort controller
-                    this.windowAbortControllers.delete(windowId);
                 }
             } catch (err: unknown) {
                 console.error('[QueueProcessor] Global processing error', err);
@@ -284,8 +283,7 @@ export class QueueProcessor {
                 console.log(`[QueueProcessor] Skipping AI processing: No provider configured`);
             }
         } finally {
-            this.windowAbortControllers.delete(windowId);
-            this.processingContext.delete(windowId);
+            this.cleanupWindow(windowId);
         }
 
         return { aborted: false };

@@ -12,7 +12,13 @@ import { DuplicateCloser } from '../../services/duplicates';
 // Mock dependencies
 vi.mock('../state');
 vi.mock('../processing');
-vi.mock('../../utils/storage');
+vi.mock('../../utils/storage', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../../utils/storage')>();
+    return {
+        ...actual,
+        SettingsStorage: { ...actual.SettingsStorage, get: vi.fn(), set: vi.fn(), updateFeature: vi.fn(), subscribe: vi.fn() }
+    };
+});
 vi.mock('../../utils/snapshots');
 vi.mock('../../services/duplicates', () => ({
     findDuplicates: vi.fn().mockReturnValue(new Map()),

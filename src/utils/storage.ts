@@ -48,6 +48,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
     ...DEFAULT_LOCAL_SETTINGS
 };
 
+/** Returns whether the Tab Grouper feature is enabled for the given settings. */
+export const isTabGrouperEnabled = (settings: AppSettings): boolean =>
+    (settings.features?.[FeatureId.TabGrouper]?.enabled ?? false);
+
 export type SettingsChanges = {
     [K in keyof AppSettings]?: chrome.storage.StorageChange;
 };

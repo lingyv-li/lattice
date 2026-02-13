@@ -5,6 +5,16 @@ import { WindowSnapshot } from '../utils/snapshots';
 /** Converts a string-keyed record to a number-keyed Map. Handles undefined/null. */
 const toNumberKeyedMap = <V>(record: Record<string, V> | undefined | null): Map<number, V> => (record ? new Map(Object.entries(record).map(([k, v]) => [Number(k), v])) : new Map());
 
+/** Builds the window->tab cache structure from a flat suggestion array. */
+const buildWindowCache = (suggestions: TabSuggestionCache[]): WindowCache => {
+    const cache = new Map<number, Map<number, TabSuggestionCache>>();
+    for (const s of suggestions) {
+        if (!cache.has(s.windowId)) cache.set(s.windowId, new Map());
+        cache.get(s.windowId)!.set(s.tabId, s);
+    }
+    return cache;
+};
+
 interface StorageSchema {
     suggestionCache: TabSuggestionCache[];
     windowSnapshots: Record<number, string>;
@@ -45,16 +55,8 @@ export class StateService {
 
         try {
             const data = (await chrome.storage.session.get(['suggestionCache', 'windowSnapshots', 'processingWindowIds', 'duplicateCounts', 'actionHistory'])) as Partial<StorageSchema>;
-            this.cache = new Map();
-
-            if (data.suggestionCache && Array.isArray(data.suggestionCache)) {
-                for (const s of data.suggestionCache) {
-                    if (!this.cache.has(s.windowId)) {
-                        this.cache.set(s.windowId, new Map());
-                    }
-                    this.cache.get(s.windowId)!.set(s.tabId, s);
-                }
-            }
+            this.cache =
+                data.suggestionCache && Array.isArray(data.suggestionCache) ? buildWindowCache(data.suggestionCache) : new Map();
 
             this.snapshots = toNumberKeyedMap(data.windowSnapshots);
 
@@ -393,13 +395,7 @@ export class StateService {
 
             if (changes.suggestionCache?.newValue) {
                 const rawData = changes.suggestionCache.newValue as TabSuggestionCache[];
-                this.cache = new Map();
-                for (const s of rawData) {
-                    if (!this.cache.has(s.windowId)) {
-                        this.cache.set(s.windowId, new Map());
-                    }
-                    this.cache.get(s.windowId)!.set(s.tabId, s);
-                }
+                this.cache = Array.isArray(rawData) ? buildWindowCache(rawData) : new Map();
                 this.isHydrated = true;
                 shouldNotify = true;
             }
