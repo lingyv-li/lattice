@@ -26,7 +26,10 @@ vi.mock('../../utils/errorStorage', () => ({
         clearErrors: vi.fn()
     }
 }));
-vi.mock('../../utils/storage');
+vi.mock('../../utils/storage', async importOriginal => {
+    const actual = await importOriginal<typeof import('../../utils/storage')>();
+    return { ...actual, SettingsStorage: { ...actual.SettingsStorage, get: vi.fn(), set: vi.fn(), updateFeature: vi.fn(), subscribe: vi.fn() } };
+});
 vi.mock('../../utils/tabs', async importOriginal => {
     const actual = await importOriginal<typeof import('../../utils/tabs')>();
     return { ...actual, applyTabGroup: vi.fn() };

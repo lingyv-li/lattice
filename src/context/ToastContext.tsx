@@ -1,18 +1,13 @@
 import React, { useState, useCallback, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { Toast, ToastType } from '../types/toast';
 import { ToastContext } from './ToastContextInstance';
+import { cn } from '../utils/cn';
 
 interface ToastProviderProps {
     children: ReactNode;
 }
-
-const cn = (...inputs: (string | undefined | null | false)[]) => {
-    return twMerge(clsx(inputs));
-};
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
