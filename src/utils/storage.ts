@@ -52,14 +52,6 @@ export type SettingsChanges = {
     [K in keyof AppSettings]?: chrome.storage.StorageChange;
 };
 
-/** Check if a feature is enabled. */
-export const isFeatureEnabled = (settings: AppSettings, featureId: FeatureId): boolean =>
-    settings.features?.[featureId]?.enabled ?? false;
-
-/** Check if a feature's autopilot is enabled. */
-export const isFeatureAutopilot = (settings: AppSettings, featureId: FeatureId): boolean =>
-    settings.features?.[featureId]?.autopilot ?? false;
-
 const LOCAL_KEYS: (keyof LocalSettings)[] = ['aiProvider', 'aiModel'];
 
 export const SettingsStorage = {

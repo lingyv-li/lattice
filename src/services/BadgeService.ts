@@ -1,7 +1,7 @@
 import { StateService } from '../background/state';
 import { updateWindowBadge } from '../utils/badge';
 import { ErrorStorage } from '../utils/errorStorage';
-import { AIProviderType, SettingsStorage, isFeatureEnabled } from '../utils/storage';
+import { AIProviderType, SettingsStorage } from '../utils/storage';
 import { FeatureId } from '../types/features';
 import { ProcessingState } from '../background/processing';
 
@@ -10,7 +10,7 @@ export class BadgeService {
         const settings = await SettingsStorage.get();
 
         // Check if Tab Grouper is enabled but no AI provider configured
-        if (isFeatureEnabled(settings, FeatureId.TabGrouper) && settings.aiProvider === AIProviderType.None) {
+        if (settings.features?.[FeatureId.TabGrouper]?.enabled && settings.aiProvider === AIProviderType.None) {
             // Show configuration needed badge on all windows
             const allWindows = await chrome.windows.getAll({ windowTypes: ['normal'] });
             for (const window of allWindows) {

@@ -1,7 +1,7 @@
 import { ProcessingState } from './processing';
 import { StateService } from './state';
 import { AIService } from '../services/ai/AIService';
-import { SettingsStorage, AppSettings, AIProviderType, isFeatureEnabled, isFeatureAutopilot } from '../utils/storage';
+import { SettingsStorage, AppSettings, AIProviderType } from '../utils/storage';
 import { ErrorStorage } from '../utils/errorStorage';
 import { applyTabGroup, getTabIds } from '../utils/tabs';
 import { AbortError } from '../utils/AppError';
@@ -77,7 +77,7 @@ export class QueueProcessor {
 
         while (this.state.hasItems) {
             const settings = await SettingsStorage.get();
-            if (!isFeatureEnabled(settings, FeatureId.TabGrouper)) {
+            if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
                 console.log(`[QueueProcessor] [${new Date().toISOString()}] Tab Grouper feature is disabled, stopping.`);
                 return;
             }
@@ -214,7 +214,7 @@ export class QueueProcessor {
                 }
             }
 
-            const autopilotEnabled = isFeatureAutopilot(settings, FeatureId.TabGrouper);
+            const autopilotEnabled = settings.features?.[FeatureId.TabGrouper]?.autopilot ?? false;
             const groupedTabIds = new Set<number>();
             const suggestionsToCache = [];
             const now = Date.now();

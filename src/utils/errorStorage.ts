@@ -4,7 +4,6 @@ export interface GlobalError {
 }
 
 const STORAGE_KEY = 'globalErrors';
-const MAX_ERROR_STACK = 10;
 
 type ErrorChanges = {
     [STORAGE_KEY]?: chrome.storage.StorageChange;
@@ -34,8 +33,8 @@ export const ErrorStorage = {
                 message,
                 timestamp: Date.now()
             });
-            const trimmed = errors.slice(-MAX_ERROR_STACK);
-            await chrome.storage.session.set({ [STORAGE_KEY]: trimmed });
+            // Optional: Limit stack size if needed in future
+            await chrome.storage.session.set({ [STORAGE_KEY]: errors });
         } catch (e) {
             console.error('Failed to add error to storage', e);
         }

@@ -2,7 +2,7 @@ import { StateService } from './state';
 import { WindowSnapshot } from '../utils/snapshots';
 import { ProcessingState } from './processing';
 import { QueueProcessor } from './queueProcessor';
-import { SettingsStorage, isFeatureEnabled } from '../utils/storage';
+import { SettingsStorage } from '../utils/storage';
 import { DuplicateCloser, findDuplicates, countDuplicates } from '../services/duplicates';
 import { debounce } from '../utils/debounce';
 import { FeatureId } from '../types/features';
@@ -60,7 +60,7 @@ export class TabManager {
 
     async queueAndProcess() {
         const settings = await SettingsStorage.get();
-        if (!isFeatureEnabled(settings, FeatureId.TabGrouper)) {
+        if (!settings.features?.[FeatureId.TabGrouper]?.enabled) {
             console.log('[TabManager] Tab Grouper is disabled, skipping processing');
             return;
         }
