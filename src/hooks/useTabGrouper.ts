@@ -220,6 +220,25 @@ export const useTabGrouper = () => {
         };
     }, [currentWindowId, processSuggestionsRef]); // processSuggestions NOT a dependency - accessed via ref
 
+    type PreviewGroup = NonNullable<typeof previewGroups>[number];
+    const applySingleGroup = useCallback(
+        async (group: PreviewGroup, windowId: number): Promise<boolean> => {
+            if (!group || group.tabIds.length === 0) return false;
+            const validTabIds = group.tabIds.filter((id: number) => snapshot?.hasTab(id));
+            if (validTabIds.length === 0) return false;
+
+            await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, windowId);
+            await StateService.pushGroupAction({
+                windowId,
+                tabIds: validTabIds,
+                groupName: group.groupName,
+                existingGroupId: group.existingGroupId
+            });
+            return true;
+        },
+        [snapshot]
+    );
+
     const applyGroups = async () => {
         if (!previewGroups) return;
         setInteractionStatus(OrganizerStatus.Applying);
@@ -227,23 +246,11 @@ export const useTabGrouper = () => {
 
         try {
             const currentWindow = await chrome.windows.getCurrent();
+            const windowId = currentWindow.id!;
 
             for (let i = 0; i < previewGroups.length; i++) {
-                if (!selectedPreviewIndices.has(i)) continue;
-
-                const group = previewGroups[i];
-                if (group.tabIds.length > 0) {
-                    const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
-
-                    if (validTabIds.length > 0) {
-                        await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
-                        await StateService.pushGroupAction({
-                            windowId: currentWindow.id!,
-                            tabIds: validTabIds,
-                            groupName: group.groupName,
-                            existingGroupId: group.existingGroupId
-                        });
-                    }
+                if (selectedPreviewIndices.has(i)) {
+                    await applySingleGroup(previewGroups[i]!, windowId);
                 }
             }
             setInteractionStatus(OrganizerStatus.Success);
@@ -254,6 +261,7 @@ export const useTabGrouper = () => {
             setInteractionStatus(OrganizerStatus.Idle);
         }
     };
+
     const applyGroup = async (index: number) => {
         if (!previewGroups || !previewGroups[index]) return;
         setInteractionStatus(OrganizerStatus.Applying);
@@ -261,23 +269,8 @@ export const useTabGrouper = () => {
 
         try {
             const currentWindow = await chrome.windows.getCurrent();
-            const group = previewGroups[index];
-
-            if (group.tabIds.length > 0) {
-                const validTabIds = group.tabIds.filter(id => snapshot?.hasTab(id));
-
-                if (validTabIds.length > 0) {
-                    await applyTabGroup(validTabIds, group.groupName, group.existingGroupId, currentWindow.id!);
-                    await StateService.pushGroupAction({
-                        windowId: currentWindow.id!,
-                        tabIds: validTabIds,
-                        groupName: group.groupName,
-                        existingGroupId: group.existingGroupId
-                    });
-                }
-            }
+            await applySingleGroup(previewGroups[index]!, currentWindow.id!);
             setInteractionStatus(OrganizerStatus.Success);
-            // We rely on background update to refresh suggestions
             setTimeout(() => setInteractionStatus(OrganizerStatus.Idle), 1000);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : String(err) || 'Failed to apply group.');

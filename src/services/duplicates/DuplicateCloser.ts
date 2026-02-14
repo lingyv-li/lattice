@@ -1,5 +1,5 @@
 import { findDuplicates, getTabsToRemove } from './utils';
-import { SettingsStorage } from '../../utils/storage';
+import { SettingsStorage, isFeatureAutopilot } from '../../utils/storage';
 import { FeatureId } from '../../types/features';
 import type { DeduplicateAction } from '../../types/suggestions';
 
@@ -20,7 +20,7 @@ export class DuplicateCloser {
      */
     static async isAutopilotEnabled(): Promise<boolean> {
         const settings = await SettingsStorage.get();
-        return settings.features?.[FeatureId.DuplicateCleaner]?.autopilot ?? false;
+        return isFeatureAutopilot(settings, FeatureId.DuplicateCleaner);
     }
 
     /**
