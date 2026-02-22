@@ -11,12 +11,31 @@ export class WindowSnapshot {
     protected readonly tabs: chrome.tabs.Tab[];
     protected readonly groups: chrome.tabGroups.TabGroup[];
 
+    // O(1) Lookup structures
+    private readonly allTabsMap: Map<number, chrome.tabs.Tab>;
+    private readonly ungroupedTabIds: Set<number>;
+
     protected constructor(allTabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
         this.allTabs = allTabs;
         // Keep "tabs" as only the ungrouped tabs to preserve existing behavior
         this.tabs = allTabs.filter((t: chrome.tabs.Tab) => isGroupableTab(t));
         this.groups = groups;
         this.fingerprint = WindowSnapshot.generateFingerprint(this.tabs, this.groups);
+
+        // Initialize lookup structures for O(1) access
+        this.allTabsMap = new Map();
+        for (const tab of this.allTabs) {
+            if (tab.id !== undefined) {
+                this.allTabsMap.set(tab.id, tab);
+            }
+        }
+
+        this.ungroupedTabIds = new Set();
+        for (const tab of this.tabs) {
+            if (tab.id !== undefined) {
+                this.ungroupedTabIds.add(tab.id);
+            }
+        }
     }
 
     /**
@@ -92,7 +111,7 @@ export class WindowSnapshot {
         // Check if any of the "relevant tabs" (tabs we are about to group) have been moved
         // to a group in the new snapshot.
         for (const tabId of relevantTabIds) {
-            const newTab = newSnapshot.allTabs.find(t => t.id === tabId);
+            const newTab = newSnapshot.getTabData(tabId);
 
             // If tab is missing, it was closed. This is NOT fatal (we just skip it later).
             if (!newTab) continue;
@@ -153,7 +172,7 @@ export class WindowSnapshot {
      * Checks if a tab with the given ID exists in this snapshot (Ungrouped only).
      */
     hasTab(tabId: number): boolean {
-        return this.tabs.some(t => t.id === tabId);
+        return this.ungroupedTabIds.has(tabId);
     }
 
     /**
@@ -161,7 +180,7 @@ export class WindowSnapshot {
      * Returns undefined if the tab is not found.
      */
     getTabData(tabId: number): chrome.tabs.Tab | undefined {
-        return this.allTabs.find(t => t.id === tabId);
+        return this.allTabsMap.get(tabId);
     }
 
     /**
