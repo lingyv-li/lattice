@@ -1,4 +1,4 @@
-import { AIProvider, GroupingRequest, SuggestionResult, GroupContext } from './types';
+import { AIProvider, GroupingRequest, SuggestionResult, GroupContext, TabData } from './types';
 import { TabGroupSuggestion } from '../../types/tabGrouper';
 import { handleAssignment, cleanAndParseJson, constructSystemPrompt, formatGroupActivityLabel } from './shared';
 import { sanitizeUrl } from './sanitization';
@@ -47,6 +47,37 @@ export abstract class BaseProvider implements AIProvider {
         return prompt;
     }
 
+    /**
+     * Renders ungrouped tabs as a markdown tree indented by their opener-child hierarchy.
+     * Tabs whose opener is not in the batch are treated as roots.
+     */
+    private buildTabTree(tabs: TabData[]): string {
+        const tabById = new Map(tabs.map(t => [t.id, t]));
+        const childrenOf = new Map<number, number[]>();
+        const roots: number[] = [];
+
+        for (const tab of tabs) {
+            if (tab.openerTabId !== undefined && tabById.has(tab.openerTabId)) {
+                if (!childrenOf.has(tab.openerTabId)) childrenOf.set(tab.openerTabId, []);
+                childrenOf.get(tab.openerTabId)!.push(tab.id);
+            } else {
+                roots.push(tab.id);
+            }
+        }
+
+        const renderTab = (tabId: number, depth: number, visited: Set<number>): string => {
+            const tab = tabById.get(tabId)!;
+            const indent = '  '.repeat(depth);
+            const line = `${indent}- [ID: ${tabId}] [${tab.title}](${sanitizeUrl(tab.url)})`;
+            if (visited.has(tabId)) return line; // cycle guard
+            visited.add(tabId);
+            const kids = (childrenOf.get(tabId) ?? []).map(c => renderTab(c, depth + 1, visited));
+            return [line, ...kids].join('\n');
+        };
+
+        return roots.map(id => renderTab(id, 0, new Set())).join('\n');
+    }
+
     async generateSuggestions(request: GroupingRequest): Promise<SuggestionResult> {
         const { ungroupedTabs, existingGroups, customRules, signal } = request;
         const groupNameMap = new Map<string, number>();
@@ -62,7 +93,7 @@ export abstract class BaseProvider implements AIProvider {
 
         const systemPrompt = this.getSystemPrompt(customRules);
 
-        const tabList = ungroupedTabs.map(t => `- [ID: ${t.id}] [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
+        const tabList = this.buildTabTree(ungroupedTabs);
 
         const existingGroupsPrompt = this.constructExistingGroupsPrompt(existingGroups);
 

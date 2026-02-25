@@ -4,6 +4,7 @@ export interface TabData {
     id: number;
     title: string;
     url: string;
+    openerTabId?: number;
 }
 
 export interface GroupContext {

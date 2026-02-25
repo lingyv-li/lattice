@@ -221,7 +221,8 @@ export class WindowSnapshot {
         const simpleTabs = batchTabs.map(t => ({
             id: t.id!,
             title: t.title!,
-            url: t.url!
+            url: t.url!,
+            openerTabId: t.openerTabId
         }));
 
         // 3. Populate existingGroups tabs with deterministic sampling
