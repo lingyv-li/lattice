@@ -27,8 +27,8 @@ describe('BaseProvider.buildTabTree', () => {
         const result = provider.testBuildTabTree(tabs);
 
         expect(result).toBe(
-            '- [ID: 1] [GitHub](https://github.com/)\n' +
-            '- [ID: 2] [Hacker News](https://news.ycombinator.com/)'
+            `- [ID: 1] [GitHub](https://github.com/)
+- [ID: 2] [Hacker News](https://news.ycombinator.com/)`
         );
     });
 
@@ -41,8 +41,8 @@ describe('BaseProvider.buildTabTree', () => {
         const result = provider.testBuildTabTree(tabs);
 
         expect(result).toBe(
-            '- [ID: 10] [GitHub](https://github.com/)\n' +
-            '  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)'
+            `- [ID: 10] [GitHub](https://github.com/)
+  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)`
         );
     });
 
@@ -56,9 +56,9 @@ describe('BaseProvider.buildTabTree', () => {
         const result = provider.testBuildTabTree(tabs);
 
         expect(result).toBe(
-            '- [ID: 10] [GitHub](https://github.com/)\n' +
-            '  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)\n' +
-            '    - [ID: 12] [Diff view](https://github.com/org/repo/pull/42/files)'
+            `- [ID: 10] [GitHub](https://github.com/)
+  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)
+    - [ID: 12] [Diff view](https://github.com/org/repo/pull/42/files)`
         );
     });
 
@@ -73,8 +73,8 @@ describe('BaseProvider.buildTabTree', () => {
 
         // Tab 11 becomes a root because its opener (99) is absent; tab 12 is a child of 11
         expect(result).toBe(
-            '- [ID: 11] [PR #42](https://github.com/org/repo/pull/42)\n' +
-            '  - [ID: 12] [Diff view](https://github.com/org/repo/pull/42/files)'
+            `- [ID: 11] [PR #42](https://github.com/org/repo/pull/42)
+  - [ID: 12] [Diff view](https://github.com/org/repo/pull/42/files)`
         );
     });
 
@@ -88,9 +88,9 @@ describe('BaseProvider.buildTabTree', () => {
         const result = provider.testBuildTabTree(tabs);
 
         expect(result).toBe(
-            '- [ID: 10] [GitHub](https://github.com/)\n' +
-            '  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)\n' +
-            '- [ID: 20] [Hacker News](https://news.ycombinator.com/)'
+            `- [ID: 10] [GitHub](https://github.com/)
+  - [ID: 11] [PR #42](https://github.com/org/repo/pull/42)
+- [ID: 20] [Hacker News](https://news.ycombinator.com/)`
         );
     });
 
