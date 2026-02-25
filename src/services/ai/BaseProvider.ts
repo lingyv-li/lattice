@@ -62,7 +62,7 @@ export abstract class BaseProvider implements AIProvider {
 
         const systemPrompt = this.getSystemPrompt(customRules);
 
-        const tabList = ungroupedTabs.map(t => `- [ID: ${t.id}] [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
+        const tabList = ungroupedTabs.map(t => `- [ID: ${t.id}]${t.openerTabId !== undefined ? ` [opener: ${t.openerTabId}]` : ''} [${t.title}](${sanitizeUrl(t.url)})`).join('\n');
 
         const existingGroupsPrompt = this.constructExistingGroupsPrompt(existingGroups);
 

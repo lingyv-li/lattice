@@ -216,12 +216,13 @@ export class WindowSnapshot {
             }
         }
 
-        // Map chrome.tabs.Tab to the structure expected by AIService (id, title, url)
-        // Adjust this if AIService expects full Tab objects or a stricter subset
+        // Map chrome.tabs.Tab to the structure expected by AIService (id, title, url, openerTabId)
+        // openerTabId links a tab to the tab that opened it, enabling AI to infer related tabs
         const simpleTabs = batchTabs.map(t => ({
             id: t.id!,
             title: t.title!,
-            url: t.url!
+            url: t.url!,
+            ...(t.openerTabId !== undefined ? { openerTabId: t.openerTabId } : {})
         }));
 
         // 3. Populate existingGroups tabs with deterministic sampling
