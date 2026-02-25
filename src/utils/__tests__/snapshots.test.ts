@@ -157,4 +157,156 @@ describe('WindowSnapshot Integration', () => {
             expect(sumIds).not.toBe(45);
         });
     });
+
+    describe('openerTabId mapping', () => {
+        class TestWindowSnapshot extends WindowSnapshot {
+            constructor(allTabs: chrome.tabs.Tab[], groups: chrome.tabGroups.TabGroup[]) {
+                super(allTabs, groups);
+            }
+            public testGetPromptForBatch(batch: chrome.tabs.Tab[], existingGroups: Map<string, number>) {
+                return this.getPromptForBatch(batch, existingGroups);
+            }
+        }
+
+        it('should include openerTabId in TabData when the chrome tab has one', () => {
+            const batchTabs: chrome.tabs.Tab[] = [
+                {
+                    id: 10,
+                    index: 0,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'GitHub',
+                    url: 'https://github.com',
+                    status: 'complete'
+                } as chrome.tabs.Tab,
+                {
+                    id: 11,
+                    index: 1,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'PR #42',
+                    url: 'https://github.com/org/repo/pull/42',
+                    openerTabId: 10,
+                    status: 'complete'
+                } as chrome.tabs.Tab
+            ];
+
+            const snapshot = new TestWindowSnapshot(batchTabs, []);
+            const result = snapshot.testGetPromptForBatch(batchTabs, new Map());
+
+            const tabs = result.ungroupedTabs;
+            expect(tabs).toHaveLength(2);
+
+            const parent = tabs.find(t => t.id === 10);
+            const child = tabs.find(t => t.id === 11);
+
+            expect(parent?.openerTabId).toBeUndefined();
+            expect(child?.openerTabId).toBe(10);
+        });
+
+        it('should omit openerTabId in TabData when the chrome tab has none', () => {
+            const batchTabs: chrome.tabs.Tab[] = [
+                {
+                    id: 1,
+                    index: 0,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'Tab without opener',
+                    url: 'https://example.com',
+                    status: 'complete'
+                } as chrome.tabs.Tab
+            ];
+
+            const snapshot = new TestWindowSnapshot(batchTabs, []);
+            const result = snapshot.testGetPromptForBatch(batchTabs, new Map());
+
+            expect(result.ungroupedTabs[0].openerTabId).toBeUndefined();
+            expect('openerTabId' in result.ungroupedTabs[0]).toBe(false);
+        });
+
+        it('should preserve openerTabId for multiple child tabs sharing the same opener', () => {
+            const batchTabs: chrome.tabs.Tab[] = [
+                {
+                    id: 20,
+                    index: 0,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'Parent',
+                    url: 'https://parent.com',
+                    status: 'complete'
+                } as chrome.tabs.Tab,
+                {
+                    id: 21,
+                    index: 1,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'Child A',
+                    url: 'https://child-a.com',
+                    openerTabId: 20,
+                    status: 'complete'
+                } as chrome.tabs.Tab,
+                {
+                    id: 22,
+                    index: 2,
+                    windowId: 1,
+                    highlighted: false,
+                    active: false,
+                    pinned: false,
+                    incognito: false,
+                    selected: false,
+                    discarded: false,
+                    autoDiscardable: true,
+                    groupId: -1,
+                    title: 'Child B',
+                    url: 'https://child-b.com',
+                    openerTabId: 20,
+                    status: 'complete'
+                } as chrome.tabs.Tab
+            ];
+
+            const snapshot = new TestWindowSnapshot(batchTabs, []);
+            const result = snapshot.testGetPromptForBatch(batchTabs, new Map());
+
+            const childA = result.ungroupedTabs.find(t => t.id === 21);
+            const childB = result.ungroupedTabs.find(t => t.id === 22);
+
+            expect(childA?.openerTabId).toBe(20);
+            expect(childB?.openerTabId).toBe(20);
+        });
+    });
 });
