@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:screenshots": "npm run build && playwright test",
+    "test:screenshots:update": "npm run build && playwright test --update-snapshots",
     "lint": "eslint src --report-unused-disable-directives",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,json,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,json,css}\""
@@ -27,6 +29,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.1.18",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
