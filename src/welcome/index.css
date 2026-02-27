@@ -1,0 +1,6 @@
+/* Override panel body constraints — welcome page opens in a full browser tab */
+body {
+    width: 100%;
+    max-height: none;
+    height: auto;
+}

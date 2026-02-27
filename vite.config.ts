@@ -58,6 +58,8 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         setupFiles: ['./src/setupTests.ts'],
+        // Exclude Playwright screenshot tests from the Vitest runner
+        exclude: ['**/node_modules/**', '**/dist/**', 'tests/screenshots/**'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],
