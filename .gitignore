@@ -34,5 +34,11 @@ tsconfig.tsbuildinfo
 # Test coverage
 coverage
 
+# Playwright
+playwright-report/
+test-results/
+# Screenshot baselines (platform-dependent; not run in CI)
+**/*-snapshots/
+
 # Workspaces
 .workspaces/

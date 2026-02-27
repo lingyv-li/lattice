@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
+import { createPortal } from 'react-dom';
 import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -250,37 +251,39 @@ export const InnerApp = () => {
                             </button>
                         </div>
 
-                        {/* Download Progress Modal/Overlay */}
-                        {isDownloading && (
-                            <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
-                                <div className='bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full'>
-                                    <div className='flex flex-col items-center gap-4 text-center'>
-                                        <div className='w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center'>
-                                            <Sparkles className='w-6 h-6 text-blue-500 animate-pulse' />
-                                        </div>
-                                        <div>
-                                            <h3 className='font-bold text-lg text-main'>Downloading AI Model</h3>
-                                            <p className='text-sm text-muted mt-1'>This happens only once. Please do not close this window.</p>
-                                        </div>
-
-                                        {downloadProgress && (
-                                            <div className='w-full space-y-2'>
-                                                <div className='h-2 bg-surface-dim rounded-full overflow-hidden'>
-                                                    <div
-                                                        className='h-full bg-blue-500 transition-all duration-300'
-                                                        style={{
-                                                            width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%`
-                                                        }}
-                                                    />
-                                                </div>
+                        {/* Download Progress Modal/Overlay — absolute + min-h-full so backdrop covers full document (body has position:relative) */}
+                        {isDownloading &&
+                            createPortal(
+                                <div className='absolute inset-0 min-h-full bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+                                    <div className='bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full'>
+                                        <div className='flex flex-col items-center gap-4 text-center'>
+                                            <div className='w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center'>
+                                                <Sparkles className='w-6 h-6 text-blue-500 animate-pulse' />
                                             </div>
-                                        )}
+                                            <div>
+                                                <h3 className='font-bold text-lg text-main'>Downloading AI Model</h3>
+                                                <p className='text-sm text-muted mt-1'>This happens only once. Please do not close this window.</p>
+                                            </div>
 
-                                        {!downloadProgress && <Loader2 className='w-6 h-6 animate-spin text-muted' />}
+                                            {downloadProgress && (
+                                                <div className='w-full space-y-2'>
+                                                    <div className='h-2 bg-surface-dim rounded-full overflow-hidden'>
+                                                        <div
+                                                            className='h-full bg-blue-500 transition-all duration-300'
+                                                            style={{
+                                                                width: `${(downloadProgress.loaded / downloadProgress.total) * 100}%`
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {!downloadProgress && <Loader2 className='w-6 h-6 animate-spin text-muted' />}
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-                        )}
+                                </div>,
+                                document.body
+                            )}
 
                         {downloadError && (
                             <div className='p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-500 flex items-center gap-2'>
