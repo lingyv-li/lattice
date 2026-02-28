@@ -57,3 +57,16 @@ Chrome events → `TabManager.triggerRecalculation` (debounced) → `queueAndPro
 ## Browser Testing
 
 Chrome extensions cannot be automated on `chrome://` pages. After `npm run build`, manually load the `dist` folder via `chrome://extensions` (Developer Mode → Load unpacked).
+
+## Cursor Cloud specific instructions
+
+This is a client-side Chrome extension with no backend services, databases, or Docker containers. The only runtime dependency is Node.js + npm.
+
+**Services overview:** Single product — a Chrome extension built with React 19 / TypeScript / Tailwind CSS v4 / Vite 6. All commands are in `package.json` scripts and documented above in the Commands section.
+
+**Key caveats:**
+- `npm run dev` starts a Vite dev server but the extension must still be loaded via `chrome://extensions` → "Load unpacked" pointing at the `dist/` folder after `npm run build`. The dev server alone is not sufficient for Chrome extension testing.
+- `sharp` (used during build for icon conversion SVG→PNG) installs a native binary. If you see build errors about sharp, try `npm rebuild sharp`.
+- The repo uses Jujutsu (`jj`) for VCS locally, but the cloud environment uses git. Use `git` commands in the cloud agent context.
+- Tests run entirely in Node.js via Vitest with jsdom and mocked Chrome APIs (`src/setupTests.ts`). No browser is needed for `npm run test`.
+- Lint produces warnings (mostly `@typescript-eslint/no-explicit-any` in test files) but zero errors. Warnings are expected and do not indicate a problem.
