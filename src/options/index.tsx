@@ -1,20 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom/client';
 import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
-import { clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType, DEFAULT_GROUPING_RULES } from '../utils/storage';
 import { FeatureId } from '../types/features';
 import { AIService } from '../services/ai/AIService';
 import { LocalProvider } from '../services/ai/LocalProvider';
 import { ModelInfo } from '../services/ai/types';
+import { cn } from '../utils/cn';
 import './index.css';
 import { ToastProvider } from '../context/ToastContext';
 import { useToast } from '../hooks/useToast';
-
-const cn = (...inputs: (string | undefined | null | false)[]) => {
-    return twMerge(clsx(inputs));
-};
 
 const sortModels = (models: ModelInfo[]) => {
     return [...models].sort((a, b) => {
