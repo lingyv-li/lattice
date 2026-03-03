@@ -33,10 +33,7 @@ describe('Integration: Race Condition Scenarios', () => {
                     await new Promise(r => setTimeout(r, 50));
                     const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
                     return {
-                        suggestions:
-                            workTabs.length > 0
-                                ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }]
-                                : []
+                        suggestions: workTabs.length > 0 ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }] : []
                     };
                 }
             })
@@ -93,10 +90,7 @@ describe('Integration: Race Condition Scenarios', () => {
                     });
                     const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
                     return {
-                        suggestions:
-                            workTabs.length > 0
-                                ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }]
-                                : []
+                        suggestions: workTabs.length > 0 ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }] : []
                     };
                 }
             })
@@ -136,10 +130,7 @@ describe('Integration: Race Condition Scenarios', () => {
                     await new Promise(r => setTimeout(r, 100));
                     const workTabs = request.ungroupedTabs.filter((t: any) => t.url.includes('work'));
                     return {
-                        suggestions:
-                            workTabs.length > 0
-                                ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }]
-                                : []
+                        suggestions: workTabs.length > 0 ? [{ groupName: 'Work', tabIds: workTabs.map((t: any) => t.id), confidence: 0.9 }] : []
                     };
                 }
             })
