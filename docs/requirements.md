@@ -1,6 +1,6 @@
 # Product Requirements Document: Lattice Tabs
 
-**Version**: 0.6.1
+**Version**: 0.6.2
 **Status**: Live / Maintenance
 **Date**: 2026-01-27
 
