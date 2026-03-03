@@ -44,6 +44,7 @@ test.describe('Settings page', () => {
         await page.click('button:has-text("Local (Chrome)")');
         await page.waitForSelector('text=Downloading AI Model', { timeout: 5000 });
         await expect(page.locator('text=This happens only once')).toBeVisible();
-        await expect(page).toHaveScreenshot('options-download-backdrop.png', { fullPage: true });
+        // Viewport screenshot: overlay uses fixed positioning and fills the viewport
+        await expect(page).toHaveScreenshot('options-download-backdrop.png');
     });
 });

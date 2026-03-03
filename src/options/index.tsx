@@ -251,10 +251,10 @@ export const InnerApp = () => {
                             </button>
                         </div>
 
-                        {/* Download Progress Modal/Overlay — absolute + min-h-full so backdrop covers full document (body has position:relative) */}
+                        {/* Download Progress Modal/Overlay — fixed viewport lock, consistent with ConfirmationModal/ToastContainer */}
                         {isDownloading &&
                             createPortal(
-                                <div className='absolute inset-0 min-h-full bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
+                                <div className='fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4'>
                                     <div className='bg-surface border border-border-subtle rounded-2xl p-6 shadow-2xl max-w-sm w-full'>
                                         <div className='flex flex-col items-center gap-4 text-center'>
                                             <div className='w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center'>
