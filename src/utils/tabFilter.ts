@@ -24,6 +24,11 @@ export function isGroupableTab(tab: chrome.tabs.Tab): boolean {
         return false;
     }
 
+    // Skip pinned tabs - grouping them breaks the pin
+    if (tab.pinned) {
+        return false;
+    }
+
     // Skip tabs that are already grouped - we only want to suggest groups for ungrouped tabs
     if (tab.groupId !== chrome.tabs.TAB_ID_NONE) {
         return false;

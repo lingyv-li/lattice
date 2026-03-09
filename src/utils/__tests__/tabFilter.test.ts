@@ -19,6 +19,7 @@ describe('tabFilter', () => {
             url: 'https://example.com',
             title: 'Example',
             status: 'complete',
+            pinned: false,
             groupId: -1 // TAB_ID_NONE
         };
 
@@ -52,6 +53,10 @@ describe('tabFilter', () => {
         });
         it('should return false for grouped tabs', () => {
             const tab = { ...baseTab, groupId: 1 };
+            expect(isGroupableTab(tab as chrome.tabs.Tab)).toBe(false);
+        });
+        it('should return false for pinned tabs', () => {
+            const tab = { ...baseTab, pinned: true };
             expect(isGroupableTab(tab as chrome.tabs.Tab)).toBe(false);
         });
     });
