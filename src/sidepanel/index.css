@@ -252,3 +252,8 @@ body {
     padding: 0;
     overflow-x: hidden;
 }
+
+/* Suggestion card: hide Apply pill when reject (X) is hovered — :has() fallback for group-has */
+.suggestion-item-card:has(.reject-btn:hover) .apply-pill {
+    opacity: 0;
+}

@@ -15,12 +15,15 @@ export interface TabSuggestionCache {
 
 export enum TabGroupMessageType {
     TriggerProcessing = 'TRIGGER_PROCESSING',
-    RegenerateSuggestions = 'REGENERATE_SUGGESTIONS'
+    RegenerateSuggestions = 'REGENERATE_SUGGESTIONS',
+    DismissSuggestion = 'DISMISS_SUGGESTION'
 }
 
 export interface TabGroupMessage {
     type: TabGroupMessageType;
     windowId?: number;
+    /** For DismissSuggestion: tab IDs of the rejected group */
+    tabIds?: number[];
 }
 
 export interface GroupingContext {

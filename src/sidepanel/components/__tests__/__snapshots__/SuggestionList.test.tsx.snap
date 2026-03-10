@@ -6,113 +6,116 @@ exports[`SuggestionList > renders duplicate suggestions 1`] = `
     class="flex flex-col gap-2 p-3"
   >
     <div
+      aria-label="Clean "Original": Close 1 duplicate tab. Apply suggestion."
       class="
-            w-full group relative overflow-hidden
-            bg-surface border rounded-lg transition-all duration-200
-            hover:border-action hover:bg-surface-highlight border-border-subtle
+            suggestion-item-card w-full group relative overflow-hidden cursor-pointer
+            bg-surface border rounded-lg transition-all duration-200 border-border-subtle
+            [&:hover:not(:has(.reject-btn:hover))]:border-action [&:hover:not(:has(.reject-btn:hover))]:bg-surface-highlight
         "
+      role="button"
+      tabindex="0"
     >
       <div
-        aria-label="Clean "Original": Close 1 duplicate tab. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="flex items-center gap-2 p-2"
       >
         <div
-          class="
-                    p-1.5 rounded-md shrink-0
-                    bg-rose-500/10 text-rose-500
-                "
+          class="flex flex-1 min-w-0 items-center gap-2"
         >
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-trash2 lucide-trash-2 w-4 h-4"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
+          <div
+            class="p-1.5 rounded-md shrink-0 bg-rose-500/10 text-rose-500"
           >
-            <path
-              d="M10 11v6"
-            />
-            <path
-              d="M14 11v6"
-            />
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"
-            />
-            <path
-              d="M3 6h18"
-            />
-            <path
-              d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            />
-          </svg>
-        </div>
-        <div
-          class="flex-1 min-w-0"
-        >
-          <h3
-            class="font-medium text-main truncate text-sm leading-tight"
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-trash2 lucide-trash-2 w-4 h-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M10 11v6"
+              />
+              <path
+                d="M14 11v6"
+              />
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"
+              />
+              <path
+                d="M3 6h18"
+              />
+              <path
+                d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex-1 min-w-0"
           >
-            Clean "Original"
-          </h3>
-          <p
-            class="text-[10px] text-muted truncate leading-tight"
+            <h3
+              class="font-medium text-main truncate text-sm leading-tight"
+            >
+              Clean "Original"
+            </h3>
+            <p
+              class="text-[10px] text-muted truncate leading-tight"
+            >
+              Close 1 duplicate tab
+            </p>
+          </div>
+          <div
+            class="
+                        apply-pill flex items-center gap-1.5 px-2 py-1 rounded-full
+                        text-muted group-hover:text-action group-hover:bg-action/10
+                        transition-opacity duration-300
+                        group-has-[.reject-btn:hover]:opacity-0
+                        
+                    "
           >
-            Close 1 duplicate tab
-          </p>
-        </div>
-        <div
-          class="
-                    flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200
-                    text-muted group-hover:text-action group-hover:bg-action/10
-                    
-                "
-        >
-          <span
-            class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
-          >
-            Apply
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-arrow-right w-3.5 h-3.5"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M5 12h14"
-            />
-            <path
-              d="m12 5 7 7-7 7"
-            />
-          </svg>
+            <span
+              class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
+            >
+              Apply
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-arrow-right w-3.5 h-3.5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M5 12h14"
+              />
+              <path
+                d="m12 5 7 7-7 7"
+              />
+            </svg>
+          </div>
         </div>
       </div>
       <div
         class="px-2 pb-2 pl-9 space-y-0.5"
       >
         <div
-          class="flex items-center gap-2 overflow-hidden opacity-80"
+          class="flex items-center gap-1.5 min-w-0"
         >
           <div
-            class="w-2 h-2 rounded-full bg-border-strong shrink-0"
+            class="w-3 h-3 shrink-0 rounded-sm bg-border-subtle"
           />
           <span
-            class="truncate text-[11px] text-muted leading-tight flex-1"
+            class="text-[10px] text-muted truncate leading-tight flex-1"
           >
             Copy
           </span>
@@ -180,27 +183,123 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
     class="flex flex-col gap-2 p-3"
   >
     <div
+      aria-label="Group "Work": Organize 2 tabs. Apply suggestion."
       class="
-            w-full group relative overflow-hidden
-            bg-surface border rounded-lg transition-all duration-200
-            hover:border-action hover:bg-surface-highlight border-border-subtle
+            suggestion-item-card w-full group relative overflow-hidden cursor-pointer
+            bg-surface border rounded-lg transition-all duration-200 border-border-subtle
+            [&:hover:not(:has(.reject-btn:hover))]:border-action [&:hover:not(:has(.reject-btn:hover))]:bg-surface-highlight
         "
+      role="button"
+      tabindex="0"
     >
       <div
-        aria-label="Group "Work": Organize 2 tabs. Apply suggestion."
-        class="flex items-center gap-2 p-2 cursor-pointer"
-        role="button"
-        tabindex="0"
+        class="flex items-center gap-2 p-2"
       >
         <div
-          class="
-                    p-1.5 rounded-md shrink-0
-                    bg-indigo-500/10 text-indigo-500
-                "
+          class="flex flex-1 min-w-0 items-center gap-2"
+        >
+          <div
+            class="p-1.5 rounded-md shrink-0 bg-indigo-500/10 text-indigo-500"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-group w-4 h-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 7V5c0-1.1.9-2 2-2h2"
+              />
+              <path
+                d="M17 3h2c1.1 0 2 .9 2 2v2"
+              />
+              <path
+                d="M21 17v2c0 1.1-.9 2-2 2h-2"
+              />
+              <path
+                d="M7 21H5c-1.1 0-2-.9-2-2v-2"
+              />
+              <rect
+                height="5"
+                rx="1"
+                width="7"
+                x="7"
+                y="7"
+              />
+              <rect
+                height="5"
+                rx="1"
+                width="7"
+                x="10"
+                y="12"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex-1 min-w-0"
+          >
+            <h3
+              class="font-medium text-main truncate text-sm leading-tight"
+            >
+              Group "Work"
+            </h3>
+            <p
+              class="text-[10px] text-muted truncate leading-tight"
+            >
+              Organize 2 tabs
+            </p>
+          </div>
+          <div
+            class="
+                        apply-pill flex items-center gap-1.5 px-2 py-1 rounded-full
+                        text-muted group-hover:text-action group-hover:bg-action/10
+                        transition-opacity duration-300
+                        group-has-[.reject-btn:hover]:opacity-0
+                        
+                    "
+          >
+            <span
+              class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
+            >
+              Apply
+            </span>
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-arrow-right w-3.5 h-3.5"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M5 12h14"
+              />
+              <path
+                d="m12 5 7 7-7 7"
+              />
+            </svg>
+          </div>
+        </div>
+        <button
+          aria-label="Reject suggestion"
+          class="reject-btn p-1.5 rounded-lg text-muted cursor-pointer hover:text-action hover:bg-surface-highlight shrink-0 transition-colors duration-200"
+          type="button"
         >
           <svg
             aria-hidden="true"
-            class="lucide lucide-group w-4 h-4"
+            class="lucide lucide-x w-4 h-4"
             fill="none"
             height="24"
             stroke="currentColor"
@@ -212,104 +311,37 @@ exports[`SuggestionList > renders grouping suggestions 1`] = `
             xmlns="http://www.w3.org/2000/svg"
           >
             <path
-              d="M3 7V5c0-1.1.9-2 2-2h2"
+              d="M18 6 6 18"
             />
             <path
-              d="M17 3h2c1.1 0 2 .9 2 2v2"
-            />
-            <path
-              d="M21 17v2c0 1.1-.9 2-2 2h-2"
-            />
-            <path
-              d="M7 21H5c-1.1 0-2-.9-2-2v-2"
-            />
-            <rect
-              height="5"
-              rx="1"
-              width="7"
-              x="7"
-              y="7"
-            />
-            <rect
-              height="5"
-              rx="1"
-              width="7"
-              x="10"
-              y="12"
+              d="m6 6 12 12"
             />
           </svg>
-        </div>
-        <div
-          class="flex-1 min-w-0"
-        >
-          <h3
-            class="font-medium text-main truncate text-sm leading-tight"
-          >
-            Group "Work"
-          </h3>
-          <p
-            class="text-[10px] text-muted truncate leading-tight"
-          >
-            Organize 2 tabs
-          </p>
-        </div>
-        <div
-          class="
-                    flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200
-                    text-muted group-hover:text-action group-hover:bg-action/10
-                    
-                "
-        >
-          <span
-            class="text-[10px] font-semibold uppercase tracking-wide opacity-0 w-0 group-hover:w-auto group-hover:opacity-100 transition-all duration-200 overflow-hidden whitespace-nowrap"
-          >
-            Apply
-          </span>
-          <svg
-            aria-hidden="true"
-            class="lucide lucide-arrow-right w-3.5 h-3.5"
-            fill="none"
-            height="24"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            viewBox="0 0 24 24"
-            width="24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M5 12h14"
-            />
-            <path
-              d="m12 5 7 7-7 7"
-            />
-          </svg>
-        </div>
+        </button>
       </div>
       <div
         class="px-2 pb-2 pl-9 space-y-0.5"
       >
         <div
-          class="flex items-center gap-2 overflow-hidden opacity-80"
+          class="flex items-center gap-1.5 min-w-0"
         >
           <div
-            class="w-2 h-2 rounded-full bg-border-strong shrink-0"
+            class="w-3 h-3 shrink-0 rounded-sm bg-border-subtle"
           />
           <span
-            class="truncate text-[11px] text-muted leading-tight flex-1"
+            class="text-[10px] text-muted truncate leading-tight flex-1"
           >
             Tab 1
           </span>
         </div>
         <div
-          class="flex items-center gap-2 overflow-hidden opacity-80"
+          class="flex items-center gap-1.5 min-w-0"
         >
           <div
-            class="w-2 h-2 rounded-full bg-border-strong shrink-0"
+            class="w-3 h-3 shrink-0 rounded-sm bg-border-subtle"
           />
           <span
-            class="truncate text-[11px] text-muted leading-tight flex-1"
+            class="text-[10px] text-muted truncate leading-tight flex-1"
           >
             Tab 2
           </span>

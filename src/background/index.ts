@@ -64,6 +64,10 @@ chrome.runtime.onConnect.addListener(port => {
                 await StateService.clearWindowSnapshot(msg.windowId); // Force re-process
                 tabManager.triggerRecalculation('Regenerate Request');
             }
+        } else if (msg.type === TabGroupMessageType.DismissSuggestion) {
+            if (msg.windowId && msg.tabIds?.length) {
+                await StateService.removeSuggestionsForTabIds(msg.windowId, msg.tabIds);
+            }
         }
     });
 });

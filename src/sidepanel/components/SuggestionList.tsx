@@ -4,6 +4,7 @@ import { useTabGrouper } from '../../hooks/useTabGrouper';
 import { useDuplicateCleaner } from '../../hooks/useDuplicateCleaner';
 import { SuggestionItem } from './SuggestionItem';
 import { SuggestionType } from '../../types/suggestions';
+import { groupSuggestionKey } from '../../utils/groupSuggestionKey';
 
 interface UnifiedSuggestion {
     id: string;
@@ -13,10 +14,11 @@ interface UnifiedSuggestion {
     icon: LucideIcon;
     onClick: () => Promise<void>;
     tabs: chrome.tabs.Tab[];
+    tabIds?: number[];
 }
 
 export const SuggestionList: React.FC = () => {
-    const { suggestionActions: groupActions, snapshot, applyGroup, isBackgroundProcessing } = useTabGrouper();
+    const { suggestionActions: groupActions, snapshot, applyGroup, dismissSuggestion, isBackgroundProcessing } = useTabGrouper();
     const { duplicateGroups, suggestionActions: dedupeActions, closeDuplicateGroup } = useDuplicateCleaner();
     const [processingId, setProcessingId] = React.useState<string | null>(null);
     const [isAcceptingAll, setIsAcceptingAll] = React.useState(false);
@@ -39,14 +41,16 @@ export const SuggestionList: React.FC = () => {
             if (action.type !== 'group') return;
             const tabCount = action.tabIds.length;
             const groupTabs = action.tabIds.map(tid => snapshot?.getTabData(tid)).filter((t): t is chrome.tabs.Tab => !!t);
+            const stableId = 'group-' + groupSuggestionKey(action.groupName, action.existingGroupId);
             list.push({
-                id: `group-${index}-${action.groupName}`,
+                id: stableId,
                 type: SuggestionType.Group,
                 title: action.existingGroupId ? `Add to "${action.groupName}"` : `Group "${action.groupName}"`,
                 description: `Organize ${tabCount} tab${tabCount > 1 ? 's' : ''}`,
                 icon: Group,
                 onClick: () => applyGroup(index),
-                tabs: groupTabs
+                tabs: groupTabs,
+                tabIds: action.tabIds
             });
         });
 
@@ -138,13 +142,10 @@ export const SuggestionList: React.FC = () => {
                     icon={item.icon}
                     type={item.type}
                     onClick={() => handleAction(item.id, item.onClick)}
+                    onDismiss={item.tabIds?.length ? () => dismissSuggestion(item.tabIds!) : undefined}
                     isLoading={processingId === item.id}
                     disabled={(processingId !== null && processingId !== item.id) || isAcceptingAll}
-                    tabs={item.tabs.map(t => ({
-                        title: t.title,
-                        url: t.url,
-                        favIconUrl: t.favIconUrl
-                    }))}
+                    tabs={item.tabs.map(t => ({ title: t.title, url: t.url, favIconUrl: t.favIconUrl }))}
                 />
             ))}
         </div>

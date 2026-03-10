@@ -357,15 +357,12 @@ export const InnerApp = () => {
 
                         <div className='p-4 bg-surface-dim rounded-2xl border border-border-subtle group hover:border-teal-500/30 transition-colors focus-within:border-teal-500/50'>
                             <label className='block font-medium text-main mb-2'>Custom AI Instructions</label>
-                            <p className='text-sm text-muted mb-3'>Add specific rules for the AI to follow when grouping tabs (e.g., "Group all Jira tickets together").</p>
+                            <p className='text-sm text-muted mb-3'>
+                                Add specific rules for the AI to follow when grouping tabs (e.g., &quot;Group all Jira tickets together&quot;).
+                            </p>
                             <textarea
                                 value={settings.customGroupingRules}
-                                onChange={e =>
-                                    setSettings({
-                                        ...settings,
-                                        customGroupingRules: e.target.value
-                                    })
-                                }
+                                onChange={e => setSettings(s => ({ ...s, customGroupingRules: e.target.value }))}
                                 placeholder={DEFAULT_GROUPING_RULES}
                                 className='w-full h-32 bg-surface/50 rounded-xl border border-border-subtle p-3 text-sm text-main placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none'
                             />

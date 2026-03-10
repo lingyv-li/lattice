@@ -127,6 +127,20 @@ export class StateService {
     }
 
     /**
+     * Remove suggestions for the given tab IDs in a window (e.g. when user rejects a group).
+     */
+    static async removeSuggestionsForTabIds(windowId: number, tabIds: number[]): Promise<void> {
+        await this.hydrate();
+        const windowCache = this.cache?.get(windowId);
+        if (!windowCache) return;
+        let changed = false;
+        for (const tabId of tabIds) {
+            if (windowCache.delete(tabId)) changed = true;
+        }
+        if (changed) await this.persist();
+    }
+
+    /**
      * Remove a suggestion by tab ID (searches all windows)
      */
     static async removeSuggestion(tabId: number): Promise<boolean> {

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SuggestionItem } from '../SuggestionItem';
 import { SuggestionType } from '../../../types/suggestions';
 import { Sparkles } from 'lucide-react';
@@ -24,6 +24,10 @@ describe('SuggestionItem', () => {
             }
         ]
     };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
     it('renders correctly', () => {
         const { asFragment } = render(<SuggestionItem {...defaultProps} />);
@@ -57,4 +61,5 @@ describe('SuggestionItem', () => {
         render(<SuggestionItem {...props} />);
         expect(screen.getByText('x2')).toBeInTheDocument();
     });
+
 });

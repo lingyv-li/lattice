@@ -27,9 +27,7 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
             setToasts(prev => [...prev, { id, message, type, duration }]);
 
             if (duration > 0) {
-                setTimeout(() => {
-                    removeToast(id);
-                }, duration);
+                setTimeout(() => removeToast(id), duration);
             }
         },
         [removeToast]
@@ -67,8 +65,8 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
                         {toast.type === 'error' && <AlertCircle className='w-5 h-5' />}
                         {toast.type === 'info' && <Info className='w-5 h-5' />}
                     </div>
-                    <p className='flex-1 text-sm font-medium leading-tight'>{toast.message}</p>
-                    <button onClick={() => removeToast(toast.id)} className='shrink-0 text-current opacity-70 hover:opacity-100 transition-opacity'>
+                    <p className='flex-1 min-w-0 text-sm font-medium leading-tight'>{toast.message}</p>
+                    <button onClick={() => removeToast(toast.id)} className='shrink-0 text-current opacity-70 hover:opacity-100 transition-opacity' aria-label='Dismiss'>
                         <X className='w-4 h-4' />
                     </button>
                 </div>

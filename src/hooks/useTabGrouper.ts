@@ -7,6 +7,7 @@ import type { Action } from '../types/suggestions';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { groupSuggestionKey } from '../utils/groupSuggestionKey';
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -64,7 +65,7 @@ export const useTabGrouper = () => {
             // Only include if tab still exists in our snapshot and has a group name
             if (!snap.hasTab(cached.tabId) || !cached.groupName) continue;
 
-            const key = cached.existingGroupId ? `existing-${cached.existingGroupId}` : `new-${cached.groupName}`;
+            const key = groupSuggestionKey(cached.groupName!, cached.existingGroupId);
 
             if (!groupMap.has(key)) {
                 groupMap.set(key, {
@@ -315,6 +316,18 @@ export const useTabGrouper = () => {
         setBackgroundProcessing(true); // Show analyzing state immediately
     }, [currentWindowId]);
 
+    const dismissSuggestion = useCallback(
+        (tabIds: number[]) => {
+            if (!portRef.current || !currentWindowId) return;
+            portRef.current.postMessage({
+                type: TabGroupMessageType.DismissSuggestion,
+                windowId: currentWindowId,
+                tabIds
+            });
+        },
+        [currentWindowId]
+    );
+
     const setAllGroupsSelected = (selected: boolean) => {
         if (!previewGroups) return;
         if (selected) {
@@ -354,6 +367,7 @@ export const useTabGrouper = () => {
         setAllGroupsSelected,
         regenerateSuggestions,
         triggerProcessing,
+        dismissSuggestion,
         aiEnabled,
         newGroupCount
     };
