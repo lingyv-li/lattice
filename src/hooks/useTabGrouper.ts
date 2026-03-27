@@ -7,6 +7,8 @@ import type { Action } from '../types/suggestions';
 
 import { StateService } from '../background/state';
 import { WindowSnapshot } from '../utils/snapshots';
+import { debounce } from '../utils/debounce';
+
 export type { TabGroupSuggestion };
 
 export const useTabGrouper = () => {
@@ -129,7 +131,8 @@ export const useTabGrouper = () => {
 
         connectPort();
 
-        const handleTabEvent = () => scanUngrouped();
+        // Debounce the scan to avoid rapid re-fetches during tab bursts (e.g. "Open All")
+        const handleTabEvent = debounce(() => scanUngrouped(), 300);
         chrome.tabs.onUpdated.addListener(handleTabEvent);
         chrome.tabs.onCreated.addListener(handleTabEvent);
         chrome.tabs.onRemoved.addListener(handleTabEvent);
