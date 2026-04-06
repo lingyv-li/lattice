@@ -9,6 +9,8 @@ import { AbortError } from '../../utils/AppError';
  */
 export abstract class BaseProvider implements AIProvider {
     abstract id: string;
+    abstract canSummarize: boolean;
+    abstract summarize(prompt: string, signal: AbortSignal): Promise<string>;
 
     /**
      * Provider-specific method to call the AI with a prompt.
