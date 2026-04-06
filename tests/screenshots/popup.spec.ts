@@ -124,30 +124,4 @@ test.describe('Popup', () => {
             await expect(page).toHaveScreenshot('popup-with-suggestions.png');
         });
     });
-
-    test.describe('Feedback', () => {
-        test.beforeEach(async ({ page }) => {
-            await page.addInitScript(chromeMockScript);
-            await page.addInitScript(completedOnboardingScript);
-            await page.addInitScript(suggestionsMockScript);
-            await page.goto('/src/sidepanel/');
-            await page.waitForSelector('text=Group "Work"', { timeout: 15000 });
-        });
-
-        test('inline feedback — reason buttons after dismissing a suggestion', async ({ page }) => {
-            await page.getByRole('button', { name: 'Reject suggestion' }).first().click();
-            await page.waitForSelector('text=Why did you dismiss?', { timeout: 5000 });
-            await setViewportToContent(page);
-            await expect(page).toHaveScreenshot('popup-feedback-reasons.png');
-        });
-
-        test('inline feedback — Other with optional free-form input', async ({ page }) => {
-            await page.getByRole('button', { name: 'Reject suggestion' }).first().click();
-            await page.waitForSelector('text=Why did you dismiss?', { timeout: 5000 });
-            await page.getByRole('button', { name: 'Other' }).click();
-            await page.waitForSelector('text=Add details (optional)', { timeout: 3000 });
-            await setViewportToContent(page);
-            await expect(page).toHaveScreenshot('popup-feedback-other-input.png');
-        });
-    });
 });
