@@ -32,6 +32,18 @@ export interface AIProvider {
     id: string;
 
     /**
+     * Whether this provider can summarize free-form text.
+     * LocalProvider returns false — Gemini Nano is not reliable for summarization.
+     */
+    canSummarize: boolean;
+
+    /**
+     * Free-form text summarization. Only call when canSummarize is true.
+     * Used for distilling rejection snapshots into preference rules.
+     */
+    summarize(prompt: string, signal: AbortSignal): Promise<string>;
+
+    /**
      * Process a list of tabs and return group assignments.
      * Returns both suggestions and any errors that occurred during processing.
      */

@@ -4,6 +4,11 @@ import { AIProviderError, ConfigurationError, AbortError } from '../../utils/App
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
+    canSummarize = true;
+
+    async summarize(prompt: string, signal: AbortSignal): Promise<string> {
+        return this.promptAI(prompt, 'You are a concise assistant helping refine AI tab-grouping rules.', signal);
+    }
 
     protected override get includesGroupTabs(): boolean {
         return true;
