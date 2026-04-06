@@ -76,6 +76,11 @@ describe('getLearnedPreferences / setLearnedPreferences / clearLearnedPreference
         expect(await getLearnedPreferences()).toBe('- Keep code separate from docs.');
     });
 
+    it('calls storage.local.set with the given value', async () => {
+        await setLearnedPreferences('- Keep work separate.');
+        expect(mockLocalSet).toHaveBeenCalledWith({ learnedPreferences: '- Keep work separate.' });
+    });
+
     it('clearLearnedPreferences removes the key', async () => {
         await clearLearnedPreferences();
         expect(mockLocalRemove).toHaveBeenCalledWith('learnedPreferences');
