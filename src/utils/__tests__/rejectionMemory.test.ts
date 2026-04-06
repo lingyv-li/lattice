@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { storePendingRejection, popPendingRejections, getLearnedPreferences, setLearnedPreferences, clearLearnedPreferences, getEffectiveRules } from '../rejectionMemory';
+import { storePendingRejection, popPendingRejections, getLearnedPreferences, setLearnedPreferences, clearLearnedPreferences, getEffectiveRules, LEARNED_PREFERENCES_MAX_LENGTH } from '../rejectionMemory';
 import type { RejectionSnapshot } from '../../types/rejection';
 import { DEFAULT_GROUPING_RULES } from '../storage';
 import type { AppSettings } from '../storage';
@@ -79,6 +79,12 @@ describe('getLearnedPreferences / setLearnedPreferences / clearLearnedPreference
     it('clearLearnedPreferences removes the key', async () => {
         await clearLearnedPreferences();
         expect(mockLocalRemove).toHaveBeenCalledWith('learnedPreferences');
+    });
+});
+
+describe('constants', () => {
+    it('LEARNED_PREFERENCES_MAX_LENGTH equals 500', () => {
+        expect(LEARNED_PREFERENCES_MAX_LENGTH).toBe(500);
     });
 });
 
