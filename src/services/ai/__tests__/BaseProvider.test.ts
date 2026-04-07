@@ -5,6 +5,11 @@ import { TabData } from '../types';
 // Concrete subclass exposing protected method for testing
 class TestBaseProvider extends BaseProvider {
     id = 'test';
+    canSummarize = false;
+
+    async summarize(_prompt: string, _signal: AbortSignal): Promise<string> {
+        return '';
+    }
 
     protected promptAI(): Promise<string> {
         return Promise.resolve('[]');

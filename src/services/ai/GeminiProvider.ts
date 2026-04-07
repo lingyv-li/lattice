@@ -4,6 +4,11 @@ import { AIProviderError, ConfigurationError, AbortError } from '../../utils/App
 
 export class GeminiProvider extends BaseProvider {
     id = 'gemini';
+    canSummarize = true;
+
+    async summarize(prompt: string, signal: AbortSignal): Promise<string> {
+        return this.promptAI(prompt, 'You are a concise assistant helping refine AI tab-grouping rules.', signal, true);
+    }
 
     protected override get includesGroupTabs(): boolean {
         return true;
@@ -16,7 +21,7 @@ export class GeminiProvider extends BaseProvider {
         super();
     }
 
-    protected async promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal): Promise<string> {
+    protected async promptAI(userPrompt: string, systemPrompt: string, signal: AbortSignal, textMode = false): Promise<string> {
         if (!this.apiKey) throw new ConfigurationError('API Key is missing for Gemini Cloud.');
         if (!this.model) throw new ConfigurationError('Please select an AI model in Settings.');
 
@@ -25,14 +30,9 @@ export class GeminiProvider extends BaseProvider {
         const client = new GoogleGenAI({ apiKey: this.apiKey });
         const isGemma = this.model.includes('gemma');
 
-        const config = isGemma
-            ? {}
-            : {
-                  responseMimeType: 'application/json',
-                  systemInstruction: systemPrompt
-              };
+        const config = !textMode && !isGemma ? { responseMimeType: 'application/json', systemInstruction: systemPrompt } : { systemInstruction: systemPrompt };
 
-        const finalUserPrompt = isGemma ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}` : userPrompt;
+        const finalUserPrompt = isGemma && !textMode ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}` : userPrompt;
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Sending request to ${this.model}${isGemma ? ' (Gemma mode)' : ''}`);
 

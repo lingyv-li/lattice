@@ -5,6 +5,7 @@ import { Settings, Save, Sparkles, RefreshCw, Eye, EyeOff, Loader2, AlertCircle 
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { AppSettings, DEFAULT_SETTINGS, SettingsStorage, AIProviderType, DEFAULT_GROUPING_RULES } from '../utils/storage';
+import { getLearnedPreferences, clearLearnedPreferences } from '../utils/rejectionMemory';
 import { FeatureId } from '../types/features';
 import { AIService } from '../services/ai/AIService';
 import { LocalProvider } from '../services/ai/LocalProvider';
@@ -68,6 +69,12 @@ export const InnerApp = () => {
     const [loadingModels, setLoadingModels] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
 
+    const [learnedPreferences, setLearnedPreferences] = useState('');
+
+    useEffect(() => {
+        getLearnedPreferences().then(setLearnedPreferences);
+    }, []);
+
     // Download Progress State
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState<{
@@ -111,6 +118,11 @@ export const InnerApp = () => {
             }
         });
     }, [fetchModels]);
+
+    const handleClearLearnedPreferences = async () => {
+        await clearLearnedPreferences();
+        setLearnedPreferences('');
+    };
 
     const handleSave = async () => {
         await SettingsStorage.set(settings);
@@ -357,19 +369,26 @@ export const InnerApp = () => {
 
                         <div className='p-4 bg-surface-dim rounded-2xl border border-border-subtle group hover:border-teal-500/30 transition-colors focus-within:border-teal-500/50'>
                             <label className='block font-medium text-main mb-2'>Custom AI Instructions</label>
-                            <p className='text-sm text-muted mb-3'>Add specific rules for the AI to follow when grouping tabs (e.g., "Group all Jira tickets together").</p>
+                            <p className='text-sm text-muted mb-3'>Add specific rules for the AI to follow when grouping tabs (e.g., &quot;Group all Jira tickets together&quot;).</p>
                             <textarea
                                 value={settings.customGroupingRules}
-                                onChange={e =>
-                                    setSettings({
-                                        ...settings,
-                                        customGroupingRules: e.target.value
-                                    })
-                                }
+                                onChange={e => setSettings(s => ({ ...s, customGroupingRules: e.target.value }))}
                                 placeholder={DEFAULT_GROUPING_RULES}
                                 className='w-full h-32 bg-surface/50 rounded-xl border border-border-subtle p-3 text-sm text-main placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all resize-none'
                             />
                         </div>
+                        {learnedPreferences.trim() && (
+                            <div className='p-4 bg-surface-dim rounded-2xl border border-border-subtle'>
+                                <div className='flex items-center justify-between mb-2'>
+                                    <label className='block font-medium text-main'>What the AI has learned</label>
+                                    <button type='button' onClick={handleClearLearnedPreferences} className='text-xs text-muted hover:text-status-error-fg transition-colors'>
+                                        Clear
+                                    </button>
+                                </div>
+                                <p className='text-sm text-muted mb-3'>Automatically refined from dismissed suggestions.</p>
+                                <pre className='text-xs text-muted whitespace-pre-wrap font-mono bg-surface/50 rounded-xl border border-border-subtle p-3'>{learnedPreferences}</pre>
+                            </div>
+                        )}
                     </div>
 
                     <button

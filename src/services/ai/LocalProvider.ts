@@ -4,6 +4,11 @@ import { AIProviderError, AbortError } from '../../utils/AppError';
 
 export class LocalProvider extends BaseProvider {
     id = 'local';
+    canSummarize = false;
+
+    async summarize(_prompt: string, _signal: AbortSignal): Promise<string> {
+        return '';
+    }
 
     private static cachedSession: LanguageModel | null = null;
     private static cachedSystemPrompt: string | null = null;

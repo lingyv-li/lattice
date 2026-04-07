@@ -5,6 +5,7 @@ import { TabManager } from './tabManager';
 import { TabGroupMessageType } from '../types/tabGrouper';
 import { SettingsStorage } from '../utils/storage';
 import { BadgeService } from '../services/BadgeService';
+import { storePendingRejection } from '../utils/rejectionMemory';
 
 console.log('[Background] Service Worker Initialized');
 StateService.clearProcessingStatus().catch(err => console.error('[Background] Failed to clear processing status', err));
@@ -63,6 +64,30 @@ chrome.runtime.onConnect.addListener(port => {
                 await StateService.clearWindowCache(msg.windowId);
                 await StateService.clearWindowSnapshot(msg.windowId); // Force re-process
                 tabManager.triggerRecalculation('Regenerate Request');
+            }
+        } else if (msg.type === TabGroupMessageType.DismissSuggestion) {
+            if (msg.windowId && msg.tabIds?.length) {
+                // Capture rejection snapshot before removing from cache
+                const cacheSamples = await Promise.all(msg.tabIds.map((tid: number) => StateService.getSuggestion(tid, msg.windowId)));
+                const groupName = cacheSamples.find(s => s?.groupName)?.groupName;
+                if (groupName) {
+                    const chromeTabs = await Promise.all(msg.tabIds.map((tid: number) => chrome.tabs.get(tid).catch(() => null)));
+                    const tabs = chromeTabs
+                        .filter((t): t is chrome.tabs.Tab => t !== null)
+                        .flatMap(t => {
+                            if (!t.url) return [];
+                            try {
+                                return [{ title: t.title ?? '', hostname: new URL(t.url).hostname }];
+                            } catch {
+                                return [];
+                            }
+                        })
+                        .filter(t => t.hostname);
+                    if (tabs.length > 0) {
+                        await storePendingRejection({ groupName, tabs, timestamp: new Date().toISOString() });
+                    }
+                }
+                await StateService.removeSuggestionsForTabIds(msg.windowId, msg.tabIds);
             }
         }
     });

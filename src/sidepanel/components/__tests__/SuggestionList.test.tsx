@@ -7,7 +7,6 @@ import { useDuplicateCleaner } from '../../../hooks/useDuplicateCleaner';
 // Mock hooks
 vi.mock('../../../hooks/useTabGrouper');
 vi.mock('../../../hooks/useDuplicateCleaner');
-
 describe('SuggestionList', () => {
     const mockApplyGroup = vi.fn();
     const mockCloseDuplicateGroup = vi.fn();
