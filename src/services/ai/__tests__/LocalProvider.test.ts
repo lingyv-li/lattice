@@ -230,6 +230,17 @@ ${JSON.stringify({ 'Group A': [1, 2] })}`;
             expect(prompt).toContain('</existing_groups>');
         });
     });
+    describe('summarize', () => {
+        it('canSummarize should be false', () => {
+            expect(provider.canSummarize).toBe(false);
+        });
+
+        it('should return empty string', async () => {
+            const result = await provider.summarize('Some rules input', new AbortController().signal);
+            expect(result).toBe('');
+        });
+    });
+
     it('should abort inflight request when signal is triggered', async () => {
         const controller = new AbortController();
         const request: GroupingRequest = {

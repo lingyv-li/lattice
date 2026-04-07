@@ -172,8 +172,9 @@ describe('GeminiProvider', () => {
 
         const callArgs = mockGenerateContent.mock.calls[0][0];
 
-        // Config should be empty for Gemma
-        expect(callArgs.config).toEqual({});
+        // Config should include systemInstruction but no responseMimeType for Gemma
+        expect(callArgs.config).not.toHaveProperty('responseMimeType');
+        expect(callArgs.config).toHaveProperty('systemInstruction');
 
         // System prompt should be injected into user prompt
         const promptText = callArgs.contents[0].parts[0].text;
@@ -222,6 +223,31 @@ describe('GeminiProvider', () => {
             expect(prompt).toBe(`<existing_groups>
 - "Work"
 </existing_groups>`);
+        });
+    });
+
+    describe('summarize', () => {
+        it('canSummarize should be true', () => {
+            expect(provider.canSummarize).toBe(true);
+        });
+
+        it('should return plain text response from AI', async () => {
+            const expectedText = 'Group work tabs together and keep social tabs separate.';
+            mockGenerateContent.mockResolvedValue({ text: expectedText });
+
+            const result = await provider.summarize('Some rules input', new AbortController().signal);
+
+            expect(result).toBe(expectedText);
+        });
+
+        it('should not set responseMimeType in config when in text mode', async () => {
+            mockGenerateContent.mockResolvedValue({ text: 'plain text response' });
+
+            await provider.summarize('Some prompt', new AbortController().signal);
+
+            const callArgs = mockGenerateContent.mock.calls[0][0];
+            expect(callArgs.config).not.toHaveProperty('responseMimeType');
+            expect(callArgs.config).toHaveProperty('systemInstruction');
         });
     });
 
