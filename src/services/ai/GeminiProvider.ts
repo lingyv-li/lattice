@@ -30,13 +30,9 @@ export class GeminiProvider extends BaseProvider {
         const client = new GoogleGenAI({ apiKey: this.apiKey });
         const isGemma = this.model.includes('gemma');
 
-        const config = !textMode && !isGemma
-            ? { responseMimeType: 'application/json', systemInstruction: systemPrompt }
-            : { systemInstruction: systemPrompt };
+        const config = !textMode && !isGemma ? { responseMimeType: 'application/json', systemInstruction: systemPrompt } : { systemInstruction: systemPrompt };
 
-        const finalUserPrompt = isGemma && !textMode
-            ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}`
-            : userPrompt;
+        const finalUserPrompt = isGemma && !textMode ? `System Instructions: ${systemPrompt}\n\nIMPORTANT: Output ONLY valid JSON.\n\nUser Request: ${userPrompt}` : userPrompt;
 
         console.log(`[GeminiProvider] [${new Date().toISOString()}] Sending request to ${this.model}${isGemma ? ' (Gemma mode)' : ''}`);
 

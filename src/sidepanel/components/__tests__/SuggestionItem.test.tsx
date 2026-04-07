@@ -61,5 +61,4 @@ describe('SuggestionItem', () => {
         render(<SuggestionItem {...props} />);
         expect(screen.getByText('x2')).toBeInTheDocument();
     });
-
 });

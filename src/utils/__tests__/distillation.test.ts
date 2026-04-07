@@ -90,8 +90,8 @@ describe('processDistillation', () => {
         vi.mocked(getLearnedPreferences).mockResolvedValue(longExisting);
         const provider = makeProvider(true, '- New rule.');
         (provider.summarize as ReturnType<typeof vi.fn>)
-            .mockResolvedValueOnce('- New rule.')      // distill call
-            .mockResolvedValueOnce('- Compressed.');   // compress call
+            .mockResolvedValueOnce('- New rule.') // distill call
+            .mockResolvedValueOnce('- Compressed.'); // compress call
         await processDistillation(provider, signal);
         expect(provider.summarize).toHaveBeenCalledTimes(2);
         expect(setLearnedPreferences).toHaveBeenCalledWith('- Compressed.');

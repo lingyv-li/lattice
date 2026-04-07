@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { storePendingRejection, popPendingRejections, getLearnedPreferences, setLearnedPreferences, clearLearnedPreferences, getEffectiveRules, LEARNED_PREFERENCES_MAX_LENGTH } from '../rejectionMemory';
+import {
+    storePendingRejection,
+    popPendingRejections,
+    getLearnedPreferences,
+    setLearnedPreferences,
+    clearLearnedPreferences,
+    getEffectiveRules,
+    LEARNED_PREFERENCES_MAX_LENGTH
+} from '../rejectionMemory';
 import type { RejectionSnapshot } from '../../types/rejection';
 import { DEFAULT_GROUPING_RULES } from '../storage';
 import type { AppSettings } from '../storage';

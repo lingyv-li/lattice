@@ -14,17 +14,7 @@ interface SuggestionItemProps {
     tabs?: SuggestionTab[];
 }
 
-export const SuggestionItem: React.FC<SuggestionItemProps> = ({
-    title,
-    description,
-    icon: Icon,
-    type,
-    onClick,
-    onDismiss,
-    isLoading,
-    disabled,
-    tabs
-}) => {
+export const SuggestionItem: React.FC<SuggestionItemProps> = ({ title, description, icon: Icon, type, onClick, onDismiss, isLoading, disabled, tabs }) => {
     const canReject = !!onDismiss && type === SuggestionType.Group;
 
     const groupedTabs = React.useMemo(() => {
@@ -102,11 +92,7 @@ export const SuggestionItem: React.FC<SuggestionItemProps> = ({
                 <div className='px-2 pb-2 pl-9 space-y-0.5'>
                     {groupedTabs.map(({ tab, count }, idx) => (
                         <div key={idx} className='flex items-center gap-1.5 min-w-0'>
-                            {tab.favIconUrl ? (
-                                <img src={tab.favIconUrl} className='w-3 h-3 shrink-0 rounded-sm' alt='' />
-                            ) : (
-                                <div className='w-3 h-3 shrink-0 rounded-sm bg-border-subtle' />
-                            )}
+                            {tab.favIconUrl ? <img src={tab.favIconUrl} className='w-3 h-3 shrink-0 rounded-sm' alt='' /> : <div className='w-3 h-3 shrink-0 rounded-sm bg-border-subtle' />}
                             <span className='text-[10px] text-muted truncate leading-tight flex-1'>{tab.title || tab.url}</span>
                             {count > 1 && <span className='text-[10px] text-muted shrink-0 font-medium'>x{count}</span>}
                         </div>
