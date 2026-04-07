@@ -9,6 +9,8 @@ import { getUserFriendlyError } from '../utils/errors';
 import { FeatureId } from '../types/features';
 import { GroupIdManager } from './GroupIdManager';
 import { WindowSnapshot } from '../utils/snapshots';
+import { getEffectiveRules } from '../utils/rejectionMemory';
+import { processDistillation } from '../utils/distillation';
 
 export class QueueProcessor {
     private windowAbortControllers = new Map<number, AbortController>();
@@ -85,6 +87,18 @@ export class QueueProcessor {
             const batchSize = this.getBatchSize(settings);
             console.log(`[QueueProcessor] Using batch size: ${batchSize} for provider: ${settings.aiProvider}`);
 
+            // Distill any pending rejections into learned preferences
+            try {
+                const provider = await AIService.getProvider(settings);
+                const distillSignal = new AbortController().signal;
+                await processDistillation(provider, distillSignal);
+            } catch {
+                // Don't let distillation failure block grouping
+            }
+
+            // Resolve effective rules once per cycle (not per batch)
+            const effectiveRules = await getEffectiveRules(settings);
+
             const windowIds = this.state.acquireQueue() as number[];
             if (windowIds.length === 0) {
                 console.log(`[QueueProcessor] Failed to acquire queue (Busy or Empty)`);
@@ -125,7 +139,7 @@ export class QueueProcessor {
 
                     const groupIdManager = new GroupIdManager();
                     for (const batchTabs of batches) {
-                        const result = await this.processWindowBatch(windowId, batchTabs, groupIdManager, settings);
+                        const result = await this.processWindowBatch(windowId, batchTabs, groupIdManager, settings, effectiveRules);
 
                         if (batches.length > 1) {
                             console.log(`[QueueProcessor] Processed batch ${batches.indexOf(batchTabs) + 1}/${batches.length} for window ${windowId}`);
@@ -150,7 +164,7 @@ export class QueueProcessor {
         }
     }
 
-    private async processWindowBatch(windowId: number, batchTabs: chrome.tabs.Tab[], groupIdManager: GroupIdManager, settings: AppSettings): Promise<{ aborted: boolean }> {
+    private async processWindowBatch(windowId: number, batchTabs: chrome.tabs.Tab[], groupIdManager: GroupIdManager, settings: AppSettings, effectiveRules: string): Promise<{ aborted: boolean }> {
         // Check snapshot before each batch (uses centralized function)
         const windowState = this.state.getWindowState(windowId);
 
@@ -181,7 +195,7 @@ export class QueueProcessor {
                 controller
             });
 
-            const promptInput = windowState.inputSnapshot.getPromptForBatch(batchTabs, groupIdManager.getGroupMap(), settings.customGroupingRules);
+            const promptInput = windowState.inputSnapshot.getPromptForBatch(batchTabs, groupIdManager.getGroupMap(), effectiveRules);
 
             const results = await provider.generateSuggestions({
                 ...promptInput,

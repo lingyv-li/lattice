@@ -35,6 +35,12 @@ vi.mock('../../utils/tabs', async importOriginal => {
 vi.mock('../../utils/tabFilter', () => ({
     isGroupableTab: vi.fn().mockReturnValue(true)
 }));
+vi.mock('../../utils/distillation', () => ({
+    processDistillation: vi.fn().mockResolvedValue(undefined)
+}));
+vi.mock('../../utils/rejectionMemory', () => ({
+    getEffectiveRules: vi.fn((s: AppSettings) => Promise.resolve(s.customGroupingRules ?? ''))
+}));
 
 // ... (rest of imports)
 
@@ -224,7 +230,8 @@ describe('QueueProcessor', () => {
     it('should handle window closed error gracefully', async () => {
         vi.mocked(mockWindows.get).mockRejectedValue(new Error('Window closed'));
         await processor.process();
-        expect(AIService.getProvider).not.toHaveBeenCalled();
+        const provider = await AIService.getProvider({} as AppSettings);
+        expect(provider.generateSuggestions).not.toHaveBeenCalled();
     });
 
     it('should skip non-normal windows', async () => {
@@ -318,8 +325,9 @@ describe('QueueProcessor', () => {
 
         await processor.process();
 
-        // Should not call AI
-        expect(AIService.getProvider).not.toHaveBeenCalled();
+        // Should not call AI for grouping (distillation may still call getProvider)
+        const provider = await AIService.getProvider({} as AppSettings);
+        expect(provider.generateSuggestions).not.toHaveBeenCalled();
         // Should not release (already released by acquireQueue failure)
     });
 
@@ -440,8 +448,9 @@ describe('QueueProcessor', () => {
 
         await processor.process();
 
-        // Should complete the window without calling AI
-        expect(AIService.getProvider).not.toHaveBeenCalled();
+        // Should complete the window without calling AI for grouping
+        const provider = await AIService.getProvider({} as AppSettings);
+        expect(provider.generateSuggestions).not.toHaveBeenCalled();
         expect(mockState.completeWindow).toHaveBeenCalledWith(1);
     });
 
