@@ -52,6 +52,7 @@ describe('distillRejections', () => {
 
 describe('processDistillation', () => {
     beforeEach(() => {
+        vi.clearAllMocks();
         vi.mocked(popPendingRejections).mockResolvedValue([snap]);
         vi.mocked(getLearnedPreferences).mockResolvedValue('');
         vi.mocked(setLearnedPreferences).mockResolvedValue(undefined);
@@ -67,6 +68,7 @@ describe('processDistillation', () => {
     it('does nothing when provider cannot summarize', async () => {
         const provider = makeProvider(false);
         await processDistillation(provider, signal);
+        expect(popPendingRejections).not.toHaveBeenCalled();
         expect(setLearnedPreferences).not.toHaveBeenCalled();
     });
 

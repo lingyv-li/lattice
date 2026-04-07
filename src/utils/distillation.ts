@@ -27,8 +27,9 @@ async function compressPreferences(allRules: string, provider: AIProvider, signa
  * No-op when provider cannot summarize or there are no pending rejections.
  */
 export async function processDistillation(provider: AIProvider, signal: AbortSignal): Promise<void> {
+    if (!provider.canSummarize) return;
     const pending = await popPendingRejections();
-    if (pending.length === 0 || !provider.canSummarize) return;
+    if (pending.length === 0) return;
 
     const newRules = await distillRejections(pending, provider, signal);
     if (!newRules) return;
