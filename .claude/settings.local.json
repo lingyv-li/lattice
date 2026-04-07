@@ -7,7 +7,8 @@
       "Bash(npm run test:*)",
       "Bash(jj commit:*)",
       "Bash(npm run lint:*)",
-      "Bash(jj log:*)"
+      "Bash(jj log:*)",
+      "Bash(jj diff:*)"
     ]
   }
 }
